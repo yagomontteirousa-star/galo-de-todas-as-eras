@@ -3,7 +3,8 @@ import { formations } from "@/data/formations";
 import { calculateTeamOverall } from "@/lib/overall";
 import type { Campaign, FormationId, HistoricalSquad, MatchEvent, MatchResult, RatingsMode, TacticId, TeamSnapshot } from "@/types/game";
 
-export const CAMPAIGN_STORAGE_KEY = "galo-todas-eras:campaign:v1";
+export const CAMPAIGN_STORAGE_KEY = "preto-no-branco:campaign:v1";
+export const LEGACY_CAMPAIGN_STORAGE_KEY = "galo-todas-eras:campaign:v1";
 
 export function createCampaign(): Campaign {
   const now = new Date().toISOString();
@@ -33,7 +34,7 @@ export function buildUserTeam(campaign: Campaign): TeamSnapshot {
     return { player, slotId: entry.slotId };
   });
   return {
-    id: "user-team", name: "Galo de Todas as Eras", year: 2026, formation: campaign.formation, tactic: campaign.tactic,
+    id: "user-team", name: "Preto no Branco", year: 2026, formation: campaign.formation, tactic: campaign.tactic,
     lineup: positioned.map((entry) => entry.player), overall: calculateTeamOverall(positioned, campaign.formation, campaign.tactic), isUser: true,
   };
 }

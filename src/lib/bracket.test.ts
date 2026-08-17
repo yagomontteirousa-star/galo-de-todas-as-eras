@@ -8,7 +8,7 @@ import type { TeamSnapshot } from "@/types/game";
 function userTeam(): TeamSnapshot {
   const formation = formations["4-3-3"];
   const lineup = atleticoSquads[0].players.slice(0, 11);
-  return { id: "user-team", name: "Galo de Todas as Eras", year: 2026, formation: "4-3-3", tactic: "balanced", lineup, overall: calculateTeamOverall(lineup.map((player, index) => ({ player, slotId: formation.slots[index].id })), "4-3-3", "balanced"), isUser: true };
+  return { id: "user-team", name: "Preto no Branco", year: 2026, formation: "4-3-3", tactic: "balanced", lineup, overall: calculateTeamOverall(lineup.map((player, index) => ({ player, slotId: formation.slots[index].id })), "4-3-3", "balanced"), isUser: true };
 }
 
 describe("bracket", () => {

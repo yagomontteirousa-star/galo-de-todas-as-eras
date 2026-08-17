@@ -5,11 +5,12 @@ import { ArrowIcon } from "@/components/ui/Icons";
 const roundCounts: Record<TournamentRound, number> = { round32: 16, round16: 8, quarterfinal: 4, semifinal: 2, final: 1 };
 
 export function BracketScreen({ bracket, ratingsMode, onPlay }: { bracket: BracketState; ratingsMode: RatingsMode; onPlay: () => void }) {
-  const current = getCurrentUserMatch(bracket);
+  const currentMatch = getCurrentUserMatch(bracket);
+  const current = currentMatch?.result ? undefined : currentMatch;
   const opponent = current && (current.home.isUser ? current.away : current.home);
   return (
     <main className="screen bracket-screen" id="main">
-      <div className="bracket-heading"><div><h1>O caminho até a taça.</h1><p>{opponent ? `Próximo: ${opponent.name} ${opponent.year} · ${ratingsMode === "visible" ? `OVR ${opponent.overall.final}` : "força desconhecida"}` : "A chave inteira evolui a cada confronto."}</p></div>{current && <button type="button" className="button button--primary" onClick={onPlay}>Jogar contra {opponent?.name}<ArrowIcon/></button>}</div>
+      <div className="bracket-heading"><div><h1>{bracket.champion ? "Campanha encerrada." : current ? "Próxima fase." : "O caminho percorrido."}</h1><p>{opponent ? `Próximo: ${opponent.name} ${opponent.year} · ${ratingsMode === "visible" ? `OVR ${opponent.overall.final}` : "força desconhecida"}` : bracket.champion ? `Campeão: ${bracket.champion.name}` : "A chave inteira evolui a cada confronto."}</p></div>{current && <button type="button" className="button button--primary" onClick={onPlay}>Jogar contra {opponent?.name}<ArrowIcon/></button>}</div>
       <div className="bracket-scroll" tabIndex={0} aria-label="Chave do mata-mata, role horizontal">
         <div className="bracket-grid">
           {roundOrder.map((roundId) => {

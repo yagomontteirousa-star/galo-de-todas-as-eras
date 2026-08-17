@@ -9,6 +9,7 @@ import type {
 } from "@/types/game";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowIcon } from "@/components/ui/Icons";
+import { roundLabels } from "@/lib/bracket";
 
 const eventCodes: Record<MatchEventType, string> = {
   kickoff: "INI",
@@ -97,7 +98,7 @@ export function MatchScreen({
 
   return (
     <main className="screen match-screen" id="main">
-      <div className="match-stage"><span>{status}</span><b>{finished ? "ENCERRADO" : `${minute}′`}</b></div>
+      <div className="match-stage"><span>{roundLabels[match.round]} · {status}</span><b>{finished ? "ENCERRADO" : `${minute}′`}</b></div>
       <section className="scoreboard" aria-live="polite">
         <div className="score-team">
           <span>{match.home.year}</span><h1>{match.home.name}</h1>

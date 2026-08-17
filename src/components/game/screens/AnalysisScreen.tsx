@@ -8,7 +8,7 @@ export function AnalysisScreen({ campaign, team, onStart }: { campaign: Campaign
   const o = team.overall;
   return (
     <main className="screen analysis-screen" id="main">
-      <div className="analysis-hero"><div><span>SEU XI ESTÁ PRONTO</span><h1>Onze épocas.<br/>Uma só camisa.</h1><p>{campaign.formation} · {tacticLabels[campaign.tactic!].name}</p></div><div className="overall-seal"><span>OVERALL</span><strong>{o.final}</strong><small>{o.final >= 90 ? "Lendário" : o.final >= 86 ? "Candidato ao título" : "Pronto para competir"}</small></div></div>
+      <div className="analysis-hero"><div><span>ESCALAÇÃO CONFIRMADA</span><h1>Agora é<br/>preto no branco.</h1><p>{campaign.formation} · {tacticLabels[campaign.tactic!].name}</p></div><div className="overall-seal"><span>OVERALL</span><strong>{o.final}</strong><small>{o.final >= 90 ? "Lendário" : o.final >= 86 ? "Candidato ao título" : "Pronto para competir"}</small></div></div>
       <div className="analysis-layout">
         <section className="analysis-pitch"><Pitch formationId={campaign.formation!} lineup={campaign.lineup}/></section>
         <aside className="analysis-report">

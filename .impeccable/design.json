@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-17T17:54:41.8937248-04:00",
+  "title": "Design System: Preto no Branco",
+  "extensions": {
+    "colorMeta": {
+      "ink": { "role": "primary", "displayName": "Tinta de Arquivo", "tonalRamp": ["oklch(15% 0.006 165)", "oklch(25% 0.006 165)", "oklch(35% 0.006 165)", "oklch(45% 0.006 165)", "oklch(58% 0.006 165)", "oklch(70% 0.006 165)", "oklch(84% 0.006 165)", "oklch(95% 0.006 165)"] },
+      "graphite": { "role": "neutral", "displayName": "Grafite Fosco", "tonalRamp": ["oklch(15% 0.008 165)", "oklch(25% 0.008 165)", "oklch(35% 0.008 165)", "oklch(45% 0.008 165)", "oklch(58% 0.008 165)", "oklch(70% 0.008 165)", "oklch(84% 0.008 165)", "oklch(95% 0.008 165)"] },
+      "panel": { "role": "neutral", "displayName": "Painel de Cabine", "tonalRamp": ["oklch(15% 0.009 150)", "oklch(25% 0.009 150)", "oklch(35% 0.009 150)", "oklch(45% 0.009 150)", "oklch(58% 0.009 150)", "oklch(70% 0.009 150)", "oklch(84% 0.009 150)", "oklch(95% 0.009 150)"] },
+      "line": { "role": "neutral", "displayName": "Linha de Prancheta", "tonalRamp": ["oklch(15% 0.012 150)", "oklch(25% 0.012 150)", "oklch(35% 0.012 150)", "oklch(45% 0.012 150)", "oklch(58% 0.012 150)", "oklch(70% 0.012 150)", "oklch(84% 0.012 150)", "oklch(95% 0.012 150)"] },
+      "paper": { "role": "primary", "displayName": "Papel de Súmula", "tonalRamp": ["oklch(15% 0.012 90)", "oklch(25% 0.012 90)", "oklch(35% 0.012 90)", "oklch(45% 0.012 90)", "oklch(58% 0.012 90)", "oklch(70% 0.012 90)", "oklch(84% 0.012 90)", "oklch(95% 0.012 90)"] },
+      "paper-dim": { "role": "neutral", "displayName": "Papel Atenuado", "tonalRamp": ["oklch(15% 0.010 90)", "oklch(25% 0.010 90)", "oklch(35% 0.010 90)", "oklch(45% 0.010 90)", "oklch(58% 0.010 90)", "oklch(70% 0.010 90)", "oklch(84% 0.010 90)", "oklch(95% 0.010 90)"] },
+      "muted": { "role": "neutral", "displayName": "Cinza de Arquivo", "tonalRamp": ["oklch(15% 0.010 150)", "oklch(25% 0.010 150)", "oklch(35% 0.010 150)", "oklch(45% 0.010 150)", "oklch(58% 0.010 150)", "oklch(70% 0.010 150)", "oklch(84% 0.010 150)", "oklch(95% 0.010 150)"] },
+      "gold": { "role": "secondary", "displayName": "Ouro de Era", "tonalRamp": ["oklch(15% 0.065 85)", "oklch(25% 0.065 85)", "oklch(35% 0.065 85)", "oklch(45% 0.065 85)", "oklch(58% 0.065 85)", "oklch(70% 0.065 85)", "oklch(84% 0.055 85)", "oklch(95% 0.025 85)"] },
+      "gold-pale": { "role": "secondary", "displayName": "Ouro Pálido", "tonalRamp": ["oklch(15% 0.050 85)", "oklch(25% 0.050 85)", "oklch(35% 0.050 85)", "oklch(45% 0.050 85)", "oklch(58% 0.050 85)", "oklch(70% 0.050 85)", "oklch(84% 0.040 85)", "oklch(95% 0.020 85)"] },
+      "pitch-green": { "role": "tertiary", "displayName": "Campo Profundo", "tonalRamp": ["oklch(15% 0.060 155)", "oklch(25% 0.060 155)", "oklch(35% 0.060 155)", "oklch(45% 0.060 155)", "oklch(58% 0.060 155)", "oklch(70% 0.055 155)", "oklch(84% 0.040 155)", "oklch(95% 0.020 155)"] },
+      "danger": { "role": "tertiary", "displayName": "Alerta de Improviso", "tonalRamp": ["oklch(15% 0.085 40)", "oklch(25% 0.085 40)", "oklch(35% 0.085 40)", "oklch(45% 0.085 40)", "oklch(58% 0.085 40)", "oklch(70% 0.080 40)", "oklch(84% 0.055 40)", "oklch(95% 0.025 40)"] },
+      "success": { "role": "tertiary", "displayName": "Êxito de Encaixe", "tonalRamp": ["oklch(15% 0.060 150)", "oklch(25% 0.060 150)", "oklch(35% 0.060 150)", "oklch(45% 0.060 150)", "oklch(58% 0.060 150)", "oklch(70% 0.055 150)", "oklch(84% 0.040 150)", "oklch(95% 0.020 150)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Archive Display", "purpose": "Títulos heroicos, anos, placares e ratings monumentais." },
+      "headline": { "displayName": "Archive Headline", "purpose": "Títulos de tela e chamadas de fase." },
+      "title": { "displayName": "Título Operacional", "purpose": "Nomes de era e cabeçalhos compactos." },
+      "body": { "displayName": "Corpo Operacional", "purpose": "Explicações, decisões e leitura contínua." },
+      "label": { "displayName": "Rótulo Tabular", "purpose": "Metadados, filtros, fases e legendas densas." }
+    },
+    "shadows": [
+      { "name": "campo-elevado", "value": "0 16px 40px rgba(0,0,0,.22)", "purpose": "Eleva exclusivamente o campo sobre o fundo grafite." }
+    ],
+    "motion": [
+      { "name": "state-fast", "value": "160ms ease", "purpose": "Hover e seleção em linhas de jogador." },
+      { "name": "state-standard", "value": "180ms ease", "purpose": "Botões e fichas do campo." },
+      { "name": "match-progress", "value": "100ms linear", "purpose": "Avanço contínuo do relógio da partida." },
+      { "name": "loading", "value": "900ms ease-in-out", "purpose": "Pulso alternado da preparação local." }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "540px" },
+      { "name": "mobile-max", "value": "920px" },
+      { "name": "desktop", "value": "921px" },
+      { "name": "desktop-condensed-max", "value": "1180px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação decisiva em papel off-white sobre a interface escura.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">INICIAR MATA-MATA <span aria-hidden=\"true\">→</span></button>",
+      "css": ".ds-btn-primary { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 17px; border: 1px solid var(--paper); border-radius: 8px; background: var(--paper); color: var(--black); font: 700 12px/1.2 \"Segoe UI\", Arial, sans-serif; cursor: pointer; transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease; } .ds-btn-primary:hover { background: #fffdf6; transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; } .ds-btn-primary:active { transform: translateY(0); }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Ação secundária grafite com borda fina e pouca presença visual.",
+      "html": "<button class=\"ds-btn-quiet\" type=\"button\">COMO FUNCIONA</button>",
+      "css": ".ds-btn-quiet { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; padding: 0 17px; border: 1px solid var(--line); border-radius: 8px; background: var(--graphite); color: var(--paper); font: 700 12px/1.2 \"Segoe UI\", Arial, sans-serif; cursor: pointer; transition: border-color 180ms ease, transform 180ms ease; } .ds-btn-quiet:hover { border-color: var(--paper-dim); transform: translateY(-1px); } .ds-btn-quiet:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; } .ds-btn-quiet:active { transform: translateY(0); }"
+    },
+    {
+      "name": "Selected Filter Chip",
+      "kind": "chip",
+      "refersTo": "filter-chip-selected",
+      "description": "Filtro compacto cujo estado ativo inverte de tinta para papel.",
+      "html": "<button class=\"ds-filter-chip\" type=\"button\" aria-pressed=\"true\">POSIÇÕES LIVRES</button>",
+      "css": ".ds-filter-chip { height: 27px; padding: 0 8px; border: 1px solid var(--paper); border-radius: 5px; background: var(--paper); color: var(--black); font: 700 9px/1 \"Segoe UI\", Arial, sans-serif; letter-spacing: .04em; cursor: pointer; transition: background-color 160ms ease, color 160ms ease; } .ds-filter-chip:hover { background: #fffdf6; } .ds-filter-chip:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; } .ds-filter-chip:active { background: var(--paper-dim); }"
+    },
+    {
+      "name": "Player Row",
+      "kind": "custom",
+      "refersTo": "player-row",
+      "description": "Linha densa de elenco com posição, identidade, encaixe e rating.",
+      "html": "<button class=\"ds-player-row\" type=\"button\"><span class=\"ds-player-row__position\">ATA</span><span class=\"ds-player-row__identity\"><b>Reinaldo</b><small>PE · Ídolo</small></span><span class=\"ds-player-row__fit\">encaixa</span><strong>94</strong></button>",
+      "css": ".ds-player-row { width: 100%; min-height: 38px; display: grid; grid-template-columns: 34px minmax(0,1fr) 45px 28px; align-items: center; gap: 6px; padding: 3px 12px; border: 0; border-bottom: 1px solid #292c2a; background: transparent; color: var(--paper); text-align: left; cursor: pointer; transition: background-color 160ms ease, color 160ms ease; } .ds-player-row__position { color: var(--gold-pale); font: 750 8px/1 \"Segoe UI\", Arial, sans-serif; } .ds-player-row__identity { min-width: 0; } .ds-player-row__identity b, .ds-player-row__identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-player-row__identity b { font: 700 11px/1.2 \"Segoe UI\", Arial, sans-serif; } .ds-player-row__identity small { color: var(--muted); font: 400 8px/1.2 \"Segoe UI\", Arial, sans-serif; } .ds-player-row__fit { color: var(--success); font: 400 8px/1 \"Segoe UI\", Arial, sans-serif; text-align: right; } .ds-player-row strong { font: 400 18px/1 \"Archive\", Georgia, serif; text-align: right; } .ds-player-row:hover, .ds-player-row:focus-visible { background: var(--paper); color: var(--black); outline: none; } .ds-player-row:hover .ds-player-row__position, .ds-player-row:focus-visible .ds-player-row__position { color: #725f30; } .ds-player-row:active { background: var(--paper-dim); }"
+    },
+    {
+      "name": "Pitch Player",
+      "kind": "custom",
+      "refersTo": "pitch-player",
+      "description": "Ficha tática com rating editorial e borda de encaixe sobre o campo.",
+      "html": "<button class=\"ds-pitch-player\" type=\"button\"><span class=\"ds-pitch-player__rating\">91</span><span class=\"ds-pitch-player__name\">TONINHO</span><span class=\"ds-pitch-player__role\">ZAG</span></button>",
+      "css": ".ds-pitch-player { width: 62px; min-height: 48px; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; align-items: center; gap: 0 5px; padding: 5px 7px; border: 1px solid var(--success); border-radius: 10px; background: #0d241a; color: var(--paper); text-align: left; cursor: pointer; transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease; } .ds-pitch-player__rating { grid-row: 1/-1; color: var(--gold-pale); font: 400 22px/.9 \"Archive\", Georgia, serif; } .ds-pitch-player__name { overflow: hidden; font: 750 10px/1 \"Segoe UI\", Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; } .ds-pitch-player__role { color: #9db1a5; font: 400 7px/1 \"Segoe UI\", Arial, sans-serif; letter-spacing: .08em; } .ds-pitch-player:hover { border-color: var(--paper); transform: scale(1.05); } .ds-pitch-player:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; } .ds-pitch-player:active { background: #2f2b1d; }"
+    },
+    {
+      "name": "Campaign Strip",
+      "kind": "nav",
+      "refersTo": "campaign-strip",
+      "description": "Faixa segmentada que preserva o estado da campanha em uma única linha.",
+      "html": "<nav class=\"ds-campaign-strip\" aria-label=\"Estado da campanha\"><span class=\"ds-campaign-strip__item\"><small>ERA</small><b>2013</b></span><span class=\"ds-campaign-strip__item\"><small>ESCALAÇÃO</small><b>7/11</b></span><span class=\"ds-campaign-strip__item\"><small>FORMAÇÃO</small><b>4-3-3</b></span></nav>",
+      "css": ".ds-campaign-strip { display: inline-flex; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 7px; background: var(--black); color: var(--paper); font-family: \"Segoe UI\", Arial, sans-serif; } .ds-campaign-strip__item { min-width: 65px; display: grid; gap: 1px; padding: 5px 10px; border-right: 1px solid var(--line); line-height: 1; } .ds-campaign-strip__item:last-child { border-right: 0; } .ds-campaign-strip__item small { color: var(--muted); font-size: 7px; letter-spacing: .1em; } .ds-campaign-strip__item b { font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; } .ds-campaign-strip:focus-within { outline: 2px solid var(--gold-pale); outline-offset: 2px; }"
+    },
+    {
+      "name": "Paper Box Score",
+      "kind": "card",
+      "refersTo": "paper-box-score",
+      "description": "Folha clara de resumo que concentra overall, setores e ação do draft.",
+      "html": "<section class=\"ds-box-score\"><header class=\"ds-box-score__header\"><span>BOX SCORE · 7/11</span><strong>88</strong><small>overall geral</small></header><div class=\"ds-box-score__facts\"><span>Força média dos rivais <b>86</b></span><span>Dificuldade <b>Equilibrado</b></span></div></section>",
+      "css": ".ds-box-score { width: 280px; padding: 14px 15px 8px; background: var(--paper); color: var(--black); font-family: \"Segoe UI\", Arial, sans-serif; } .ds-box-score__header { display: grid; grid-template-columns: 1fr auto; align-items: end; padding-bottom: 8px; border-bottom: 2px solid var(--black); } .ds-box-score__header span { align-self: start; font-size: 9px; font-weight: 800; letter-spacing: .08em; } .ds-box-score__header strong { grid-row: 1/3; grid-column: 2; font: 400 58px/.8 \"Archive\", Georgia, serif; font-variant-numeric: tabular-nums; } .ds-box-score__header small { color: #636861; font-size: 8px; } .ds-box-score__facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px solid #c8c9c2; } .ds-box-score__facts span { display: grid; color: #636861; font-size: 8px; } .ds-box-score__facts b { color: var(--black); font-size: 11px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "A Súmula Viva",
+    "overview": "Preto no Branco transforma arquivo histórico em decisão instantânea. O mundo combina a materialidade de uma súmula impressa com a precisão de uma prancheta de transmissão: superfícies grafite, linhas finas, números monumentais e um campo que funciona como interface central.\n\nA composição é editorial, densa e deliberadamente assimétrica, mas a operação permanece direta. O papel off-white cria momentos de contraste decisivo; o verde fica reservado ao campo; o dourado pontua eras, progresso e conquista sem virar decoração. A identidade recusa o dashboard corporativo genérico, o excesso de cartões flutuantes e a landing longa como estrutura de produto.",
+    "keyCharacteristics": [
+      "Súmula editorial de alta densidade.",
+      "Campo funcional como centro da decisão.",
+      "Contraste entre grafite fosco e papel off-white.",
+      "Dourado raro para tempo histórico e conquista.",
+      "Informação tabular compacta, legível e responsiva."
+    ],
+    "rules": [
+      { "name": "Ouro é Pontuação", "body": "O dourado marca tempo, progresso ou conquista; nunca preenche grandes superfícies nem compete com o campo.", "section": "colors" },
+      { "name": "Archive Faz História", "body": "Use Archive somente em títulos, anos, placares, selos e ratings; toda operação e leitura contínua permanece em Segoe UI/Arial/system.", "section": "typography" },
+      { "name": "Campo no Centro", "body": "No draft desktop, preserve sempre a leitura elenco → campo → súmula/ação; no mobile, preserve a mesma sequência por abas e mantenha o campo como aba inicial.", "section": "layout" },
+      { "name": "Flat-by-Default", "body": "Painéis e controles ficam planos; use linha, tom e estado antes de adicionar qualquer sombra.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do preserve o campo como interface funcional e centro visual da tomada de decisão.",
+      "Do use Archive para títulos, anos, placares e ratings, mantendo Segoe UI/Arial/system no corpo operacional.",
+      "Do mantenha o draft em três colunas a partir de 921px e em abas até 920px.",
+      "Do comunique estados com texto, forma e contraste além da cor.",
+      "Do respeite foco visível e `prefers-reduced-motion` em toda interação."
+    ],
+    "donts": [
+      "Don't transforme o produto em dashboard corporativo com cartões uniformes e métricas decorativas.",
+      "Don't use verde fora do campo como preenchimento genérico de superfície.",
+      "Don't espalhe dourado por grandes áreas; sua raridade comunica importância.",
+      "Don't adicione sombras a painéis, tabelas ou controles planos.",
+      "Don't substitua a densidade editorial por uma sequência longa de blocos de landing page."
+    ]
+  }
+}

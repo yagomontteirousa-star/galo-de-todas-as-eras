@@ -10,7 +10,7 @@ import { AnalysisScreen } from "@/components/game/screens/AnalysisScreen";
 import { BracketScreen } from "@/components/game/screens/BracketScreen";
 import { MatchScreen } from "@/components/game/screens/MatchScreen";
 import { OutcomeScreen } from "@/components/game/screens/OutcomeScreen";
-import { buildUserTeam, CAMPAIGN_STORAGE_KEY, createCampaign, hydrateCampaign, nextAvailableSquad, startDraft, touchCampaign } from "@/lib/campaign";
+import { buildUserTeam, CAMPAIGN_STORAGE_KEY, createCampaign, hydrateCampaign, LEGACY_CAMPAIGN_STORAGE_KEY, nextAvailableSquad, startDraft, touchCampaign } from "@/lib/campaign";
 import { createBracket, getCurrentUserMatch, resolveCurrentRound } from "@/lib/bracket";
 import { seededRandom, simulateMatch } from "@/lib/simulation";
 import type { Campaign, FormationId, LineupEntry, MatchInstructions, RatingsMode, TacticId } from "@/types/game";
@@ -25,7 +25,10 @@ export function Game() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      try { setCampaign(hydrateCampaign(window.localStorage.getItem(CAMPAIGN_STORAGE_KEY)) ?? homeCampaign()); }
+      try {
+        const saved = window.localStorage.getItem(CAMPAIGN_STORAGE_KEY) ?? window.localStorage.getItem(LEGACY_CAMPAIGN_STORAGE_KEY);
+        setCampaign(hydrateCampaign(saved) ?? homeCampaign());
+      }
       catch { setStorageWarning(true); setCampaign(homeCampaign()); }
     }, 0);
     return () => window.clearTimeout(timer);
@@ -67,6 +70,7 @@ export function Game() {
     const base = { ...campaign, usedSquadIds, currentSquadId: undefined, rerollsLeft: campaign.rerollsLeft - 1 };
     update({ ...base, currentSquadId: nextAvailableSquad(base)?.id });
   };
+  const removeLineupEntry = (slotId: string) => update({ ...campaign, lineup: campaign.lineup.filter((entry) => entry.slotId !== slotId) });
   const startTournament = () => {
     if (!team) return;
     update({ ...campaign, bracket: createBracket(team), screen: "bracket" });
@@ -111,13 +115,19 @@ export function Game() {
     {storageWarning && <div className="storage-warning" role="status">O navegador bloqueou o salvamento. Você pode jogar, mas esta campanha pode não continuar após fechar a aba.</div>}
     {campaign.screen === "home" && <HomeScreen onStart={restart} onResume={resume} canResume={canResume}/>} 
     {campaign.screen === "setup" && <SetupScreen onContinue={setup}/>} 
-    {campaign.screen === "draft" && currentSquad && <DraftScreen key={currentSquad.id} campaign={campaign} squad={currentSquad} onConfirm={confirmPicks} onReroll={reroll}/>} 
+    {campaign.screen === "draft" && currentSquad && (
+      <DraftScreen key={currentSquad.id} campaign={campaign} squad={currentSquad} onConfirm={confirmPicks} onReroll={reroll} onRemoveLineupEntry={removeLineupEntry}/>
+    )}
     {campaign.screen === "draft" && !currentSquad && <main className="error-screen" id="main"><h1>O arquivo desta era não abriu.</h1><p>A campanha foi preservada. Sorteie outro elenco para continuar.</p><button type="button" className="button button--primary" onClick={() => { const next = nextAvailableSquad(campaign); update({ ...campaign, currentSquadId: next?.id }); }}>Tentar outro elenco</button></main>}
     {campaign.screen === "analysis" && team && <AnalysisScreen campaign={campaign} team={team} onStart={startTournament}/>} 
     {campaign.screen === "bracket" && campaign.bracket && <BracketScreen bracket={campaign.bracket} ratingsMode={campaign.ratingsMode ?? "visible"} onPlay={beginMatch}/>} 
     {campaign.screen === "match" && currentMatch && campaign.pendingResult && <MatchScreen key={currentMatch.id} match={currentMatch} result={campaign.pendingResult} ratingsMode={campaign.ratingsMode ?? "visible"} onInstruction={applyInstruction} onFinish={finishMatch}/>} 
     {campaign.screen === "victory" && <OutcomeScreen campaign={campaign} outcome="victory" onContinue={() => update({ ...campaign, screen: "bracket" })} onRestart={restart}/>} 
-    {campaign.screen === "eliminated" && <OutcomeScreen campaign={campaign} outcome="eliminated" onContinue={restart} onRestart={restart}/>} 
-    {campaign.screen === "champion" && <OutcomeScreen campaign={campaign} outcome="champion" onContinue={restart} onRestart={restart}/>} 
+    {campaign.screen === "eliminated" && (
+      <OutcomeScreen campaign={campaign} outcome="eliminated" onContinue={() => update({ ...campaign, screen: "bracket" })} onRestart={restart}/>
+    )}
+    {campaign.screen === "champion" && (
+      <OutcomeScreen campaign={campaign} outcome="champion" onContinue={() => update({ ...campaign, screen: "bracket" })} onRestart={restart}/>
+    )}
   </div>;
 }

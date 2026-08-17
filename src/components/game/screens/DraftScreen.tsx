@@ -1,7 +1,9 @@
 import { Pitch } from "@/components/game/Pitch";
+import { playersById } from "@/data/atletico-squads";
 import { formations } from "@/data/formations";
-import { evaluatePosition } from "@/lib/overall";
-import type { Campaign, FormationSlot, HistoricalSquad, LineupEntry, Player, Position } from "@/types/game";
+import { opponents } from "@/data/opponents";
+import { calculateTeamOverall, evaluatePosition } from "@/lib/overall";
+import type { Campaign, HistoricalSquad, LineupEntry, Player, Position } from "@/types/game";
 import { useMemo, useState } from "react";
 import { CheckIcon, ShuffleIcon } from "@/components/ui/Icons";
 
@@ -14,33 +16,44 @@ const groups: { title: string; positions: Position[] }[] = [
   { title: "Atacantes", positions: ["LW", "RW", "ST"] },
 ];
 
-export function DraftScreen({
-  campaign,
-  squad,
-  onConfirm,
-  onReroll,
-}: {
+type MobileTab = "roster" | "pitch" | "team";
+
+export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRemoveLineupEntry }: {
   campaign: Campaign;
   squad: HistoricalSquad;
   onConfirm: (picks: LineupEntry[]) => void;
   onReroll: () => void;
+  onRemoveLineupEntry: (slotId: string) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string>();
+  const [hoverId, setHoverId] = useState<string>();
+  const [selectedSlotId, setSelectedSlotId] = useState<string>();
   const [picks, setPicks] = useState<LineupEntry[]>([]);
   const [filter, setFilter] = useState<"all" | "needed">("all");
   const [sort, setSort] = useState<"position" | "overall">("position");
+  const [mobileTab, setMobileTab] = useState<MobileTab>("pitch");
   const formation = formations[campaign.formation!];
   const showRatings = campaign.ratingsMode !== "memory";
   const selectedPlayer = squad.players.find((player) => player.id === selectedId);
-  const occupied = new Set([...campaign.lineup, ...picks].map((entry) => entry.slotId));
-  const alreadyChosen = new Set([...campaign.lineup, ...picks].map((entry) => entry.playerId));
+  const activePlayer = squad.players.find((player) => player.id === (hoverId ?? selectedId));
+  const combined = [...campaign.lineup, ...picks];
+  const occupied = new Set(combined.map((entry) => entry.slotId));
+  const alreadyChosen = new Set(combined.map((entry) => entry.playerId));
   const openSlots = formation.slots.filter((slot) => !occupied.has(slot.id));
-  const remaining = 11 - campaign.lineup.length;
-  const maxPicks = Math.min(2, remaining);
+  const maxPicks = Math.min(2, 11 - campaign.lineup.length);
+  const totalFilled = combined.length;
   const previewPlayers = useMemo(
     () => new Map(picks.map((entry) => [entry.slotId, squad.players.find((player) => player.id === entry.playerId)!])),
     [picks, squad.players],
   );
+  const positioned = combined.flatMap((entry) => {
+    const player = previewPlayers.get(entry.slotId) ?? playersById.get(entry.playerId);
+    return player ? [{ player, slotId: entry.slotId }] : [];
+  });
+  const overall = positioned.length ? calculateTeamOverall(positioned, campaign.formation!, campaign.tactic!) : undefined;
+  const rivalAverage = Math.round(opponents.reduce((sum, team) => sum + team.overall.final, 0) / opponents.length);
+  const difficulty = !overall ? "A definir" : overall.final >= rivalAverage + 3 ? "Favorável" : overall.final >= rivalAverage - 2 ? "Equilibrado" : "Exigente";
+
   const players = useMemo(() => {
     const filtered = filter === "all"
       ? squad.players
@@ -50,153 +63,115 @@ export function DraftScreen({
       : positionOrder.indexOf(left.primaryPosition) - positionOrder.indexOf(right.primaryPosition) || right.overall - left.overall);
   }, [filter, openSlots, showRatings, sort, squad.players]);
 
-  const placePlayer = (slotId: string) => {
+  const assignPlayer = (player: Player, slotId: string) => {
     const ownPick = picks.find((entry) => entry.slotId === slotId);
-    if (ownPick) {
-      setPicks((current) => current.filter((entry) => entry.slotId !== slotId));
-      return;
-    }
-    if (!selectedPlayer || occupied.has(slotId) || picks.length >= maxPicks) return;
-    setPicks((current) => [...current, { slotId, playerId: selectedPlayer.id, squadId: squad.id }]);
+    const lockedEntry = campaign.lineup.find((entry) => entry.slotId === slotId);
+    if (!ownPick && picks.length >= maxPicks) return;
+    if (lockedEntry) onRemoveLineupEntry(slotId);
+    setPicks((current) => ownPick
+      ? current.map((entry) => entry.slotId === slotId ? { slotId, playerId: player.id, squadId: squad.id } : entry)
+      : [...current, { slotId, playerId: player.id, squadId: squad.id }]);
     setSelectedId(undefined);
+    setSelectedSlotId(undefined);
   };
 
-  const field = (
-    <>
-      <div className="draft-field-panel__head">
-        <div><span>FORMAÇÃO {campaign.formation}</span><b>{selectedPlayer ? `Onde joga ${selectedPlayer.name}?` : picks.length ? "Escolha outro nome ou confirme" : "Selecione um atleta"}</b></div>
-        <span>{campaign.lineup.length + picks.length}/11</span>
-      </div>
-      <Pitch formationId={campaign.formation!} lineup={campaign.lineup} previewPlayers={previewPlayers} selectedPlayer={selectedPlayer} onSlotClick={placePlayer} showRatings={showRatings}/>
-    </>
-  );
+  const handleSlot = (slotId: string) => {
+    const ownPick = picks.find((entry) => entry.slotId === slotId);
+    const lockedEntry = campaign.lineup.find((entry) => entry.slotId === slotId);
+    if (selectedPlayer) return assignPlayer(selectedPlayer, slotId);
+    if (ownPick) setPicks((current) => current.filter((entry) => entry.slotId !== slotId));
+    else if (lockedEntry) onRemoveLineupEntry(slotId);
+    setSelectedSlotId((current) => current === slotId ? undefined : slotId);
+  };
+
+  const handlePlayer = (player: Player) => {
+    if (alreadyChosen.has(player.id)) return;
+    if (selectedSlotId) return assignPlayer(player, selectedSlotId);
+    setSelectedId((current) => current === player.id ? undefined : player.id);
+    setMobileTab("pitch");
+  };
+
+  const ctaLabel = totalFilled === 11
+    ? "Confirmar escalação"
+    : picks.length ? `Confirmar ${picks.length} ${picks.length === 1 ? "escolha" : "escolhas"}` : "Escolha ao menos um jogador";
 
   return (
-    <main className="screen draft-screen" id="main">
-      <div className="draft-topline">
-        <div><span>ELENCO SORTEADO</span><h1><b>{squad.year}</b> {squad.name}</h1><p>{squad.context}</p></div>
-        <div className="draft-stats"><span><b>{remaining}</b> vagas</span><span><b>{campaign.usedSquadIds.length}</b> eras</span><span><b>{campaign.rerollsLeft}</b> rerolls</span></div>
-      </div>
+    <main className="draft-screen" id="main">
+      <nav className="draft-mobile-tabs" aria-label="Etapas da escalação">
+        <button type="button" aria-current={mobileTab === "roster" ? "page" : undefined} className={mobileTab === "roster" ? "is-active" : ""} onClick={() => setMobileTab("roster")}>Elenco</button>
+        <button type="button" aria-current={mobileTab === "pitch" ? "page" : undefined} className={mobileTab === "pitch" ? "is-active" : ""} onClick={() => setMobileTab("pitch")}>Campo</button>
+        <button type="button" aria-current={mobileTab === "team" ? "page" : undefined} className={mobileTab === "team" ? "is-active" : ""} onClick={() => setMobileTab("team")}>Time · {totalFilled}/11</button>
+      </nav>
 
-      <details className="mobile-lineup-summary">
-        <summary><span>Escalação · {campaign.lineup.length + picks.length}/11</span><b>Ver campo</b></summary>
-        {field}
-        <div className="mobile-lineup-summary__controls">
-          <PickReview picks={picks} squad={squad} formation={formation} onRemove={placePlayer}/>
-          <div className="draft-actions">
-            <button type="button" className="button button--quiet" disabled={!campaign.rerollsLeft} onClick={onReroll}><ShuffleIcon/>Reroll <span>{campaign.rerollsLeft}</span></button>
-            <button type="button" className="button button--primary" disabled={picks.length < 1} onClick={() => onConfirm(picks)}>Confirmar {picks.length || ""}</button>
-          </div>
-        </div>
-      </details>
+      <div className="draft-workspace">
+        <section className={`draft-column era-column ${mobileTab === "roster" ? "is-mobile-active" : ""}`} aria-label={`Era ${squad.year}`}>
+          <header className="era-header">
+            <span>ERA SORTEADA</span>
+            <div><strong>{squad.year}</strong><h1>{squad.name}</h1></div>
+            <p>{squad.context}</p>
+            <div className="era-actions"><span>{campaign.rerollsLeft} rerolls restantes</span><button type="button" disabled={!campaign.rerollsLeft} onClick={onReroll}><ShuffleIcon/>Sortear outra era</button></div>
+          </header>
 
-      <div className="draft-layout">
-        <aside className="draft-field-panel">
-          {field}
-          <PickReview picks={picks} squad={squad} formation={formation} onRemove={placePlayer}/>
-          <div className="draft-actions">
-            <button type="button" className="button button--quiet" disabled={!campaign.rerollsLeft} onClick={onReroll}><ShuffleIcon/>Reroll <span>{campaign.rerollsLeft}</span></button>
-            <button type="button" className="button button--primary" disabled={picks.length < 1} onClick={() => onConfirm(picks)}>Confirmar {picks.length || ""} {picks.length === 1 ? "escolha" : "escolhas"}</button>
-          </div>
-        </aside>
-
-        <section className="squad-panel" aria-label={`Jogadores do elenco de ${squad.year}`}>
-          <div className="squad-panel__instructions"><b>{picks.length}/{maxPicks} escolhidos nesta era</b><span>Escolha o atleta e toque em uma vaga no campo.</span></div>
-          <div className="roster-tools">
-            <div role="group" aria-label="Filtro de jogadores">
+          <div className="roster-heading">
+            <div><h2>Escolha um jogador</h2><span>{picks.length}/{maxPicks} nesta era</span></div>
+            <div className="roster-filters" role="group" aria-label="Filtrar jogadores">
               <button type="button" className={filter === "all" ? "is-active" : ""} onClick={() => setFilter("all")}>Todos</button>
               <button type="button" className={filter === "needed" ? "is-active" : ""} onClick={() => setFilter("needed")}>Posições livres</button>
+              <label><span>Ordenar</span><select value={sort} onChange={(event) => setSort(event.target.value as "position" | "overall")}><option value="position">Posição</option>{showRatings && <option value="overall">Overall</option>}</select></label>
             </div>
-            <label>Ordenar
-              <select value={sort} onChange={(event) => setSort(event.target.value as "position" | "overall")}>
-                <option value="position">Posição</option>
-                {showRatings && <option value="overall">Overall</option>}
-              </select>
-            </label>
           </div>
 
-          {selectedPlayer && (
-            <PlayerDetail player={selectedPlayer} openSlots={openSlots} showRatings={showRatings}/>
-          )}
-
-          <div className="player-groups">
+          <div className="roster-scroll">
             {groups.map((group) => {
               const groupPlayers = players.filter((player) => group.positions.includes(player.primaryPosition));
               if (!groupPlayers.length) return null;
-              return (
-                <div className="player-group" key={group.title}>
-                  <h2>{group.title}<small>{groupPlayers.length}</small></h2>
-                  <div>{groupPlayers.map((player) => {
-                    const isPicked = alreadyChosen.has(player.id);
-                    const bestFit = openSlots.reduce((best, slot) => Math.min(best, evaluatePosition(player, slot).penalty), 99);
-                    return (
-                      <button
-                        type="button"
-                        key={player.id}
-                        disabled={isPicked || (picks.length >= maxPicks && !isPicked)}
-                        className={`player-row ${selectedId === player.id ? "is-selected" : ""} ${isPicked ? "is-picked" : ""}`}
-                        onClick={() => setSelectedId(selectedId === player.id ? undefined : player.id)}
-                        aria-pressed={selectedId === player.id}
-                      >
-                        <span className="player-row__position">{positionLabels[player.primaryPosition]}</span>
-                        <span className="player-row__identity"><b>{player.name}</b><small>{player.tags.slice(0, 2).join(" · ")}</small></span>
-                        <span className={`player-row__fit fit--${bestFit === 0 ? "natural" : bestFit === 2 ? "secondary" : "improvised"}`}>{bestFit === 0 ? "ideal" : bestFit === 2 ? "opção" : "improviso"}</span>
-                        {showRatings && <strong>{player.overall}</strong>}
-                        {isPicked && <CheckIcon/>}
-                      </button>
-                    );
-                  })}</div>
-                </div>
-              );
+              return <section className="roster-group" key={group.title}>
+                <h3>{group.title}<span>{groupPlayers.length}</span></h3>
+                {groupPlayers.map((player) => {
+                  const isPicked = alreadyChosen.has(player.id);
+                  const bestFit = openSlots.reduce((best, slot) => Math.min(best, evaluatePosition(player, slot).penalty), 99);
+                  return <button type="button" key={player.id} disabled={isPicked || (picks.length >= maxPicks && !isPicked)}
+                    className={`player-row ${selectedId === player.id ? "is-selected" : ""} ${isPicked ? "is-picked" : ""}`}
+                    onClick={() => handlePlayer(player)} onMouseEnter={() => setHoverId(player.id)} onMouseLeave={() => setHoverId(undefined)}
+                    onFocus={() => setHoverId(player.id)} onBlur={() => setHoverId(undefined)} aria-pressed={selectedId === player.id}>
+                    <span className="player-row__position">{positionLabels[player.primaryPosition]}</span>
+                    <span className="player-row__identity"><b>{player.name}</b><small>{player.secondaryPositions.map((position) => positionLabels[position]).join(" · ") || player.tags[0]}</small></span>
+                    <span className={`player-row__fit fit--${bestFit === 0 ? "natural" : bestFit === 2 ? "secondary" : "improvised"}`}>{bestFit <= 2 ? "encaixa" : `−${bestFit}`}</span>
+                    {showRatings && <strong>{player.overall}</strong>}{isPicked && <CheckIcon/>}
+                  </button>;
+                })}
+              </section>;
             })}
           </div>
         </section>
+
+        <section className={`draft-column field-column ${mobileTab === "pitch" ? "is-mobile-active" : ""}`} aria-label="Campo e escalação">
+          <header className="field-heading"><div><span>FORMAÇÃO {campaign.formation}</span><b>{selectedPlayer ? `Escolha a vaga de ${selectedPlayer.name}` : selectedSlotId ? "Agora escolha um jogador" : "Monte o seu onze"}</b></div><strong>{totalFilled}<small>/11</small></strong></header>
+          <Pitch formationId={campaign.formation!} lineup={campaign.lineup} previewPlayers={previewPlayers} selectedPlayer={activePlayer} selectedSlotId={selectedSlotId} onSlotClick={handleSlot} showRatings={showRatings}/>
+          <p className="field-hint">Clique em um atleta e depois na vaga — ou comece pela vaga. Clique em uma peça para remover ou trocar.</p>
+        </section>
+
+        <aside className={`draft-column boxscore-column ${mobileTab === "team" ? "is-mobile-active" : ""}`}>
+          <div className="boxscore-content">
+            <header><span>BOX SCORE · {totalFilled}/11</span><strong>{overall?.final ?? "—"}</strong><small>overall geral</small></header>
+            <div className="opponent-read"><span>Força média dos rivais <b>{showRatings ? rivalAverage : "?"}</b></span><span>Dificuldade <b>{difficulty}</b></span></div>
+            <div className="sector-bars"><ScoreBar label="Defesa" value={overall?.defense}/><ScoreBar label="Meio" value={overall?.midfield}/><ScoreBar label="Ataque" value={overall?.attack}/><ScoreBar label="Tática" value={overall ? Math.max(0, Math.min(99, 80 + overall.cohesion * 4 + overall.tacticBonus * 3)) : undefined}/></div>
+            <div className="lineup-sheet">{formation.slots.map((slot) => {
+              const entry = combined.find((item) => item.slotId === slot.id);
+              const player = entry ? previewPlayers.get(slot.id) ?? playersById.get(entry.playerId) : undefined;
+              const evaluation = player ? evaluatePosition(player, slot) : undefined;
+              return <button type="button" key={slot.id} onClick={() => handleSlot(slot.id)} className={evaluation?.fit === "improvised" ? "is-improvised" : ""}><span>{slot.label}</span><b>{player?.name ?? "—"}</b><strong>{showRatings && player ? player.overall - (evaluation?.penalty ?? 0) : player ? "•" : "—"}</strong></button>;
+            })}</div>
+            {overall && overall.improvisationPenalty > 0 && <p className="improvisation-note">Improvisações reduzem {overall.improvisationPenalty} ponto(s) do cálculo final.</p>}
+          </div>
+          <footer className="boxscore-actions"><button type="button" className="button button--quiet" disabled={!campaign.rerollsLeft} onClick={onReroll}><ShuffleIcon/>Outra era · {campaign.rerollsLeft}</button><button type="button" className="button button--primary" disabled={picks.length < 1} onClick={() => onConfirm(picks)}>{ctaLabel}</button></footer>
+        </aside>
       </div>
+      <footer className="draft-mobile-action"><button type="button" className="button button--primary" disabled={picks.length < 1} onClick={() => onConfirm(picks)}>{ctaLabel}</button></footer>
     </main>
   );
 }
 
-function PlayerDetail({ player, openSlots, showRatings }: { player: Player; openSlots: FormationSlot[]; showRatings: boolean }) {
-  const best = openSlots.reduce((current, slot) => {
-    const fit = evaluatePosition(player, slot);
-    return !current || fit.penalty < current.penalty ? { ...fit, label: slot.label } : current;
-  }, undefined as (ReturnType<typeof evaluatePosition> & { label: string }) | undefined);
-  return (
-    <article className="player-detail">
-      <div><span>{positionLabels[player.primaryPosition]}</span><h3>{player.name}</h3><small>{player.tags.join(" · ")}</small></div>
-      {showRatings ? (
-        <dl>
-          <div><dt>OVR</dt><dd>{player.overall}</dd></div>
-          <div><dt>Finalização</dt><dd>{player.attributes.finishing}</dd></div>
-          <div><dt>Criação</dt><dd>{player.attributes.creation}</dd></div>
-          <div><dt>Defesa</dt><dd>{player.attributes.defending}</dd></div>
-          <div><dt>Físico</dt><dd>{player.attributes.physical}</dd></div>
-        </dl>
-      ) : <p>Ratings ocultos no modo memória. Use posição, tags e contexto da era.</p>}
-      {best && <b className={`fit fit--${best.fit}`}>Melhor encaixe: {best.label} · {best.fit === "natural" ? "natural" : best.fit === "secondary" ? "secundário −2" : `improviso −${best.penalty}`}</b>}
-    </article>
-  );
-}
-
-function PickReview({
-  picks,
-  squad,
-  formation,
-  onRemove,
-}: {
-  picks: LineupEntry[];
-  squad: HistoricalSquad;
-  formation: (typeof formations)[keyof typeof formations];
-  onRemove: (slotId: string) => void;
-}) {
-  return (
-    <div className="pick-review">
-      {picks.length ? picks.map((pick) => {
-        const player = squad.players.find((item) => item.id === pick.playerId)!;
-        const slot = formation.slots.find((item) => item.id === pick.slotId)!;
-        const fit = evaluatePosition(player, slot);
-        return <button type="button" key={pick.slotId} onClick={() => onRemove(pick.slotId)}><span>{player.name} · {slot.label}</span><b className={`fit fit--${fit.fit}`}>{fit.fit === "natural" ? "Natural" : fit.fit === "secondary" ? "Secundária −2" : `Improvisado −${fit.penalty}`}</b><small>Remover</small></button>;
-      }) : <p>Vagas compatíveis aparecem no campo. Improvisações são permitidas e têm custo tático.</p>}
-    </div>
-  );
+function ScoreBar({ label, value }: { label: string; value?: number }) {
+  return <div><span>{label}</span><i><b style={{ width: `${value ?? 0}%` }}/></i><strong>{value || "—"}</strong></div>;
 }

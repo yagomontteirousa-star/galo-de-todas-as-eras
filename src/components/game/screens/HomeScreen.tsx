@@ -1,13 +1,14 @@
 import { Pitch } from "@/components/game/Pitch";
-import { ArrowIcon, StarMark } from "@/components/ui/Icons";
+import { ArrowIcon } from "@/components/ui/Icons";
 
 export function HomeScreen({ onStart, onResume, canResume }: { onStart: () => void; onResume: () => void; canResume: boolean }) {
   return (
     <main className="home-screen" id="main">
       <section className="hero-game">
         <div className="hero-game__copy">
-          <h1>Monte o maior Galo de todos os tempos.</h1>
-          <p>Receba elencos históricos, recrute os melhores de cada era e atravesse cinco fases contra grandes times brasileiros até a final.</p>
+          <h1>Preto<br/>no Branco.</h1>
+          <p className="hero-game__signature">Monte elencos. Atravesse eras. Faça história.</p>
+          <p>Receba temporadas históricas, escolha os nomes certos e atravesse cinco fases contra grandes times brasileiros.</p>
           <div className="hero-game__actions">
             <button className="button button--primary" type="button" onClick={canResume ? onResume : onStart}>{canResume ? "Continuar campanha" : "Começar campanha"}<ArrowIcon/></button>
             <button className="button button--quiet" type="button" onClick={() => document.getElementById("como-funciona")?.scrollIntoView({ behavior: "smooth" })}>Como funciona</button>
@@ -22,11 +23,10 @@ export function HomeScreen({ onStart, onResume, canResume }: { onStart: () => vo
         </div>
       </section>
       <section className="how-it-works" id="como-funciona">
-        <div><StarMark/><h2>Onze vagas. Gerações sem limite.</h2></div>
         <ol>
-          <li><strong>Escolha a ideia.</strong><span>Formação e perfil tático mudam encaixes, bônus e riscos.</span></li>
-          <li><strong>Garimpe cada era.</strong><span>Selecione um ou dois nomes por elenco e posicione-os no campo.</span></li>
-          <li><strong>Sobreviva ao mata-mata.</strong><span>Cinco confrontos, com prorrogação e pênaltis quando necessário.</span></li>
+          <li><b>01</b><strong>Sorteie uma era</strong><span>Um elenco completo entra em jogo.</span></li>
+          <li><b>02</b><strong>Escale os jogadores</strong><span>Encaixe talento, posição e tática.</span></li>
+          <li><b>03</b><strong>Simule a campanha</strong><span>Cinco jogos separam você do título.</span></li>
         </ol>
       </section>
     </main>

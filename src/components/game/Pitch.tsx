@@ -8,12 +8,13 @@ interface PitchProps {
   lineup?: LineupEntry[];
   previewPlayers?: Map<string, Player>;
   selectedPlayer?: Player;
+  selectedSlotId?: string;
   onSlotClick?: (slotId: string) => void;
   compact?: boolean;
   showRatings?: boolean;
 }
 
-export function Pitch({ formationId, lineup = [], previewPlayers = new Map(), selectedPlayer, onSlotClick, compact = false, showRatings = true }: PitchProps) {
+export function Pitch({ formationId, lineup = [], previewPlayers = new Map(), selectedPlayer, selectedSlotId, onSlotClick, compact = false, showRatings = true }: PitchProps) {
   const formation = formations[formationId];
   return (
     <div className={`pitch ${compact ? "pitch--compact" : ""}`} aria-label={`Campo na formação ${formationId}`}>
@@ -24,7 +25,7 @@ export function Pitch({ formationId, lineup = [], previewPlayers = new Map(), se
         const fit = selectedPlayer ? evaluatePosition(selectedPlayer, slot) : undefined;
         const interactive = Boolean(onSlotClick);
         const content = player ? <>{showRatings && <span className="pitch-player__rating">{player.overall}</span>}<span className="pitch-player__name">{player.name.split(" ").slice(-1)[0]}</span><span className="pitch-player__role">{slot.label}</span></> : <><span className="pitch-player__empty">{slot.label}</span>{selectedPlayer && <span className={`pitch-player__fit pitch-player__fit--${fit?.fit}`}>{fit?.penalty ? `−${fit.penalty}` : "OK"}</span>}</>;
-        const className = `pitch-player ${player ? "is-filled" : "is-empty"} ${selectedPlayer && !player ? `is-${fit?.fit}` : ""}`;
+        const className = `pitch-player ${player ? "is-filled" : "is-empty"} ${selectedPlayer && !player ? `is-${fit?.fit}` : ""} ${selectedSlotId === slot.id ? "is-slot-selected" : ""}`;
         const style = { left: `${slot.x}%`, top: `${slot.y}%` };
         return interactive ? (
           <button key={slot.id} type="button" className={className} style={style} onClick={() => onSlotClick?.(slot.id)} aria-label={player ? `${player.name} em ${slot.label}` : `Vaga ${slot.label}${selectedPlayer ? `, penalidade ${fit?.penalty ?? 0}` : ""}`}>

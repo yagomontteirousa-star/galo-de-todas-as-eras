@@ -10,7 +10,7 @@ export function SetupScreen({ onContinue }: { onContinue: (formation: FormationI
   const [ratingsMode, setRatingsMode] = useState<RatingsMode>("visible");
   return (
     <main className="screen screen--setup" id="main">
-      <div className="screen-heading"><h1>Defina a sua ideia de jogo.</h1><p>As posições determinam o encaixe de cada atleta. O perfil tático altera pequenos bônus e riscos na simulação.</p></div>
+      <div className="screen-heading"><h1>Defina o seu jogo.</h1><p>Formação, plano tático e quanto você quer saber antes de cada escolha.</p></div>
       <div className="setup-layout">
         <div className="setup-pitch"><Pitch formationId={formation}/><div className="formation-caption"><b>{formations[formation].name}</b><span>{formations[formation].description}</span></div></div>
         <div className="setup-controls">
@@ -24,7 +24,7 @@ export function SetupScreen({ onContinue }: { onContinue: (formation: FormationI
             <button type="button" className={ratingsMode === "visible" ? "is-selected" : ""} onClick={() => setRatingsMode("visible")} aria-pressed={ratingsMode === "visible"}><b>Ratings visíveis</b><span>Overall, atributos e força do adversário ficam abertos.</span></button>
             <button type="button" className={ratingsMode === "memory" ? "is-selected" : ""} onClick={() => setRatingsMode("memory")} aria-pressed={ratingsMode === "memory"}><b>Modo memória</b><span>Escolha por nome, posição, era e lembrança.</span></button>
           </div></fieldset>
-          <button className="button button--primary button--wide" type="button" onClick={() => onContinue(formation, tactic, ratingsMode)}>Abrir primeiro elenco<ArrowIcon/></button>
+          <button className="button button--primary button--wide" type="button" onClick={() => onContinue(formation, tactic, ratingsMode)}>Sortear primeira era<ArrowIcon/></button>
         </div>
       </div>
     </main>

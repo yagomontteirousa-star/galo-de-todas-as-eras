@@ -1,5 +1,5 @@
 {
-  "name": "galo-de-todas-as-eras",
+  "name": "preto-no-branco",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --incremental false",
     "test": "vitest run"
   },
   "dependencies": {
