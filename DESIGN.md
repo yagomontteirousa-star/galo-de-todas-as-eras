@@ -33,12 +33,12 @@ typography:
     lineHeight: 1.1
   body:
     fontFamily: "Segoe UI, Arial, sans-serif"
-    fontSize: "15px"
+    fontSize: "16px"
     fontWeight: 400
-    lineHeight: 1.4
+    lineHeight: 1.45
   label:
     fontFamily: "Segoe UI, Arial, sans-serif"
-    fontSize: "9px"
+    fontSize: "11px"
     fontWeight: 700
     lineHeight: 1
     letterSpacing: "0.1em"
@@ -58,34 +58,34 @@ components:
     textColor: "{colors.ink}"
     typography: "{typography.label}"
     rounded: "{rounded.control}"
-    padding: "0 17px"
-    height: "42px"
+    padding: "0 18px"
+    height: "46px"
   button-quiet:
     backgroundColor: "{colors.graphite}"
     textColor: "{colors.paper}"
     typography: "{typography.label}"
     rounded: "{rounded.control}"
-    padding: "0 17px"
-    height: "42px"
+    padding: "0 18px"
+    height: "46px"
   filter-chip-selected:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
     typography: "{typography.label}"
     rounded: "{rounded.compact}"
-    padding: "0 8px"
-    height: "27px"
+    padding: "0 11px"
+    height: "36px"
   player-row:
     backgroundColor: "transparent"
     textColor: "{colors.paper}"
     rounded: "0"
-    padding: "3px 12px"
-    height: "38px"
+    padding: "6px 14px"
+    height: "54px"
   pitch-player:
     backgroundColor: "#0d241a"
     textColor: "{colors.paper}"
     rounded: "{rounded.field}"
     padding: "5px 7px"
-    width: "62px"
+    width: "72px"
   campaign-strip:
     backgroundColor: "{colors.ink}"
     textColor: "{colors.paper}"
@@ -157,16 +157,18 @@ A paleta parte do grafite quase preto, abre áreas de leitura em papel off-white
 - **Display** (400, responsive clamp, 0.77 line-height): heróis, desfechos e números monumentais.
 - **Headline** (400, responsive clamp, 0.95 line-height): títulos de tela e chamadas de fase.
 - **Title** (700, 16px, 1.1 line-height): nomes de era e títulos operacionais compactos.
-- **Body** (400, 15px, 1.4 line-height): explicações e narrativa corrente.
-- **Label** (700, 9px, 0.1em letter-spacing, uppercase where structural): metadados, filtros, fases e legendas.
+- **Body** (400, 16px, 1.45 line-height): explicações e narrativa corrente.
+- **Label** (700, 11px, 0.1em letter-spacing, uppercase where structural): metadados, filtros, fases e legendas.
+
+**The Piso de 11px Rule.** Nenhum texto funcional desce abaixo de 11px; nomes, posições, ratings e placares usam 12–16px para que a decisão seja lida sem esforço.
 
 **The Archive Faz História Rule.** Use Archive somente em títulos, anos, placares, selos e ratings; toda operação e leitura contínua permanece em Segoe UI/Arial/system.
 
 ## Layout
 
-O desktop é uma experiência contida em um viewport, com cabeçalho baixo de 58px e superfícies densas sem rolagem da página. O draft usa três colunas reais — elenco à esquerda (`minmax(320px, .85fr)`), campo dominante ao centro (`minmax(420px, 1.2fr)`) e súmula/ação à direita (`minmax(270px, .72fr)`) — separadas por linhas finas, não por cartões soltos.
+O desktop é uma experiência contida em um viewport, com cabeçalho baixo de 64px e superfícies densas sem rolagem da página. O draft usa três colunas reais — elenco à esquerda (`minmax(320px, .85fr)`), campo dominante ao centro (`minmax(420px, 1.2fr)`) e súmula/ação à direita (`minmax(270px, .72fr)`) — separadas por linhas finas, não por cartões soltos.
 
-O breakpoint estrutural é explícito: desktop começa em 921px; mobile termina em 920px. Em 920px ou menos, o documento volta a rolar, o draft vira três abas empilhadas (Elenco, Campo, Time), o header reduz para 54px e a ação principal fica fixa na base. Entre 921px e 1180px, as três colunas permanecem, mas comprimem suas mínimas e removem detalhes secundários. O ritmo usa intervalos compactos de 6–12px dentro de controles e 20–46px nas margens de tela.
+O breakpoint estrutural é explícito: desktop começa em 921px; mobile termina em 920px. Em 920px ou menos, o documento volta a rolar, o draft vira três abas empilhadas (Elenco, Campo, Time), o header reduz para 58px e a chave do mata-mata empilha as quatro fases em coluna única, sem rolagem horizontal. Entre 921px e 1180px, as três colunas permanecem, mas comprimem suas mínimas e removem detalhes secundários. O ritmo usa intervalos compactos de 6–12px dentro de controles e 20–46px nas margens de tela.
 
 **The Campo no Centro Rule.** No draft desktop, preserve sempre a leitura elenco → campo → súmula/ação; no mobile, preserve a mesma sequência por abas e mantenha o campo como aba inicial.
 
@@ -188,22 +190,24 @@ As formas são compactas e utilitárias. Controles usam cantos de 5–8px, ficha
 
 ### Buttons
 
-- **Shape:** retângulo compacto com cantos controlados, altura mínima de 42px e padding horizontal de 17px.
+- **Shape:** retângulo compacto com cantos controlados, altura mínima de 46px e padding horizontal de 18px.
 - **Primary:** papel off-white sobre tinta preta; no box score claro, a relação se inverte para tinta sobre papel.
 - **Hover / Focus:** elevação de 1px, borda mais clara e foco global de 2px em ouro pálido; estados desabilitados usam opacidade de 0.38.
 - **Quiet:** grafite com texto off-white e borda fina; serve ações secundárias sem competir com o fluxo.
 
 ### Chips
 
-- **Style:** filtros compactos de 27px, fundo tinta e borda de linha.
+- **Style:** filtros de 36px, fundo tinta e borda de linha.
 - **State:** o selecionado vira papel com texto preto; o rótulo nunca depende apenas da cor.
 
 ### Cards / Containers
 
-- **Player Row:** linha de tabela clicável com posição, identidade, encaixe, rating e confirmação; seleção troca a linha inteira para papel.
+- **Player Row:** linha de tabela clicável de 54px com posição, identidade, encaixe, rating e confirmação; seleção troca a linha inteira para papel.
 - **Paper Box Score:** folha clara sem raio, cabeçalho com regra preta de 2px e métricas em grade.
-- **Pitch Player:** ficha verde-escura de 62px sobre o campo; rating em Archive e bordas semânticas para encaixe natural, secundário ou improvisado.
-- **Campaign Strip:** faixa compacta segmentada, com rótulos de 7–9px e numerais tabulares.
+- **Pitch Player:** ficha verde-escura de 72px sobre o campo; rating em Archive e bordas semânticas para encaixe natural, secundário ou improvisado.
+- **Campaign Strip:** faixa compacta segmentada, com rótulos de 9–13px e numerais tabulares.
+- **Bracket Match:** cartão de confronto com ano, nome em 15px, placar em Archive e marcação explícita da equipe do jogador.
+- **Match Controls:** faixa de pausa, velocidade (lento/normal/rápido) e avanço, com alvos de 44px em qualquer tela.
 
 ### Navigation
 

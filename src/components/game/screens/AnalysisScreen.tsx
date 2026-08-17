@@ -22,7 +22,7 @@ export function AnalysisScreen({ campaign, team, onStart }: { campaign: Campaign
         const squad = squadsById.get(entry.squadId)!;
         return <article key={entry.slotId}><span>{squad.year}</span><div><b>{evaluation.player.name}</b><small>{squad.name} · {evaluation.slot.label}</small></div><strong>{evaluation.adjustedOverall}</strong></article>;
       })}</div></section>
-      <div className="analysis-cta"><p>A chave será montada com 31 adversários. Não há caminho fácil.</p><button type="button" className="button button--primary" onClick={onStart}>Iniciar mata-mata<ArrowIcon/></button></div>
+      <div className="analysis-cta"><p>Oitavas de final: 15 adversários sorteados entre 31 grandes times. Quatro jogos até o título.</p><button type="button" className="button button--primary" onClick={onStart}>Iniciar mata-mata<ArrowIcon/></button></div>
     </main>
   );
 }

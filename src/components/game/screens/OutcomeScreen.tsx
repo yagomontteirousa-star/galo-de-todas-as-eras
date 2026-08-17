@@ -16,7 +16,7 @@ export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
   const userTeam = lastMatch?.home.isUser ? lastMatch.home : lastMatch?.away;
   const opponent = lastMatch?.home.isUser ? lastMatch.away : lastMatch?.home;
   const copy = outcome === "champion"
-    ? { title: "A história termina em título.", text: "Cinco confrontos, um onze impossível e uma campanha que agora existe no papel." }
+    ? { title: "A história termina em título.", text: "Quatro confrontos, um onze impossível e uma campanha que agora existe no papel." }
     : outcome === "eliminated"
       ? { title: "O arquivo fecha por aqui.", text: `Foram ${campaign.wins} ${campaign.wins === 1 ? "vitória" : "vitórias"}. Outra combinação pode mudar toda a súmula.` }
       : { title: "Classificado.", text: next ? `A próxima página é ${roundLabels[campaign.bracket!.currentRound]} contra ${next.home.isUser ? next.away.name : next.home.name}.` : "A próxima fase já está definida." };

@@ -21,7 +21,7 @@ describe("simulation", () => {
 
   it("mantém o primeiro tempo determinístico ao mudar instruções posteriores", () => {
     const base = simulateMatch(opponents[0], opponents[1], seededRandom(42));
-    const changed = simulateMatch(opponents[0], opponents[1], seededRandom(42), { halftime: "attack", contextual: "chase" });
+    const changed = simulateMatch(opponents[0], opponents[1], seededRandom(42), { halftime: "attack" });
     expect(changed.events.filter((event) => event.minute <= 45)).toEqual(base.events.filter((event) => event.minute <= 45));
   });
 

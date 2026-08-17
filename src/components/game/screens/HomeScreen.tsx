@@ -1,19 +1,45 @@
 import { Pitch } from "@/components/game/Pitch";
 import { ArrowIcon } from "@/components/ui/Icons";
+import { roundLabels } from "@/lib/bracket";
+import type { CampaignOutcome, CampaignRecord } from "@/types/game";
 
-export function HomeScreen({ onStart, onResume, canResume }: { onStart: () => void; onResume: () => void; canResume: boolean }) {
+const shortDate = (value: string) => new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+
+export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOutcome, history }: {
+  onStart: () => void;
+  onResume: () => void;
+  canResume: boolean;
+  onReviewLast: () => void;
+  lastOutcome?: CampaignOutcome;
+  history: CampaignRecord[];
+}) {
   return (
     <main className="home-screen" id="main">
       <section className="hero-game">
         <div className="hero-game__copy">
           <h1>Preto<br/>no Branco.</h1>
           <p className="hero-game__signature">Monte elencos. Atravesse eras. Faça história.</p>
-          <p>Receba temporadas históricas, escolha os nomes certos e atravesse cinco fases contra grandes times brasileiros.</p>
+          <p>Receba temporadas históricas, escolha os nomes certos e atravesse quatro fases contra grandes times brasileiros.</p>
           <div className="hero-game__actions">
-            <button className="button button--primary" type="button" onClick={canResume ? onResume : onStart}>{canResume ? "Continuar campanha" : "Começar campanha"}<ArrowIcon/></button>
+            {canResume
+              ? <button className="button button--primary" type="button" onClick={onResume}>Continuar campanha<ArrowIcon/></button>
+              : <button className="button button--primary" type="button" onClick={onStart}>Começar campanha<ArrowIcon/></button>}
+            {lastOutcome && <button className="button button--quiet" type="button" onClick={onReviewLast}>Última campanha</button>}
             <button className="button button--quiet" type="button" onClick={() => document.getElementById("como-funciona")?.scrollIntoView({ behavior: "smooth" })}>Como funciona</button>
           </div>
           {canResume && <button type="button" className="new-run-link" onClick={onStart}>Ou começar uma nova campanha</button>}
+          {history.length > 0 && (
+            <ul className="campaign-history" aria-label="Campanhas anteriores">
+              {history.slice(0, 3).map((record) => (
+                <li key={record.id}>
+                  <b className={record.outcome === "champion" ? "is-champion" : ""}>{record.outcome === "champion" ? "Campeão" : "Eliminado"}</b>
+                  <span>{roundLabels[record.roundReached]}</span>
+                  <span>{record.wins} {record.wins === 1 ? "vitória" : "vitórias"}</span>
+                  <time dateTime={record.finishedAt}>{shortDate(record.finishedAt)}</time>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         <div className="hero-game__visual" aria-hidden="true">
           <div className="era-stamp era-stamp--one">1971</div><div className="era-stamp era-stamp--two">2013</div><div className="era-stamp era-stamp--three">2021</div>
@@ -24,9 +50,9 @@ export function HomeScreen({ onStart, onResume, canResume }: { onStart: () => vo
       </section>
       <section className="how-it-works" id="como-funciona">
         <ol>
-          <li><b>01</b><strong>Sorteie uma era</strong><span>Um elenco completo entra em jogo.</span></li>
+          <li><b>01</b><strong>Sorteie um ano</strong><span>Um elenco completo entra em jogo.</span></li>
           <li><b>02</b><strong>Escale os jogadores</strong><span>Encaixe talento, posição e tática.</span></li>
-          <li><b>03</b><strong>Simule a campanha</strong><span>Cinco jogos separam você do título.</span></li>
+          <li><b>03</b><strong>Simule a campanha</strong><span>Das oitavas à final: quatro jogos até o título.</span></li>
         </ol>
       </section>
     </main>

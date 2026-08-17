@@ -4,7 +4,6 @@ export type FormationId = "4-3-3" | "4-4-2" | "4-2-3-1" | "3-5-2";
 export type TacticId = "balanced" | "attacking" | "defensive" | "pressing";
 export type RatingsMode = "visible" | "memory";
 export type HalftimeInstruction = "keep" | "press" | "attack" | "defend";
-export type ContextInstruction = "chase" | "balance" | "protect";
 export type MatchEventType = "kickoff" | "pressure" | "possession" | "shot_off" | "shot_saved" | "big_save" | "corner" | "dangerous_foul" | "offside" | "yellow_card" | "red_card" | "penalty" | "goal" | "halftime" | "second_half" | "extra_time" | "shootout" | "full_time";
 
 export interface Attributes {
@@ -50,11 +49,10 @@ export interface TeamSnapshot {
 }
 
 export type Opponent = TeamSnapshot;
-export type TournamentRound = "round32" | "round16" | "quarterfinal" | "semifinal" | "final";
+export type TournamentRound = "round16" | "quarterfinal" | "semifinal" | "final";
 
 export interface MatchInstructions {
   halftime?: HalftimeInstruction;
-  contextual?: ContextInstruction;
 }
 
 export interface MatchEvent {
@@ -77,10 +75,18 @@ export interface BracketRound { id: TournamentRound; matches: BracketMatch[] }
 export interface BracketState { rounds: BracketRound[]; currentRound: TournamentRound; champion?: TeamSnapshot }
 
 export type GameScreen = "home" | "setup" | "draft" | "analysis" | "bracket" | "match" | "victory" | "eliminated" | "champion";
+export type CampaignOutcome = "champion" | "eliminated";
 
 export interface Campaign {
-  version: 1; id: string; createdAt: string; updatedAt: string; screen: GameScreen;
+  version: 2; id: string; createdAt: string; updatedAt: string; screen: GameScreen;
   formation?: FormationId; tactic?: TacticId; ratingsMode?: RatingsMode; lineup: LineupEntry[]; usedSquadIds: string[];
   currentSquadId?: string; rerollsLeft: number; bracket?: BracketState; lastMatchId?: string;
   pendingResult?: MatchResult; pendingMatchSeed?: number; matchInstructions?: MatchInstructions; wins: number;
+  finishedAt?: string; outcome?: CampaignOutcome;
+}
+
+/** Linha do histórico: leve de propósito, para caber no localStorage sem carregar elencos inteiros. */
+export interface CampaignRecord {
+  id: string; finishedAt: string; outcome: CampaignOutcome; wins: number;
+  roundReached: TournamentRound; formation?: FormationId; overall?: number;
 }

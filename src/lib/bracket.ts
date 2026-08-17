@@ -2,10 +2,12 @@ import { opponents } from "@/data/opponents";
 import { simulateMatch, type RandomSource } from "@/lib/simulation";
 import type { BracketMatch, BracketRound, BracketState, MatchResult, TeamSnapshot, TournamentRound } from "@/types/game";
 
-export const roundOrder: TournamentRound[] = ["round32", "round16", "quarterfinal", "semifinal", "final"];
+export const roundOrder: TournamentRound[] = ["round16", "quarterfinal", "semifinal", "final"];
 export const roundLabels: Record<TournamentRound, string> = {
-  round32: "16-avos", round16: "Oitavas", quarterfinal: "Quartas", semifinal: "Semifinal", final: "Final",
+  round16: "Oitavas", quarterfinal: "Quartas", semifinal: "Semifinal", final: "Final",
 };
+export const roundCounts: Record<TournamentRound, number> = { round16: 8, quarterfinal: 4, semifinal: 2, final: 1 };
+export const BRACKET_SIZE = 16;
 
 function shuffle<T>(items: T[], random: RandomSource): T[] {
   const copy = [...items];
@@ -25,8 +27,9 @@ function pairTeams(teams: TeamSnapshot[], round: TournamentRound): BracketRound 
 }
 
 export function createBracket(userTeam: TeamSnapshot, random: RandomSource = Math.random): BracketState {
-  const teams = shuffle<TeamSnapshot>([userTeam, ...opponents], random);
-  return { rounds: [pairTeams(teams, "round32")], currentRound: "round32" };
+  const field = shuffle<TeamSnapshot>(opponents, random).slice(0, BRACKET_SIZE - 1);
+  const teams = shuffle<TeamSnapshot>([userTeam, ...field], random);
+  return { rounds: [pairTeams(teams, "round16")], currentRound: "round16" };
 }
 
 export function getCurrentUserMatch(bracket: BracketState): BracketMatch | undefined {

@@ -1,5 +1,4 @@
 import type {
-  ContextInstruction,
   HalftimeInstruction,
   MatchEvent,
   MatchInstructions,
@@ -26,12 +25,6 @@ const halftimeModifiers: Record<HalftimeInstruction, Modifier> = {
   press: { attack: 2, defense: -2, midfield: 3, volatility: 0.12 },
   attack: { attack: 4, defense: -3, midfield: 0, volatility: 0.18 },
   defend: { attack: -3, defense: 4, midfield: -1, volatility: -0.12 },
-};
-
-const contextModifiers: Record<ContextInstruction, Modifier> = {
-  chase: { attack: 5, defense: -4, midfield: 1, volatility: 0.24 },
-  balance: { attack: 0, defense: 0, midfield: 1, volatility: 0 },
-  protect: { attack: -4, defense: 5, midfield: -1, volatility: -0.16 },
 };
 
 export function seededRandom(seed: number): RandomSource {
@@ -138,41 +131,38 @@ function ambientEvents(
     const roll = random();
     if (roll < 0.17) {
       const player = pickCreator(team, random);
-      return matchEvent("pressure", minute, `${team.name} sobe a pressão com ${player.name}.`, period, team, player);
+      return matchEvent("pressure", minute, `${player.name} sobe a pressão.`, period, team, player);
     }
-    if (roll < 0.31) return matchEvent("possession", minute, `${team.name} controla a posse e procura espaços.`, period, team);
+    if (roll < 0.31) return matchEvent("possession", minute, `${team.name} troca passes.`, period, team);
     if (roll < 0.47) {
       const player = pickScorer(team, random);
-      return matchEvent("shot_off", minute, `${player.name} finaliza para fora.`, period, team, player);
+      return matchEvent("shot_off", minute, `${player.name} chuta para fora.`, period, team, player);
     }
     if (roll < 0.62) {
       const player = pickScorer(team, random);
-      return matchEvent("shot_saved", minute, `${player.name} bate; ${pickKeeper(opponent).name} segura.`, period, team, player);
+      return matchEvent("shot_saved", minute, `${player.name} bate, ${pickKeeper(opponent).name} segura.`, period, team, player);
     }
     if (roll < 0.72) {
       const keeper = pickKeeper(opponent);
       const shooter = pickScorer(team, random);
-      return matchEvent("big_save", minute, `Grande defesa de ${keeper.name} na tentativa de ${shooter.name}.`, period, opponent, keeper, true);
+      return matchEvent("big_save", minute, `Defesaça de ${keeper.name} em ${shooter.name}.`, period, opponent, keeper, true);
     }
     if (roll < 0.8) return matchEvent("corner", minute, `Escanteio para ${team.name}.`, period, team);
     if (roll < 0.87) {
       const player = pickDefender(opponent, random);
-      return matchEvent("dangerous_foul", minute, `Falta perigosa cometida por ${player.name}.`, period, opponent, player);
+      return matchEvent("dangerous_foul", minute, `Falta dura de ${player.name}.`, period, opponent, player);
     }
     if (roll < 0.94) {
       const player = pickScorer(team, random);
-      return matchEvent("offside", minute, `${player.name} é flagrado em impedimento.`, period, team, player);
+      return matchEvent("offside", minute, `${player.name} em impedimento.`, period, team, player);
     }
     const player = pickDefender(opponent, random);
-    return matchEvent("yellow_card", minute, `Cartão amarelo para ${player.name}.`, period, opponent, player);
+    return matchEvent("yellow_card", minute, `Amarelo para ${player.name}.`, period, opponent, player);
   });
 }
 
-function instructionModifier(instruction?: HalftimeInstruction | ContextInstruction): Modifier {
-  if (!instruction) return { attack: 0, defense: 0, midfield: 0, volatility: 0 };
-  return instruction in halftimeModifiers
-    ? halftimeModifiers[instruction as HalftimeInstruction]
-    : contextModifiers[instruction as ContextInstruction];
+function instructionModifier(instruction?: HalftimeInstruction): Modifier {
+  return instruction ? halftimeModifiers[instruction] : { attack: 0, defense: 0, midfield: 0, volatility: 0 };
 }
 
 function segmentLambdas(
@@ -214,7 +204,7 @@ function discipline(
   const player = pickDefender(team, random);
   return {
     red,
-    events: [matchEvent("red_card", randomMinute(start, end, random), `Cartão vermelho para ${player.name}. ${team.name} fica com dez.`, period, team, player, true)],
+    events: [matchEvent("red_card", randomMinute(start, end, random), `Vermelho para ${player.name}. ${team.name} com dez.`, period, team, player, true)],
   };
 }
 
@@ -225,10 +215,10 @@ function maybePenalty(home: TeamSnapshot, away: TeamSnapshot, start: number, end
   const taker = pickScorer(team, random);
   const keeper = pickKeeper(opponent);
   const minute = randomMinute(start, end, random);
-  const awarded = matchEvent("penalty", minute, `Pênalti para ${team.name}. ${taker.name} assume a cobrança.`, period, team, taker, true);
+  const awarded = matchEvent("penalty", minute, `Pênalti para ${team.name}. ${taker.name} cobra.`, period, team, taker, true);
   return random() < clamp(0.67 + taker.attributes.finishing / 500, 0.72, 0.88)
     ? [awarded, matchEvent("goal", minute + 1, "", period, team, taker, true)]
-    : [awarded, matchEvent("big_save", minute + 1, `${keeper.name} defende o pênalti de ${taker.name}.`, period, opponent, keeper, true)];
+    : [awarded, matchEvent("big_save", minute + 1, `${keeper.name} pega o pênalti.`, period, opponent, keeper, true)];
 }
 
 function playSegment(
@@ -287,7 +277,7 @@ function scoreAt(events: MatchEvent[], homeId: string, endMinute: number) {
   );
 }
 
-function finalizeEvents(events: MatchEvent[], home: TeamSnapshot, away: TeamSnapshot): MatchEvent[] {
+function finalizeEvents(events: MatchEvent[], home: TeamSnapshot): MatchEvent[] {
   let homeScore = 0;
   let awayScore = 0;
   return events
@@ -299,7 +289,7 @@ function finalizeEvents(events: MatchEvent[], home: TeamSnapshot, away: TeamSnap
         else awayScore += 1;
         finalized.homeScore = homeScore;
         finalized.awayScore = awayScore;
-        finalized.description = `GOL — ${item.playerName}, para ${item.teamId === home.id ? home.name : away.name}. ${homeScore} × ${awayScore}.`;
+        finalized.description = `GOL de ${item.playerName}. ${homeScore}×${awayScore}.`;
       }
       return finalized;
     });
@@ -307,17 +297,12 @@ function finalizeEvents(events: MatchEvent[], home: TeamSnapshot, away: TeamSnap
 
 function instructionImpact(instructions: MatchInstructions): string | undefined {
   const half: Record<HalftimeInstruction, string> = {
-    keep: "A manutenção do plano preservou o equilíbrio da equipe.",
-    press: "A pressão após o intervalo aumentou a presença no campo rival, com risco nas costas.",
-    attack: "A postura ofensiva criou mais volume, mas abriu espaço para transições.",
-    defend: "O bloco mais baixo protegeu a área e reduziu a saída para o ataque.",
+    keep: "Plano mantido: equilíbrio preservado no segundo tempo.",
+    press: "Pressão alta: mais recuperação no campo rival, risco nas costas.",
+    attack: "Postura ofensiva: mais volume, linha defensiva exposta.",
+    defend: "Bloco baixo: área protegida, saída para o ataque reduzida.",
   };
-  const context: Record<ContextInstruction, string> = {
-    chase: "Na reta final, buscar o resultado elevou as chances e também a exposição defensiva.",
-    balance: "Na reta final, o time manteve distâncias seguras sem abandonar o ataque.",
-    protect: "Na reta final, proteger o placar reforçou a defesa e limitou a criação.",
-  };
-  return [instructions.halftime && half[instructions.halftime], instructions.contextual && context[instructions.contextual]].filter(Boolean).join(" ") || undefined;
+  return instructions.halftime && half[instructions.halftime];
 }
 
 function summary(home: TeamSnapshot, away: TeamSnapshot, winnerId: string): string {
@@ -339,7 +324,7 @@ export function simulateMatch(
   random: RandomSource = Math.random,
   instructions: MatchInstructions = {},
 ): MatchResult {
-  const events: MatchEvent[] = [matchEvent("kickoff", 0, "A bola rola.", "regular", undefined, undefined, true)];
+  const events: MatchEvent[] = [matchEvent("kickoff", 0, `A bola rola: ${home.name} × ${away.name}.`, "regular", undefined, undefined, true)];
   const red = { home: 0, away: 0 };
   events.push(...playSegment(home, away, 2, 44, 0.46, "regular", random, instructionModifier(), red));
   events.push(matchEvent("halftime", 45, "Intervalo.", "regular", undefined, undefined, true));
@@ -347,14 +332,7 @@ export function simulateMatch(
 
   const halftime = instructionModifier(instructions.halftime);
   events.push(...playSegment(home, away, 47, 69, 0.25, "regular", random, halftime, red));
-  const contextual = instructionModifier(instructions.contextual);
-  const late = {
-    attack: halftime.attack + contextual.attack,
-    defense: halftime.defense + contextual.defense,
-    midfield: halftime.midfield + contextual.midfield,
-    volatility: halftime.volatility + contextual.volatility,
-  };
-  events.push(...playSegment(home, away, 70, 89, 0.29, "regular", random, late, red));
+  events.push(...playSegment(home, away, 70, 89, 0.29, "regular", random, halftime, red));
 
   const regular = scoreAt(events, home.id, 90);
   let homeExtra = 0;
@@ -366,7 +344,7 @@ export function simulateMatch(
 
   if (wentToExtraTime) {
     events.push(matchEvent("extra_time", 91, "A partida vai para a prorrogação.", "extra", undefined, undefined, true));
-    events.push(...playSegment(home, away, 93, 119, 0.3, "extra", random, late, red));
+    events.push(...playSegment(home, away, 93, 119, 0.3, "extra", random, halftime, red));
     const totals = scoreAt(events, home.id, 120);
     homeExtra = totals.home - regular.home;
     awayExtra = totals.away - regular.away;
@@ -381,7 +359,7 @@ export function simulateMatch(
   const homeTotal = regular.home + homeExtra;
   const awayTotal = regular.away + awayExtra;
   const winnerId = homeTotal > awayTotal || (homeTotal === awayTotal && (homePenalties ?? 0) > (awayPenalties ?? 0)) ? home.id : away.id;
-  const finalizedEvents = finalizeEvents(events, home, away);
+  const finalizedEvents = finalizeEvents(events, home);
   const winner = winnerId === home.id ? home : away;
   const playerOfMatch = finalizedEvents.find((item) => item.type === "goal" && item.teamId === winnerId)?.playerName
     ?? winner.lineup.reduce((best, player) => player.overall > best.overall ? player : best).name;

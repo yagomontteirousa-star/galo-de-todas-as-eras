@@ -4,7 +4,7 @@ import { formations } from "@/data/formations";
 import { opponents } from "@/data/opponents";
 import { calculateTeamOverall, evaluatePosition } from "@/lib/overall";
 import type { Campaign, HistoricalSquad, LineupEntry, Player, Position } from "@/types/game";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CheckIcon, ShuffleIcon } from "@/components/ui/Icons";
 
 const positionLabels: Record<Position, string> = { GK: "GOL", CB: "ZAG", LB: "LE", RB: "LD", LWB: "ALA", RWB: "ALA", DM: "VOL", CM: "MC", AM: "MEI", LW: "PE", RW: "PD", ST: "ATA" };
@@ -42,6 +42,16 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRemoveLine
   const openSlots = formation.slots.filter((slot) => !occupied.has(slot.id));
   const maxPicks = Math.min(2, 11 - campaign.lineup.length);
   const totalFilled = combined.length;
+  const closesLineup = campaign.lineup.length + maxPicks === 11;
+  const advancing = picks.length >= maxPicks;
+
+  // Cota da era preenchida: confirma sozinho, com uma pausa curta para a transição ser legível.
+  useEffect(() => {
+    if (!advancing) return;
+    const timer = window.setTimeout(() => onConfirm(picks), 820);
+    return () => window.clearTimeout(timer);
+  }, [advancing, onConfirm, picks]);
+
   const previewPlayers = useMemo(
     () => new Map(picks.map((entry) => [entry.slotId, squad.players.find((player) => player.id === entry.playerId)!])),
     [picks, squad.players],
@@ -64,18 +74,21 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRemoveLine
   }, [filter, openSlots, showRatings, sort, squad.players]);
 
   const assignPlayer = (player: Player, slotId: string) => {
-    const ownPick = picks.find((entry) => entry.slotId === slotId);
+    if (advancing) return;
     const lockedEntry = campaign.lineup.find((entry) => entry.slotId === slotId);
-    if (!ownPick && picks.length >= maxPicks) return;
+    if (!picks.some((entry) => entry.slotId === slotId) && picks.length >= maxPicks) return;
     if (lockedEntry) onRemoveLineupEntry(slotId);
-    setPicks((current) => ownPick
-      ? current.map((entry) => entry.slotId === slotId ? { slotId, playerId: player.id, squadId: squad.id } : entry)
-      : [...current, { slotId, playerId: player.id, squadId: squad.id }]);
+    // Uma vaga só aceita uma escolha: a decisão sai do estado atual, não do render, para nunca duplicar slotId.
+    setPicks((current) => {
+      const others = current.filter((entry) => entry.slotId !== slotId);
+      return others.length >= maxPicks ? current : [...others, { slotId, playerId: player.id, squadId: squad.id }];
+    });
     setSelectedId(undefined);
     setSelectedSlotId(undefined);
   };
 
   const handleSlot = (slotId: string) => {
+    if (advancing) return;
     const ownPick = picks.find((entry) => entry.slotId === slotId);
     const lockedEntry = campaign.lineup.find((entry) => entry.slotId === slotId);
     if (selectedPlayer) return assignPlayer(selectedPlayer, slotId);
@@ -85,15 +98,15 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRemoveLine
   };
 
   const handlePlayer = (player: Player) => {
-    if (alreadyChosen.has(player.id)) return;
+    if (advancing || alreadyChosen.has(player.id)) return;
     if (selectedSlotId) return assignPlayer(player, selectedSlotId);
     setSelectedId((current) => current === player.id ? undefined : player.id);
     setMobileTab("pitch");
   };
 
-  const ctaLabel = totalFilled === 11
-    ? "Confirmar escalação"
-    : picks.length ? `Confirmar ${picks.length} ${picks.length === 1 ? "escolha" : "escolhas"}` : "Escolha ao menos um jogador";
+  const advanceLabel = closesLineup
+    ? "Escalação completa · abrindo a análise tática"
+    : maxPicks === 1 ? "Escolha confirmada · sorteando o próximo ano" : "Dupla confirmada · sorteando o próximo ano";
 
   return (
     <main className="draft-screen" id="main">
@@ -103,17 +116,21 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRemoveLine
         <button type="button" aria-current={mobileTab === "team" ? "page" : undefined} className={mobileTab === "team" ? "is-active" : ""} onClick={() => setMobileTab("team")}>Time · {totalFilled}/11</button>
       </nav>
 
-      <div className="draft-workspace">
+      <div className={`draft-workspace ${advancing ? "is-advancing" : ""}`}>
         <section className={`draft-column era-column ${mobileTab === "roster" ? "is-mobile-active" : ""}`} aria-label={`Era ${squad.year}`}>
           <header className="era-header">
             <span>ERA SORTEADA</span>
             <div><strong>{squad.year}</strong><h1>{squad.name}</h1></div>
             <p>{squad.context}</p>
-            <div className="era-actions"><span>{campaign.rerollsLeft} rerolls restantes</span><button type="button" disabled={!campaign.rerollsLeft} onClick={onReroll}><ShuffleIcon/>Sortear outra era</button></div>
           </header>
 
           <div className="roster-heading">
-            <div><h2>Escolha um jogador</h2><span>{picks.length}/{maxPicks} nesta era</span></div>
+            <div className="roster-heading__top">
+              <div><h2>{maxPicks === 1 ? "Escolha o jogador" : "Escolha 2 jogadores"}</h2><span>{picks.length} de {maxPicks} nesta era · avança sozinho ao completar</span></div>
+              <button type="button" className="reroll-action" disabled={!campaign.rerollsLeft || advancing} onClick={onReroll}>
+                <ShuffleIcon/>Sortear outro ano<em>{campaign.rerollsLeft}</em>
+              </button>
+            </div>
             <div className="roster-filters" role="group" aria-label="Filtrar jogadores">
               <button type="button" className={filter === "all" ? "is-active" : ""} onClick={() => setFilter("all")}>Todos</button>
               <button type="button" className={filter === "needed" ? "is-active" : ""} onClick={() => setFilter("needed")}>Posições livres</button>
@@ -148,7 +165,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRemoveLine
         <section className={`draft-column field-column ${mobileTab === "pitch" ? "is-mobile-active" : ""}`} aria-label="Campo e escalação">
           <header className="field-heading"><div><span>FORMAÇÃO {campaign.formation}</span><b>{selectedPlayer ? `Escolha a vaga de ${selectedPlayer.name}` : selectedSlotId ? "Agora escolha um jogador" : "Monte o seu onze"}</b></div><strong>{totalFilled}<small>/11</small></strong></header>
           <Pitch formationId={campaign.formation!} lineup={campaign.lineup} previewPlayers={previewPlayers} selectedPlayer={activePlayer} selectedSlotId={selectedSlotId} onSlotClick={handleSlot} showRatings={showRatings}/>
-          <p className="field-hint">Clique em um atleta e depois na vaga — ou comece pela vaga. Clique em uma peça para remover ou trocar.</p>
+          <p className="field-hint">Clique no atleta e depois na vaga — ou comece pela vaga. Clique numa peça para trocar ou remover.</p>
         </section>
 
         <aside className={`draft-column boxscore-column ${mobileTab === "team" ? "is-mobile-active" : ""}`}>
@@ -164,10 +181,9 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRemoveLine
             })}</div>
             {overall && overall.improvisationPenalty > 0 && <p className="improvisation-note">Improvisações reduzem {overall.improvisationPenalty} ponto(s) do cálculo final.</p>}
           </div>
-          <footer className="boxscore-actions"><button type="button" className="button button--quiet" disabled={!campaign.rerollsLeft} onClick={onReroll}><ShuffleIcon/>Outra era · {campaign.rerollsLeft}</button><button type="button" className="button button--primary" disabled={picks.length < 1} onClick={() => onConfirm(picks)}>{ctaLabel}</button></footer>
         </aside>
       </div>
-      <footer className="draft-mobile-action"><button type="button" className="button button--primary" disabled={picks.length < 1} onClick={() => onConfirm(picks)}>{ctaLabel}</button></footer>
+      {advancing && <div className="draft-advance" role="status"><span>{advanceLabel}</span><i aria-hidden="true"/></div>}
     </main>
   );
 }
