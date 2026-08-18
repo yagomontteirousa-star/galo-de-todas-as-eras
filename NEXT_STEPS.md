@@ -25,15 +25,18 @@ Progresso do refinamento pedido em 18/08/2026. Cada bloco abaixo foi commitado e
 - **Marca**: logo oficial no favicon, header, carregamento e telas finais. Faixa
   "Desenvolvido por" com a logo branca da Master Digital na home e nas telas finais.
 
+- **Variação posicional por perfil tático**: `tacticalSlots` em `formations.ts` desloca as
+  linhas por setor, o `Pitch` renderiza com transição de 320ms e `tactics.test.ts` garante
+  que a estrutura, a contagem e o goleiro não mudam.
+- **Rodapé**: logo branca oficial da Master Digital em SVG, vinda do brand kit.
+
 ## Pendente
 
-1. **Variação posicional por perfil tático** (item 4). O perfil já muda a simulação; falta
-   deslocar as linhas no campo (defensivo mais recuado, ofensivo mais adiantado) com
-   transição curta. Onde mexer: `formations.ts` (offsets por tática) e `Pitch.tsx`.
-2. **Base estruturada de ratings do Atlético** (item 11). Exige cruzar referências
-   históricas públicas por atleta e marcar confiança baixa onde não houver dado. Escopo e
-   pontos de atenção em `RATINGS.md`.
-3. **Link da Master Digital**: a faixa está sem href porque a URL oficial não foi informada.
+1. **Base estruturada de ratings do Atlético** (item 11). Congelado a pedido: os overalls
+   atuais dos jogadores ficam como estão. Escopo e pontos de atenção seguem em `RATINGS.md`
+   caso volte à pauta.
+2. **Link da Master Digital**: a faixa continua sem href porque o brand kit não traz a URL
+   oficial. Basta informar o endereço para ligar.
 
 ## Publicar
 
