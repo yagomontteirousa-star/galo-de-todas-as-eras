@@ -32,6 +32,17 @@ function fitFor(attributes: Attributes): Record<TacticId, number> {
   };
 }
 
+/**
+ * Lateral e ala são a mesma função na mesma faixa do campo: cadastramos a equivalência
+ * para que toda formação tenha cobertura real sem depender de improviso.
+ */
+const flankEquivalence: Partial<Record<Position, Position>> = { LB: "LWB", LWB: "LB", RB: "RWB", RWB: "RB" };
+
+function withFlankCover(primary: Position, secondary: Position[]): Position[] {
+  const twin = flankEquivalence[primary];
+  return twin && !secondary.includes(twin) ? [...secondary, twin] : secondary;
+}
+
 function createSquad(year: number, name: string, context: string, seeds: Seed[]): HistoricalSquad {
   const squadId = `atletico-${year}`;
   const players = seeds.map(([playerName, primaryPosition, overall, secondaryPositions = [], tags = []], index): Player => {
@@ -42,7 +53,7 @@ function createSquad(year: number, name: string, context: string, seeds: Seed[])
       season: year,
       squadId,
       primaryPosition,
-      secondaryPositions,
+      secondaryPositions: withFlankCover(primaryPosition, secondaryPositions),
       overall,
       attributes,
       tags: tags.length ? tags : primaryPosition === "GK" ? ["reflexos"] : primaryPosition === "ST" ? ["finalizador"] : ["regular"],

@@ -1,13 +1,16 @@
 import type {
   BracketMatch,
   HalftimeInstruction,
+  MatchEvent,
   MatchEventType,
   MatchInstructions,
   MatchResult,
   RatingsMode,
+  TeamSnapshot,
 } from "@/types/game";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowIcon } from "@/components/ui/Icons";
+import { formations } from "@/data/formations";
 import { roundLabels } from "@/lib/bracket";
 
 const eventCodes: Record<MatchEventType, string> = {
@@ -63,6 +66,7 @@ export function MatchScreen({
   const [speedIndex, setSpeedIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const timelineRef = useRef<HTMLElement>(null);
+  const userTeam = match.home.isUser ? match.home : match.away;
   const opponent = match.home.isUser ? match.away : match.home;
   const needsHalftime = minute >= 45 && !result.instructions.halftime;
   const finished = minute >= maxMinute;
@@ -93,6 +97,7 @@ export function MatchScreen({
     : minute > 90 ? "Prorrogação" : minute > 45 ? "Segundo tempo" : "Primeiro tempo";
   const revealOpponent = ratingsMode === "visible" || finished;
   const chosen = halftimeOptions.find((option) => option.id === result.instructions.halftime);
+  const allGoals = result.events.filter((item) => item.type === "goal");
 
   const chooseHalftime = (choice: HalftimeInstruction) => onInstruction({ ...result.instructions, halftime: choice });
   const skip = () => { setPaused(false); setMinute(result.instructions.halftime ? maxMinute : 45); };
@@ -147,36 +152,93 @@ export function MatchScreen({
             </article>
           ))}
         </section>
-        <aside className={`post-match ${finished ? "is-visible" : ""}`}>
-          {needsHalftime ? (
-            <DecisionPanel eyebrow="INTERVALO · SUA DECISÃO" title="Como o time volta?" options={halftimeOptions} onChoose={chooseHalftime}/>
-          ) : finished ? (
-            <>
-              <span>LEITURA PÓS-JOGO</span>
-              <div className="result-compact"><b>{finalHome} × {finalAway}</b><small>OVR {match.home.overall.final} × {match.away.overall.final}</small></div>
-              <p>{result.summary}</p>
-              {result.instructionImpact && <p className="instruction-impact">{result.instructionImpact}</p>}
-              <dl>
-                <div><dt>Melhor em campo</dt><dd>{result.playerOfMatch}</dd></div>
-                <div><dt>Decisão</dt><dd>{result.wentToPenalties ? "Pênaltis" : result.wentToExtraTime ? "Prorrogação" : "90 minutos"}</dd></div>
-              </dl>
-              <button type="button" className="button button--primary button--wide" onClick={onFinish}>Confirmar resultado<ArrowIcon/></button>
-            </>
-          ) : (
-            <>
-              <span>SIMULAÇÃO EM ANDAMENTO</span>
-              <p>O motor lê força por setor, encaixe tático, cartões e a sua orientação de intervalo.</p>
-              <dl>
-                <div><dt>Adversário</dt><dd>{opponent.name} {opponent.year}</dd></div>
-                <div><dt>Orientação</dt><dd>{chosen ? chosen.label : "Definida no intervalo"}</dd></div>
-                <div><dt>Ritmo</dt><dd>{paused ? "Pausado" : speeds[speedIndex].label}</dd></div>
-              </dl>
-            </>
-          )}
+        <aside className="match-side">
+          <div className={`post-match ${finished ? "is-visible" : ""}`}>
+            {needsHalftime ? (
+              <DecisionPanel eyebrow="INTERVALO · SUA DECISÃO" title="Como o time volta?" options={halftimeOptions} onChoose={chooseHalftime}/>
+            ) : finished ? (
+              <>
+                <span>LEITURA PÓS-JOGO</span>
+                <div className="result-compact"><b>{finalHome} × {finalAway}</b><small>OVR {match.home.overall.final} × {match.away.overall.final}</small></div>
+                <p>{result.summary}</p>
+                <GoalSheet goals={allGoals} match={match}/>
+                {result.instructionImpact && <p className="instruction-impact">{result.instructionImpact}</p>}
+                <dl>
+                  <div><dt>Melhor em campo</dt><dd>{result.playerOfMatch}</dd></div>
+                  <div><dt>Decisão</dt><dd>{result.wentToPenalties ? "Pênaltis" : result.wentToExtraTime ? "Prorrogação" : "90 minutos"}</dd></div>
+                </dl>
+                <button type="button" className="button button--primary button--wide" onClick={onFinish}>Confirmar resultado<ArrowIcon/></button>
+              </>
+            ) : (
+              <>
+                <span>EM CAMPO</span>
+                <dl>
+                  <div><dt>Adversário</dt><dd>{opponent.name} {opponent.year}</dd></div>
+                  <div><dt>Orientação</dt><dd>{chosen ? chosen.label : "Definida no intervalo"}</dd></div>
+                  <div><dt>Ritmo</dt><dd>{paused ? "Pausado" : speeds[speedIndex].label}</dd></div>
+                </dl>
+              </>
+            )}
+          </div>
+          <BoxScore team={userTeam} opponent={opponent} reveal={revealOpponent}/>
         </aside>
       </div>
     </main>
   );
+}
+
+function GoalSheet({ goals, match }: { goals: MatchEvent[]; match: BracketMatch }) {
+  if (!goals.length) return <p className="goal-sheet__empty">Sem gols no tempo de jogo.</p>;
+  return (
+    <div className="goal-sheet">
+      <span>Gols</span>
+      <ul>
+        {goals.map((goal) => (
+          <li key={goal.id} className={goal.teamId === match.home.id ? "is-home" : "is-away"}>
+            <time>{goal.minute}′</time>
+            <b>{goal.playerName}</b>
+            <small>{goal.teamId === match.home.id ? match.home.name : match.away.name}</small>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function BoxScore({ team, opponent, reveal }: { team: TeamSnapshot; opponent: TeamSnapshot; reveal: boolean }) {
+  const overall = team.overall;
+  const order = formations[team.formation].slots;
+  const rows = [...overall.evaluations].sort(
+    (left, right) => order.findIndex((slot) => slot.id === left.slot.id) - order.findIndex((slot) => slot.id === right.slot.id),
+  );
+  const tactical = Math.max(0, Math.min(99, 80 + overall.cohesion * 4 + overall.tacticBonus * 3));
+  return (
+    <section className="boxscore-card" aria-label="Box score do seu time">
+      <header><span>BOX SCORE</span><strong>{overall.final}</strong><small>overall geral</small></header>
+      <div className="opponent-read">
+        <span>Adversário <b>{opponent.name}</b></span>
+        <span>Força rival <b>{reveal ? opponent.overall.final : "?"}</b></span>
+      </div>
+      <div className="sector-bars">
+        <ScoreBar label="Defesa" value={overall.defense}/>
+        <ScoreBar label="Meio" value={overall.midfield}/>
+        <ScoreBar label="Ataque" value={overall.attack}/>
+        <ScoreBar label="Tática" value={tactical}/>
+      </div>
+      <div className="lineup-sheet">
+        {rows.map((entry) => (
+          <div key={entry.slot.id} className={entry.fit === "improvised" ? "is-improvised" : ""}>
+            <span>{entry.slot.label}</span><b>{entry.player.name}</b><strong>{entry.adjustedOverall}</strong>
+          </div>
+        ))}
+      </div>
+      {overall.improvisationPenalty > 0 && <p className="improvisation-note">Improvisações custam {overall.improvisationPenalty} ponto(s) no cálculo.</p>}
+    </section>
+  );
+}
+
+function ScoreBar({ label, value }: { label: string; value?: number }) {
+  return <div><span>{label}</span><i><b style={{ width: `${value ?? 0}%` }}/></i><strong>{value || "—"}</strong></div>;
 }
 
 function DecisionPanel<T extends string>({

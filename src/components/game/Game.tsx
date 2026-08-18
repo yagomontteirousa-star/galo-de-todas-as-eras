@@ -13,6 +13,8 @@ import { OutcomeScreen } from "@/components/game/screens/OutcomeScreen";
 import { appendHistory, archiveCampaign, buildUserTeam, CAMPAIGN_STORAGE_KEY, clearLegacyStorage, createCampaign, LAST_CAMPAIGN_STORAGE_KEY, nextAvailableSquad, readHistory, readStoredCampaign, startDraft, toRecord, touchCampaign } from "@/lib/campaign";
 import { createBracket, getCurrentUserMatch, resolveCurrentRound } from "@/lib/bracket";
 import { seededRandom, simulateMatch } from "@/lib/simulation";
+import { TutorialCoach } from "@/components/game/TutorialCoach";
+import { nextTip, readTutorial, restartTutorial, saveTutorial, tutorialTouched, type TutorialState } from "@/lib/tutorial";
 import type { Campaign, CampaignRecord, FormationId, LineupEntry, MatchInstructions, RatingsMode, TacticId } from "@/types/game";
 
 function homeCampaign(): Campaign { return { ...createCampaign(), screen: "home" }; }
@@ -21,6 +23,7 @@ export function Game() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [lastCampaign, setLastCampaign] = useState<Campaign | null>(null);
   const [history, setHistory] = useState<CampaignRecord[]>([]);
+  const [tutorial, setTutorial] = useState<TutorialState>({ dismissed: true, seen: [] });
   const [storageWarning, setStorageWarning] = useState(false);
   const activeScreen = campaign?.screen;
   const activeSquadId = campaign?.currentSquadId;
@@ -30,6 +33,7 @@ export function Game() {
       clearLegacyStorage();
       setLastCampaign(readStoredCampaign(LAST_CAMPAIGN_STORAGE_KEY));
       setHistory(readHistory());
+      setTutorial(readTutorial());
       setCampaign(readStoredCampaign(CAMPAIGN_STORAGE_KEY) ?? homeCampaign());
     }, 0);
     return () => window.clearTimeout(timer);
@@ -75,7 +79,17 @@ export function Game() {
     const base = { ...campaign, usedSquadIds, currentSquadId: undefined, rerollsLeft: campaign.rerollsLeft - 1 };
     update({ ...base, currentSquadId: nextAvailableSquad(base)?.id });
   };
-  const removeLineupEntry = (slotId: string) => update({ ...campaign, lineup: campaign.lineup.filter((entry) => entry.slotId !== slotId) });
+  /** Troca as vagas de duas peças já fechadas; se o destino estiver livre, a peça só muda de lugar. */
+  const relocateLineupEntry = (fromSlotId: string, toSlotId: string) => update({
+    ...campaign,
+    lineup: campaign.lineup.map((entry) =>
+      entry.slotId === fromSlotId ? { ...entry, slotId: toSlotId }
+        : entry.slotId === toSlotId ? { ...entry, slotId: fromSlotId } : entry),
+  });
+  const storeTutorial = (next: TutorialState) => { setTutorial(next); saveTutorial(next); };
+  const markTip = (id: string) => storeTutorial({ ...tutorial, seen: [...tutorial.seen, id] });
+  const dismissTutorial = () => storeTutorial({ ...tutorial, dismissed: true });
+  const replayTutorial = () => storeTutorial(restartTutorial());
   const startTournament = () => {
     if (!team) return;
     update({ ...campaign, bracket: createBracket(team), screen: "bracket" });
@@ -121,15 +135,16 @@ export function Game() {
 
   const currentSquad = campaign.currentSquadId ? squadsById.get(campaign.currentSquadId) : undefined;
   const currentMatch = campaign.bracket ? getCurrentUserMatch(campaign.bracket) : undefined;
+  const tip = nextTip(tutorial, campaign.screen);
 
   return <div className="game-app">
     <a className="skip-link" href="#main">Pular para o conteúdo</a>
     <GameHeader campaign={campaign} onHome={goHome} onRestart={restart}/>
     {storageWarning && <div className="storage-warning" role="status">O navegador bloqueou o salvamento. Você pode jogar, mas esta campanha pode não continuar após fechar a aba.</div>}
-    {campaign.screen === "home" && <HomeScreen onStart={restart} onResume={resume} canResume={canResume} onReviewLast={reviewLast} lastOutcome={lastCampaign?.outcome} history={history}/>}
-    {campaign.screen === "setup" && <SetupScreen onContinue={setup}/>} 
+    {campaign.screen === "home" && <HomeScreen onStart={restart} onResume={resume} canResume={canResume} onReviewLast={reviewLast} lastOutcome={lastCampaign?.outcome} history={history} onReplayTutorial={tutorialTouched(tutorial) ? replayTutorial : undefined}/>}
+    {campaign.screen === "setup" && <SetupScreen onContinue={setup}/>}
     {campaign.screen === "draft" && currentSquad && (
-      <DraftScreen key={currentSquad.id} campaign={campaign} squad={currentSquad} onConfirm={confirmPicks} onReroll={reroll} onRemoveLineupEntry={removeLineupEntry}/>
+      <DraftScreen key={currentSquad.id} campaign={campaign} squad={currentSquad} onConfirm={confirmPicks} onReroll={reroll} onRelocateLineupEntry={relocateLineupEntry}/>
     )}
     {campaign.screen === "draft" && !currentSquad && <main className="error-screen" id="main"><h1>O arquivo desta era não abriu.</h1><p>A campanha foi preservada. Sorteie outro elenco para continuar.</p><button type="button" className="button button--primary" onClick={() => { const next = nextAvailableSquad(campaign); update({ ...campaign, currentSquadId: next?.id }); }}>Tentar outro elenco</button></main>}
     {campaign.screen === "analysis" && team && <AnalysisScreen campaign={campaign} team={team} onStart={startTournament}/>} 
@@ -142,5 +157,6 @@ export function Game() {
     {campaign.screen === "champion" && (
       <OutcomeScreen campaign={campaign} outcome="champion" onContinue={() => show("bracket")} onRestart={restart}/>
     )}
+    {tip && <TutorialCoach key={tip.id} tip={tip} onNext={() => markTip(tip.id)} onDismiss={dismissTutorial}/>}
   </div>;
 }

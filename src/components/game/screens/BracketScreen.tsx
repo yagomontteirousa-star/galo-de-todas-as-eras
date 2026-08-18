@@ -16,7 +16,7 @@ export function BracketScreen({ bracket, ratingsMode, onPlay }: { bracket: Brack
   const currentMatch = getCurrentUserMatch(bracket);
   const current = currentMatch?.result ? undefined : currentMatch;
   const opponent = current && (current.home.isUser ? current.away : current.home);
-  const scorers = (match: BracketMatch) => match.result?.events.filter((item) => item.type === "goal").map((item) => item.playerName).filter(Boolean).join(", ");
+  const goalsOf = (match: BracketMatch) => match.result?.events.filter((item) => item.type === "goal") ?? [];
 
   return (
     <main className="screen bracket-screen" id="main">
@@ -50,7 +50,17 @@ export function BracketScreen({ bracket, ratingsMode, onPlay }: { bracket: Brack
                     <TeamLine team={match.home} score={homeTotal} isWinner={match.result?.winnerId === match.home.id} decided={decided}/>
                     <TeamLine team={match.away} score={awayTotal} isWinner={match.result?.winnerId === match.away.id} decided={decided}/>
                     {match.result?.wentToPenalties && <em className="bracket-match__note">Pênaltis {match.result.homePenalties}–{match.result.awayPenalties}</em>}
-                    {hasUser && decided && <small className="bracket-match__scorers">{scorers(match) || "Sem gols"}</small>}
+                    {hasUser && decided && (
+                      goalsOf(match).length
+                        ? <ul className="bracket-match__goals">
+                          {goalsOf(match).map((goal) => (
+                            <li key={goal.id} className={goal.teamId === match.home.id ? "is-home" : "is-away"}>
+                              <time>{goal.minute}′</time>{goal.playerName}
+                            </li>
+                          ))}
+                        </ul>
+                        : <small className="bracket-match__scorers">Sem gols</small>
+                    )}
                     {isCurrent && <span className="bracket-match__flag">Seu próximo jogo</span>}
                   </article>;
                 })}

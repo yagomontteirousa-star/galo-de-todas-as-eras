@@ -1,10 +1,9 @@
 import { Pitch } from "@/components/game/Pitch";
-import { playersById } from "@/data/atletico-squads";
+import { atleticoSquads, playersById } from "@/data/atletico-squads";
 import { formations } from "@/data/formations";
-import { opponents } from "@/data/opponents";
-import { calculateTeamOverall, evaluatePosition } from "@/lib/overall";
-import type { Campaign, HistoricalSquad, LineupEntry, Player, Position } from "@/types/game";
-import { useEffect, useMemo, useState } from "react";
+import { evaluatePosition } from "@/lib/overall";
+import type { Campaign, FormationSlot, HistoricalSquad, LineupEntry, Player, Position } from "@/types/game";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckIcon, ShuffleIcon } from "@/components/ui/Icons";
 
 const positionLabels: Record<Position, string> = { GK: "GOL", CB: "ZAG", LB: "LE", RB: "LD", LWB: "ALA", RWB: "ALA", DM: "VOL", CM: "MC", AM: "MEI", LW: "PE", RW: "PD", ST: "ATA" };
@@ -15,23 +14,38 @@ const groups: { title: string; positions: Position[] }[] = [
   { title: "Meio-campistas", positions: ["DM", "CM", "AM"] },
   { title: "Atacantes", positions: ["LW", "RW", "ST"] },
 ];
+const squadYears = atleticoSquads.map((squad) => squad.year);
+const REVEAL_MS = 820;
 
-type MobileTab = "roster" | "pitch" | "team";
+type MobileTab = "roster" | "pitch";
+interface PickToast { id: number; tone: "ok" | "block"; title: string; detail: string }
 
-export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRemoveLineupEntry }: {
+/** Uma vaga só aceita quem a cobre de forma natural ou secundária — improviso não escala. */
+const canPlay = (player: Player, slot: FormationSlot) => evaluatePosition(player, slot).fit !== "improvised";
+const compatibleSlots = (player: Player, slots: FormationSlot[], exceptSlotId?: string) =>
+  slots.filter((slot) => slot.id !== exceptSlotId && canPlay(player, slot));
+
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLineupEntry }: {
   campaign: Campaign;
   squad: HistoricalSquad;
   onConfirm: (picks: LineupEntry[]) => void;
   onReroll: () => void;
-  onRemoveLineupEntry: (slotId: string) => void;
+  onRelocateLineupEntry: (fromSlotId: string, toSlotId: string) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string>();
   const [hoverId, setHoverId] = useState<string>();
   const [selectedSlotId, setSelectedSlotId] = useState<string>();
+  const [editingSlotId, setEditingSlotId] = useState<string>();
+  const [rejectedSlotId, setRejectedSlotId] = useState<string>();
   const [picks, setPicks] = useState<LineupEntry[]>([]);
-  const [filter, setFilter] = useState<"all" | "needed">("all");
-  const [sort, setSort] = useState<"position" | "overall">("position");
-  const [mobileTab, setMobileTab] = useState<MobileTab>("pitch");
+  const [mobileTab, setMobileTab] = useState<MobileTab>("roster");
+  const [toast, setToast] = useState<PickToast>();
+  const [spinYear, setSpinYear] = useState<number | undefined>(
+    () => prefersReducedMotion() ? undefined : squadYears[Math.floor(Math.random() * squadYears.length)]);
+  const toastSeq = useRef(0);
   const formation = formations[campaign.formation!];
   const showRatings = campaign.ratingsMode !== "memory";
   const selectedPlayer = squad.players.find((player) => player.id === selectedId);
@@ -44,66 +58,120 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRemoveLine
   const totalFilled = combined.length;
   const closesLineup = campaign.lineup.length + maxPicks === 11;
   const advancing = picks.length >= maxPicks;
+  const revealing = spinYear !== undefined;
 
-  // Cota da era preenchida: confirma sozinho, com uma pausa curta para a transição ser legível.
+  // Revelação do ano: um giro curto entre as eras antes de parar no elenco sorteado.
+  // A tela é remontada a cada ano (key do elenco), então o giro roda uma vez por sorteio.
+  useEffect(() => {
+    if (prefersReducedMotion()) return;
+    let index = 0;
+    const spin = window.setInterval(() => {
+      index += 1;
+      setSpinYear(squadYears[(index * 5) % squadYears.length]);
+    }, 62);
+    const stop = window.setTimeout(() => { window.clearInterval(spin); setSpinYear(undefined); }, REVEAL_MS);
+    return () => { window.clearInterval(spin); window.clearTimeout(stop); };
+  }, []);
+
+  // Cota do ano preenchida: confirma sozinho, com uma pausa curta para a transição ser legível.
   useEffect(() => {
     if (!advancing) return;
-    const timer = window.setTimeout(() => onConfirm(picks), 820);
+    const timer = window.setTimeout(() => onConfirm(picks), 900);
     return () => window.clearTimeout(timer);
   }, [advancing, onConfirm, picks]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(undefined), toast.tone === "block" ? 1900 : 2300);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  useEffect(() => {
+    if (!rejectedSlotId) return;
+    const timer = window.setTimeout(() => setRejectedSlotId(undefined), 520);
+    return () => window.clearTimeout(timer);
+  }, [rejectedSlotId]);
 
   const previewPlayers = useMemo(
     () => new Map(picks.map((entry) => [entry.slotId, squad.players.find((player) => player.id === entry.playerId)!])),
     [picks, squad.players],
   );
-  const positioned = combined.flatMap((entry) => {
-    const player = previewPlayers.get(entry.slotId) ?? playersById.get(entry.playerId);
-    return player ? [{ player, slotId: entry.slotId }] : [];
-  });
-  const overall = positioned.length ? calculateTeamOverall(positioned, campaign.formation!, campaign.tactic!) : undefined;
-  const rivalAverage = Math.round(opponents.reduce((sum, team) => sum + team.overall.final, 0) / opponents.length);
-  const difficulty = !overall ? "A definir" : overall.final >= rivalAverage + 3 ? "Favorável" : overall.final >= rivalAverage - 2 ? "Equilibrado" : "Exigente";
+  const playerAt = (slotId: string) => {
+    const entry = combined.find((item) => item.slotId === slotId);
+    return entry ? previewPlayers.get(slotId) ?? playersById.get(entry.playerId) : undefined;
+  };
 
-  const players = useMemo(() => {
-    const filtered = filter === "all"
-      ? squad.players
-      : squad.players.filter((player) => openSlots.some((slot) => evaluatePosition(player, slot).fit !== "improvised"));
-    return [...filtered].sort((left, right) => sort === "overall" && showRatings
-      ? right.overall - left.overall
-      : positionOrder.indexOf(left.primaryPosition) - positionOrder.indexOf(right.primaryPosition) || right.overall - left.overall);
-  }, [filter, openSlots, showRatings, sort, squad.players]);
+  const players = useMemo(
+    () => [...squad.players].sort((left, right) =>
+      positionOrder.indexOf(left.primaryPosition) - positionOrder.indexOf(right.primaryPosition) || right.overall - left.overall),
+    [squad.players],
+  );
 
-  const assignPlayer = (player: Player, slotId: string) => {
-    if (advancing) return;
-    const lockedEntry = campaign.lineup.find((entry) => entry.slotId === slotId);
-    if (!picks.some((entry) => entry.slotId === slotId) && picks.length >= maxPicks) return;
-    if (lockedEntry) onRemoveLineupEntry(slotId);
+  const announce = (tone: PickToast["tone"], title: string, detail: string) =>
+    setToast({ id: (toastSeq.current += 1), tone, title, detail });
+
+  const assignPlayer = (player: Player, slot: FormationSlot) => {
+    if (advancing || occupied.has(slot.id)) return;
+    if (!canPlay(player, slot)) {
+      setRejectedSlotId(slot.id);
+      announce("block", "Posição incompatível", `${player.name} joga como ${positionLabels[player.primaryPosition]}.`);
+      return;
+    }
+    if (picks.length >= maxPicks) return;
     // Uma vaga só aceita uma escolha: a decisão sai do estado atual, não do render, para nunca duplicar slotId.
     setPicks((current) => {
-      const others = current.filter((entry) => entry.slotId !== slotId);
-      return others.length >= maxPicks ? current : [...others, { slotId, playerId: player.id, squadId: squad.id }];
+      const others = current.filter((entry) => entry.slotId !== slot.id);
+      return others.length >= maxPicks ? current : [...others, { slotId: slot.id, playerId: player.id, squadId: squad.id }];
     });
     setSelectedId(undefined);
     setSelectedSlotId(undefined);
+    setMobileTab("roster");
+    announce("ok", "Jogador confirmado", `${player.name} · ${slot.label}`);
+  };
+
+  /** Troca duas vagas de uma vez nas duas coleções: o onze já fechado e as escolhas deste ano. */
+  const relocate = (fromSlotId: string, toSlotId: string) => {
+    const player = playerAt(fromSlotId);
+    const target = formation.slots.find((slot) => slot.id === toSlotId);
+    if (!player || !target || fromSlotId === toSlotId) return;
+    const swap = (entry: LineupEntry): LineupEntry =>
+      entry.slotId === fromSlotId ? { ...entry, slotId: toSlotId }
+        : entry.slotId === toSlotId ? { ...entry, slotId: fromSlotId } : entry;
+    if (picks.some((entry) => entry.slotId === fromSlotId || entry.slotId === toSlotId)) setPicks((current) => current.map(swap));
+    if (campaign.lineup.some((entry) => entry.slotId === fromSlotId || entry.slotId === toSlotId)) onRelocateLineupEntry(fromSlotId, toSlotId);
+    setEditingSlotId(undefined);
+    announce("ok", "Posição atualizada", `${player.name} · ${target.label}`);
+  };
+
+  const releasePick = (slotId: string) => {
+    setPicks((current) => current.filter((entry) => entry.slotId !== slotId));
+    setEditingSlotId(undefined);
   };
 
   const handleSlot = (slotId: string) => {
-    if (advancing) return;
-    const ownPick = picks.find((entry) => entry.slotId === slotId);
-    const lockedEntry = campaign.lineup.find((entry) => entry.slotId === slotId);
-    if (selectedPlayer) return assignPlayer(selectedPlayer, slotId);
-    if (ownPick) setPicks((current) => current.filter((entry) => entry.slotId !== slotId));
-    else if (lockedEntry) onRemoveLineupEntry(slotId);
+    if (advancing || revealing) return;
+    const slot = formation.slots.find((item) => item.id === slotId)!;
+    if (occupied.has(slotId)) { setSelectedSlotId(undefined); setEditingSlotId(slotId); return; }
+    if (selectedPlayer) return assignPlayer(selectedPlayer, slot);
     setSelectedSlotId((current) => current === slotId ? undefined : slotId);
   };
 
   const handlePlayer = (player: Player) => {
-    if (advancing || alreadyChosen.has(player.id)) return;
-    if (selectedSlotId) return assignPlayer(player, selectedSlotId);
+    if (advancing || revealing || alreadyChosen.has(player.id)) return;
+    if (selectedSlotId) {
+      const slot = formation.slots.find((item) => item.id === selectedSlotId)!;
+      return assignPlayer(player, slot);
+    }
     setSelectedId((current) => current === player.id ? undefined : player.id);
     setMobileTab("pitch");
   };
 
+  const targetSlotIds = activePlayer
+    ? compatibleSlots(activePlayer, openSlots).map((slot) => slot.id)
+    : undefined;
+  const editingPlayer = editingSlotId ? playerAt(editingSlotId) : undefined;
+  const editingSlot = editingSlotId ? formation.slots.find((slot) => slot.id === editingSlotId) : undefined;
+  const editingTargets = editingPlayer && editingSlot ? compatibleSlots(editingPlayer, formation.slots, editingSlot.id) : [];
   const advanceLabel = closesLineup
     ? "Escalação completa · abrindo a análise tática"
     : maxPicks === 1 ? "Escolha confirmada · sorteando o próximo ano" : "Dupla confirmada · sorteando o próximo ano";
@@ -112,33 +180,27 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRemoveLine
     <main className="draft-screen" id="main">
       <nav className="draft-mobile-tabs" aria-label="Etapas da escalação">
         <button type="button" aria-current={mobileTab === "roster" ? "page" : undefined} className={mobileTab === "roster" ? "is-active" : ""} onClick={() => setMobileTab("roster")}>Elenco</button>
-        <button type="button" aria-current={mobileTab === "pitch" ? "page" : undefined} className={mobileTab === "pitch" ? "is-active" : ""} onClick={() => setMobileTab("pitch")}>Campo</button>
-        <button type="button" aria-current={mobileTab === "team" ? "page" : undefined} className={mobileTab === "team" ? "is-active" : ""} onClick={() => setMobileTab("team")}>Time · {totalFilled}/11</button>
+        <button type="button" aria-current={mobileTab === "pitch" ? "page" : undefined} className={mobileTab === "pitch" ? "is-active" : ""} onClick={() => setMobileTab("pitch")}>Campo · {totalFilled}/11</button>
       </nav>
 
       <div className={`draft-workspace ${advancing ? "is-advancing" : ""}`}>
-        <section className={`draft-column era-column ${mobileTab === "roster" ? "is-mobile-active" : ""}`} aria-label={`Era ${squad.year}`}>
+        <section className={`draft-column era-column ${mobileTab === "roster" ? "is-mobile-active" : ""}`} aria-label={`Elenco de ${squad.year}`}>
           <header className="era-header">
-            <span>ERA SORTEADA</span>
-            <div><strong>{squad.year}</strong><h1>{squad.name}</h1></div>
-            <p>{squad.context}</p>
+            <span>ANO SORTEADO</span>
+            <div className={revealing ? "is-spinning" : ""}>
+              <strong aria-live="polite">{spinYear ?? squad.year}</strong>
+              <h1>{revealing ? "Sorteando…" : squad.name}</h1>
+            </div>
           </header>
 
           <div className="roster-heading">
-            <div className="roster-heading__top">
-              <div><h2>{maxPicks === 1 ? "Escolha o jogador" : "Escolha 2 jogadores"}</h2><span>{picks.length} de {maxPicks} nesta era · avança sozinho ao completar</span></div>
-              <button type="button" className="reroll-action" disabled={!campaign.rerollsLeft || advancing} onClick={onReroll}>
-                <ShuffleIcon/>Sortear outro ano<em>{campaign.rerollsLeft}</em>
-              </button>
-            </div>
-            <div className="roster-filters" role="group" aria-label="Filtrar jogadores">
-              <button type="button" className={filter === "all" ? "is-active" : ""} onClick={() => setFilter("all")}>Todos</button>
-              <button type="button" className={filter === "needed" ? "is-active" : ""} onClick={() => setFilter("needed")}>Posições livres</button>
-              <label><span>Ordenar</span><select value={sort} onChange={(event) => setSort(event.target.value as "position" | "overall")}><option value="position">Posição</option>{showRatings && <option value="overall">Overall</option>}</select></label>
-            </div>
+            <div><h2>{maxPicks === 1 ? "Escolha o jogador" : "Escolha 2 jogadores"}</h2><span>{picks.length} de {maxPicks} neste ano</span></div>
+            <button type="button" className="reroll-action" disabled={!campaign.rerollsLeft || advancing || revealing} onClick={onReroll}>
+              <ShuffleIcon/>Outro ano<em>{campaign.rerollsLeft}</em>
+            </button>
           </div>
 
-          <div className="roster-scroll">
+          <div className="roster-scroll" aria-busy={revealing}>
             {groups.map((group) => {
               const groupPlayers = players.filter((player) => group.positions.includes(player.primaryPosition));
               if (!groupPlayers.length) return null;
@@ -146,15 +208,16 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRemoveLine
                 <h3>{group.title}<span>{groupPlayers.length}</span></h3>
                 {groupPlayers.map((player) => {
                   const isPicked = alreadyChosen.has(player.id);
-                  const bestFit = openSlots.reduce((best, slot) => Math.min(best, evaluatePosition(player, slot).penalty), 99);
-                  return <button type="button" key={player.id} disabled={isPicked || (picks.length >= maxPicks && !isPicked)}
-                    className={`player-row ${selectedId === player.id ? "is-selected" : ""} ${isPicked ? "is-picked" : ""}`}
+                  const hasRoom = openSlots.some((slot) => canPlay(player, slot));
+                  return <button type="button" key={player.id} disabled={isPicked || !hasRoom || advancing || revealing}
+                    className={`player-row ${selectedId === player.id ? "is-selected" : ""} ${isPicked ? "is-picked" : ""} ${!hasRoom && !isPicked ? "is-blocked" : ""}`}
                     onClick={() => handlePlayer(player)} onMouseEnter={() => setHoverId(player.id)} onMouseLeave={() => setHoverId(undefined)}
                     onFocus={() => setHoverId(player.id)} onBlur={() => setHoverId(undefined)} aria-pressed={selectedId === player.id}>
                     <span className="player-row__position">{positionLabels[player.primaryPosition]}</span>
-                    <span className="player-row__identity"><b>{player.name}</b><small>{player.secondaryPositions.map((position) => positionLabels[position]).join(" · ") || player.tags[0]}</small></span>
-                    <span className={`player-row__fit fit--${bestFit === 0 ? "natural" : bestFit === 2 ? "secondary" : "improvised"}`}>{bestFit <= 2 ? "encaixa" : `−${bestFit}`}</span>
-                    {showRatings && <strong>{player.overall}</strong>}{isPicked && <CheckIcon/>}
+                    <span className="player-row__name">{player.name}</span>
+                    {!hasRoom && !isPicked && <span className="player-row__state">sem vaga</span>}
+                    {showRatings && <strong className="player-row__ovr">{player.overall}</strong>}
+                    {isPicked && <CheckIcon/>}
                   </button>;
                 })}
               </section>;
@@ -163,31 +226,55 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRemoveLine
         </section>
 
         <section className={`draft-column field-column ${mobileTab === "pitch" ? "is-mobile-active" : ""}`} aria-label="Campo e escalação">
-          <header className="field-heading"><div><span>FORMAÇÃO {campaign.formation}</span><b>{selectedPlayer ? `Escolha a vaga de ${selectedPlayer.name}` : selectedSlotId ? "Agora escolha um jogador" : "Monte o seu onze"}</b></div><strong>{totalFilled}<small>/11</small></strong></header>
-          <Pitch formationId={campaign.formation!} lineup={campaign.lineup} previewPlayers={previewPlayers} selectedPlayer={activePlayer} selectedSlotId={selectedSlotId} onSlotClick={handleSlot} showRatings={showRatings}/>
-          <p className="field-hint">Clique no atleta e depois na vaga — ou comece pela vaga. Clique numa peça para trocar ou remover.</p>
+          <header className="field-heading">
+            <div><span>FORMAÇÃO {campaign.formation}</span><b>{selectedPlayer ? `Onde ${selectedPlayer.name} joga` : selectedSlotId ? "Agora escolha um jogador" : "Monte o seu onze"}</b></div>
+            <strong>{totalFilled}<small>/11</small></strong>
+          </header>
+          <Pitch formationId={campaign.formation!} lineup={campaign.lineup} previewPlayers={previewPlayers} selectedPlayer={activePlayer}
+            selectedSlotId={selectedSlotId} targetSlotIds={targetSlotIds} rejectedSlotId={rejectedSlotId} onSlotClick={handleSlot} showRatings={showRatings}/>
+          <p className="field-hint">{activePlayer ? "As vagas acesas aceitam este atleta." : "Toque no atleta e depois na vaga. Tocar numa peça escalada muda a posição."}</p>
         </section>
-
-        <aside className={`draft-column boxscore-column ${mobileTab === "team" ? "is-mobile-active" : ""}`}>
-          <div className="boxscore-content">
-            <header><span>BOX SCORE · {totalFilled}/11</span><strong>{overall?.final ?? "—"}</strong><small>overall geral</small></header>
-            <div className="opponent-read"><span>Força média dos rivais <b>{showRatings ? rivalAverage : "?"}</b></span><span>Dificuldade <b>{difficulty}</b></span></div>
-            <div className="sector-bars"><ScoreBar label="Defesa" value={overall?.defense}/><ScoreBar label="Meio" value={overall?.midfield}/><ScoreBar label="Ataque" value={overall?.attack}/><ScoreBar label="Tática" value={overall ? Math.max(0, Math.min(99, 80 + overall.cohesion * 4 + overall.tacticBonus * 3)) : undefined}/></div>
-            <div className="lineup-sheet">{formation.slots.map((slot) => {
-              const entry = combined.find((item) => item.slotId === slot.id);
-              const player = entry ? previewPlayers.get(slot.id) ?? playersById.get(entry.playerId) : undefined;
-              const evaluation = player ? evaluatePosition(player, slot) : undefined;
-              return <button type="button" key={slot.id} onClick={() => handleSlot(slot.id)} className={evaluation?.fit === "improvised" ? "is-improvised" : ""}><span>{slot.label}</span><b>{player?.name ?? "—"}</b><strong>{showRatings && player ? player.overall - (evaluation?.penalty ?? 0) : player ? "•" : "—"}</strong></button>;
-            })}</div>
-            {overall && overall.improvisationPenalty > 0 && <p className="improvisation-note">Improvisações reduzem {overall.improvisationPenalty} ponto(s) do cálculo final.</p>}
-          </div>
-        </aside>
       </div>
+
+      {editingPlayer && editingSlot && (
+        <div className="slot-dialog" role="dialog" aria-modal="true" aria-label={`Posição de ${editingPlayer.name}`}>
+          <button type="button" className="slot-dialog__backdrop" aria-label="Fechar" onClick={() => setEditingSlotId(undefined)}/>
+          <div className="slot-dialog__panel">
+            <header>
+              <span>MUDAR POSIÇÃO</span>
+              <b>{editingPlayer.name}</b>
+              <small>Hoje em {editingSlot.label} · natural {positionLabels[editingPlayer.primaryPosition]}</small>
+            </header>
+            {editingTargets.length ? (
+              <div className="slot-dialog__options">
+                {editingTargets.map((slot) => {
+                  const occupant = playerAt(slot.id);
+                  const evaluation = evaluatePosition(editingPlayer, slot);
+                  return <button type="button" key={slot.id} onClick={() => relocate(editingSlot.id, slot.id)}>
+                    <b>{slot.label}</b>
+                    <span className={`fit--${evaluation.fit}`}>{evaluation.fit === "natural" ? "natural" : "secundária"}</span>
+                    <small>{occupant ? `troca com ${occupant.name}` : "vaga livre"}</small>
+                  </button>;
+                })}
+              </div>
+            ) : <p className="slot-dialog__empty">Não há outra vaga compatível nesta formação. Ele segue em {editingSlot.label}.</p>}
+            <footer>
+              {picks.some((entry) => entry.slotId === editingSlot.id) && (
+                <button type="button" className="slot-dialog__release" onClick={() => releasePick(editingSlot.id)}>Devolver ao elenco</button>
+              )}
+              <button type="button" className="button button--quiet" onClick={() => setEditingSlotId(undefined)}>Fechar</button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {toast && !advancing && (
+        <div className={`pick-toast pick-toast--${toast.tone}`} role="status" key={toast.id}>
+          {toast.tone === "ok" ? <CheckIcon/> : <span className="pick-toast__mark" aria-hidden="true">!</span>}
+          <div><b>{toast.title}</b><span>{toast.detail}</span></div>
+        </div>
+      )}
       {advancing && <div className="draft-advance" role="status"><span>{advanceLabel}</span><i aria-hidden="true"/></div>}
     </main>
   );
-}
-
-function ScoreBar({ label, value }: { label: string; value?: number }) {
-  return <div><span>{label}</span><i><b style={{ width: `${value ?? 0}%` }}/></i><strong>{value || "—"}</strong></div>;
 }

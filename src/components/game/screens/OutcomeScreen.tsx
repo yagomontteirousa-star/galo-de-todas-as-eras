@@ -23,12 +23,50 @@ export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
   const goals = result?.events.filter((event) => event.type === "goal") ?? [];
   const homeName = lastMatch?.home.name ?? "Mandante";
   const awayName = lastMatch?.away.name ?? "Visitante";
+  const goalLine = (teamId?: string) => teamId === lastMatch?.home.id ? homeName : awayName;
+
+  if (outcome === "champion") {
+    return (
+      <main className="outcome-screen outcome-screen--champion" id="main">
+        <div className="champion-scene" aria-hidden="true"/>
+        <section className="champion-content">
+          <div className="outcome-monogram" aria-hidden="true">PB</div>
+          <span className="champion-eyebrow">Campeão</span>
+          <h1>{copy.title}</h1>
+          <p>{copy.text}</p>
+          <dl className="champion-facts">
+            <div><dt>Vitórias</dt><dd>{campaign.wins}</dd></div>
+            <div><dt>Overall</dt><dd>{userTeam?.overall.final ?? "—"}</dd></div>
+            <div><dt>Formação</dt><dd>{campaign.formation ?? "—"}</dd></div>
+          </dl>
+          <div className="champion-final">
+            <header>
+              <span>{lastMatch ? roundLabels[lastMatch.round] : "Final"}</span>
+              <b>{homeName} <i>{homeTotal}</i>×<i>{awayTotal}</i> {awayName}</b>
+              {result?.wentToPenalties && <em>pênaltis {result.homePenalties} × {result.awayPenalties}</em>}
+            </header>
+            {goals.length ? (
+              <ul>
+                {goals.map((goal) => (
+                  <li key={goal.id}><time>{goal.minute}′</time><b>{goal.playerName}</b><small>{goalLine(goal.teamId)}</small></li>
+                ))}
+              </ul>
+            ) : <p>Decidido sem gols no tempo de jogo.</p>}
+          </div>
+          <div className="outcome-actions">
+            <button type="button" className="button button--primary" onClick={onContinue}>Ver a campanha<ArrowIcon/></button>
+            <button type="button" className="button button--quiet" onClick={onRestart}>Nova campanha</button>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className={`outcome-screen outcome-screen--${outcome}`} id="main">
       <section className="outcome-summary">
         <div className="outcome-monogram" aria-hidden="true">PB</div>
-        <span>{outcome === "champion" ? "CAMPEÃO" : outcome === "eliminated" ? "FIM DE CAMPANHA" : `${campaign.wins}ª VITÓRIA`}</span>
+        <span>{outcome === "eliminated" ? "FIM DE CAMPANHA" : `${campaign.wins}ª VITÓRIA`}</span>
         <h1>{copy.title}</h1><p>{copy.text}</p>
         <div className="outcome-actions">
           <button type="button" className="button button--primary" onClick={onContinue}>{outcome === "victory" ? "Próxima fase" : "Ver campanha"}<ArrowIcon/></button>
@@ -45,7 +83,7 @@ export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
           <div><span>Impacto tático</span><b>{result?.instructionImpact ?? "Plano mantido durante o confronto."}</b></div>
           <div><span>Improvisos</span><b>{userTeam?.overall.improvisationPenalty ? `−${userTeam.overall.improvisationPenalty} no cálculo` : "Sem impacto relevante"}</b></div>
         </div>
-        <div className="result-goals"><span>Gols</span>{goals.length ? goals.map((goal) => <p key={goal.id}><time>{goal.minute}′</time><b>{goal.playerName}</b><small>{goal.teamId === lastMatch?.home.id ? homeName : awayName}</small></p>) : <p>Sem gols no tempo de jogo.</p>}</div>
+        <div className="result-goals"><span>Gols</span>{goals.length ? goals.map((goal) => <p key={goal.id}><time>{goal.minute}′</time><b>{goal.playerName}</b><small>{goalLine(goal.teamId)}</small></p>) : <p>Sem gols no tempo de jogo.</p>}</div>
       </aside>
     </main>
   );

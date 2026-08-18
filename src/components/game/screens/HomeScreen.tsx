@@ -5,13 +5,14 @@ import type { CampaignOutcome, CampaignRecord } from "@/types/game";
 
 const shortDate = (value: string) => new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 
-export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOutcome, history }: {
+export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOutcome, history, onReplayTutorial }: {
   onStart: () => void;
   onResume: () => void;
   canResume: boolean;
   onReviewLast: () => void;
   lastOutcome?: CampaignOutcome;
   history: CampaignRecord[];
+  onReplayTutorial?: () => void;
 }) {
   return (
     <main className="home-screen" id="main">
@@ -27,7 +28,10 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
             {lastOutcome && <button className="button button--quiet" type="button" onClick={onReviewLast}>Última campanha</button>}
             <button className="button button--quiet" type="button" onClick={() => document.getElementById("como-funciona")?.scrollIntoView({ behavior: "smooth" })}>Como funciona</button>
           </div>
-          {canResume && <button type="button" className="new-run-link" onClick={onStart}>Ou começar uma nova campanha</button>}
+          <div className="hero-game__links">
+            {canResume && <button type="button" className="new-run-link" onClick={onStart}>Ou começar uma nova campanha</button>}
+            {onReplayTutorial && <button type="button" className="new-run-link" onClick={onReplayTutorial}>Ver tutorial</button>}
+          </div>
           {history.length > 0 && (
             <ul className="campaign-history" aria-label="Campanhas anteriores">
               {history.slice(0, 3).map((record) => (

@@ -78,8 +78,8 @@ components:
     backgroundColor: "transparent"
     textColor: "{colors.paper}"
     rounded: "0"
-    padding: "6px 14px"
-    height: "54px"
+    padding: "4px 14px"
+    height: "46px"
   pitch-player:
     backgroundColor: "#0d241a"
     textColor: "{colors.paper}"
@@ -166,11 +166,11 @@ A paleta parte do grafite quase preto, abre áreas de leitura em papel off-white
 
 ## Layout
 
-O desktop é uma experiência contida em um viewport, com cabeçalho baixo de 64px e superfícies densas sem rolagem da página. O draft usa três colunas reais — elenco à esquerda (`minmax(320px, .85fr)`), campo dominante ao centro (`minmax(420px, 1.2fr)`) e súmula/ação à direita (`minmax(270px, .72fr)`) — separadas por linhas finas, não por cartões soltos.
+O desktop é uma experiência contida em um viewport, com cabeçalho baixo de 64px e superfícies densas sem rolagem da página. O draft usa duas colunas reais — elenco à esquerda (`minmax(340px, .9fr)`) e campo dominante à direita (`minmax(460px, 1.1fr)`) — separadas por uma linha fina, não por cartões soltos. A leitura da força do time (box score em papel) pertence à tela de jogo, não à montagem.
 
-O breakpoint estrutural é explícito: desktop começa em 921px; mobile termina em 920px. Em 920px ou menos, o documento volta a rolar, o draft vira três abas empilhadas (Elenco, Campo, Time), o header reduz para 58px e a chave do mata-mata empilha as quatro fases em coluna única, sem rolagem horizontal. Entre 921px e 1180px, as três colunas permanecem, mas comprimem suas mínimas e removem detalhes secundários. O ritmo usa intervalos compactos de 6–12px dentro de controles e 20–46px nas margens de tela.
+O breakpoint estrutural é explícito: desktop começa em 921px; mobile termina em 920px. Em 920px ou menos, o documento volta a rolar, o draft vira duas abas empilhadas com o elenco como entrada padrão (Elenco, Campo), o header reduz para 58px e a chave do mata-mata empilha as quatro fases em coluna única, sem rolagem horizontal. Entre 921px e 1180px, as duas colunas permanecem, mas comprimem suas mínimas e removem detalhes secundários. O ritmo usa intervalos compactos de 6–12px dentro de controles e 20–46px nas margens de tela.
 
-**The Campo no Centro Rule.** No draft desktop, preserve sempre a leitura elenco → campo → súmula/ação; no mobile, preserve a mesma sequência por abas e mantenha o campo como aba inicial.
+**The Campo no Centro Rule.** No draft desktop, preserve sempre a leitura elenco → campo; no mobile, mantenha a mesma sequência por abas com o elenco como aba inicial. Tocar numa peça escalada abre a troca de posição — nunca remove o atleta.
 
 ## Elevation & Depth
 
@@ -202,8 +202,10 @@ As formas são compactas e utilitárias. Controles usam cantos de 5–8px, ficha
 
 ### Cards / Containers
 
-- **Player Row:** linha de tabela clicável de 54px com posição, identidade, encaixe, rating e confirmação; seleção troca a linha inteira para papel.
-- **Paper Box Score:** folha clara sem raio, cabeçalho com regra preta de 2px e métricas em grade.
+- **Player Row:** linha de tabela clicável de 46px com posição, nome e rating lado a lado, encaixe e confirmação; seleção troca a linha inteira para papel.
+- **Paper Box Score:** folha clara na tela de jogo, cabeçalho com regra preta de 2px e métricas em grade.
+- **Champion Scene:** foto de arquivo em tela cheia com gradiente escuro à esquerda; o texto ocupa até 560px e a composição fotográfica permanece livre à direita.
+- **Tutorial Coach:** cartão flutuante de 5 passos com destaque discreto no alvo, pulável a qualquer momento.
 - **Pitch Player:** ficha verde-escura de 72px sobre o campo; rating em Archive e bordas semânticas para encaixe natural, secundário ou improvisado.
 - **Campaign Strip:** faixa compacta segmentada, com rótulos de 9–13px e numerais tabulares.
 - **Bracket Match:** cartão de confronto com ano, nome em 15px, placar em Archive e marcação explícita da equipe do jogador.
@@ -219,7 +221,7 @@ O cabeçalho é baixo e contínuo. Marca, estado da campanha, progresso de fases
 
 - **Do** preserve o campo como interface funcional e centro visual da tomada de decisão.
 - **Do** use Archive para títulos, anos, placares e ratings, mantendo Segoe UI/Arial/system no corpo operacional.
-- **Do** mantenha o draft em três colunas a partir de 921px e em abas até 920px.
+- **Do** mantenha o draft em duas colunas a partir de 921px e em abas até 920px.
 - **Do** comunique estados com texto, forma e contraste além da cor.
 - **Do** respeite foco visível e `prefers-reduced-motion` em toda interação.
 
