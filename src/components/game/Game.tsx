@@ -35,6 +35,13 @@ export function Game() {
       setLastCampaign(readStoredCampaign(LAST_CAMPAIGN_STORAGE_KEY));
       setHistory(readHistory());
       setTutorial(readTutorial());
+      // Chegou de um link compartilhado pedindo campanha nova: começa do zero neste
+      // aparelho, sem tocar no resultado que o link carrega.
+      if (new URLSearchParams(window.location.search).has("nova")) {
+        window.history.replaceState(null, "", window.location.pathname);
+        setCampaign(createCampaign());
+        return;
+      }
       setCampaign(readStoredCampaign(CAMPAIGN_STORAGE_KEY) ?? homeCampaign());
     }, 0);
     return () => window.clearTimeout(timer);

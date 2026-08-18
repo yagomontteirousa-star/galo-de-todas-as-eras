@@ -1,8 +1,9 @@
 import { atleticoSquads, playersById, squadsById } from "@/data/atletico-squads";
-import { formations } from "@/data/formations";
+import { formations, tacticLabels } from "@/data/formations";
+import type { SharedCampaign } from "@/lib/share";
 import { rivalOf, roundOrder, scoreOf, userMatches, USER_TEAM_ERA } from "@/lib/bracket";
-import { calculateTeamOverall } from "@/lib/overall";
-import type { Campaign, CampaignRecord, FormationId, HistoricalSquad, MatchEvent, MatchResult, RatingsMode, TacticId, TeamSnapshot } from "@/types/game";
+import { calculateTeamOverall, evaluatePosition } from "@/lib/overall";
+import type { Campaign, CampaignRecord, FormationId, HistoricalSquad, LineupEntry, MatchEvent, MatchResult, RatingsMode, TacticId, TeamSnapshot } from "@/types/game";
 
 /** Campanha em andamento. Some assim que a campanha termina. */
 export const CAMPAIGN_STORAGE_KEY = "preto-no-branco:campaign:v2";
@@ -31,6 +32,49 @@ export function toRecord(campaign: Campaign): CampaignRecord {
     overall: campaign.bracket?.rounds[0]?.matches.flatMap((match) => [match.home, match.away]).find((team) => team.isUser)?.overall.final,
     lastOpponent: last && rivalOf(last).name,
     lastScore: score && `${score.user} a ${score.rival}${score.pens}`,
+  };
+}
+
+/** Tags que todo atleta recebe: não marcam ninguém como especial. */
+const GENERIC_TAGS = new Set(["regular", "titular", "reflexos", "finalizador"]);
+
+/**
+ * Retrato da campanha que cabe num link. Tudo o que a tela compartilhada mostra sai daqui,
+ * porque o aparelho de quem abre o link não tem o armazenamento de quem jogou.
+ */
+export function buildSharedCampaign(campaign: Campaign, userTeam: TeamSnapshot): SharedCampaign | null {
+  if (!campaign.formation || !campaign.tactic) return null;
+  const played = userMatches(campaign.bracket);
+  const order = formations[campaign.formation].slots;
+  const squad = [...userTeam.overall.evaluations]
+    .sort((left, right) => order.findIndex((slot) => slot.id === left.slot.id) - order.findIndex((slot) => slot.id === right.slot.id))
+    .map((entry) => ({
+      slot: entry.slot.label, name: entry.player.name, season: entry.player.season,
+      overall: entry.adjustedOverall, special: entry.player.tags.some((tag) => !GENERIC_TAGS.has(tag)),
+    }));
+
+  const matches = played.map((match) => {
+    const score = scoreOf(match);
+    const rival = rivalOf(match);
+    const userTeamId = match.home.isUser ? match.home.id : match.away.id;
+    return {
+      round: match.round, user: score.user, rival: score.rival, pens: score.pens || undefined,
+      rivalName: rival.name, rivalYear: rival.year, won: score.won,
+      goals: (match.result?.events ?? [])
+        .filter((event) => event.type === "goal" && event.playerName)
+        .map((event) => ({ name: event.playerName!, minute: event.minute, forUser: event.teamId === userTeamId })),
+    };
+  });
+
+  const champion = campaign.outcome === "champion";
+  const round = campaign.bracket?.currentRound ?? "round16";
+  return {
+    outcome: champion ? "champion" : "eliminated",
+    // Vice é quem chegou à decisão e perdeu; a fase sozinha não distingue.
+    runnerUp: !champion && round === "final",
+    round, wins: campaign.wins, overall: userTeam.overall.final,
+    formation: campaign.formation, tactic: tacticLabels[campaign.tactic].name,
+    squad, matches,
   };
 }
 
@@ -69,9 +113,39 @@ export function touchCampaign(campaign: Campaign): Campaign {
   return { ...campaign, updatedAt: new Date().toISOString() };
 }
 
+/**
+ * Atletas já usados na campanha, por identidade histórica. Sai da própria escalação, que
+ * já é persistida: uma lista paralela só criaria uma segunda verdade para dessincronizar.
+ * Campanha nova nasce com a escalação vazia, então a lista se limpa sozinha.
+ */
+export function usedPersonIds(lineup: LineupEntry[]): Set<string> {
+  return new Set(lineup.map((entry) => playersById.get(entry.playerId)?.personId).filter((id): id is string => Boolean(id)));
+}
+
+/** Vagas ainda abertas na formação escolhida. */
+function openSlots(campaign: Campaign) {
+  if (!campaign.formation) return [];
+  const taken = new Set(campaign.lineup.map((entry) => entry.slotId));
+  return formations[campaign.formation].slots.filter((slot) => !taken.has(slot.id));
+}
+
+/**
+ * Sortear um ano cujos atletas já foram todos usados travaria a campanha, porque não
+ * sobraria escolha possível. O sorteio só considera elencos que ainda somam alguma coisa.
+ */
+function contributes(squad: HistoricalSquad, campaign: Campaign, used: Set<string>): boolean {
+  const slots = openSlots(campaign);
+  if (!slots.length) return true;
+  return squad.players.some((player) =>
+    !used.has(player.personId) && slots.some((slot) => evaluatePosition(player, slot).fit !== "improvised"));
+}
+
 export function nextAvailableSquad(campaign: Campaign, random = Math.random): HistoricalSquad | undefined {
   const available = atleticoSquads.filter((squad) => !campaign.usedSquadIds.includes(squad.id) && squad.id !== campaign.currentSquadId);
-  return available[Math.floor(random() * available.length)];
+  const used = usedPersonIds(campaign.lineup);
+  const usable = available.filter((squad) => contributes(squad, campaign, used));
+  const pool = usable.length ? usable : available;
+  return pool[Math.floor(random() * pool.length)];
 }
 
 export function startDraft(campaign: Campaign, formation: FormationId, tactic: TacticId, ratingsMode: RatingsMode, random = Math.random): Campaign {

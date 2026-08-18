@@ -23,7 +23,8 @@ function makeOpponent([name, year, rating, formationId, tactic, playerNames]: Op
     const overall = clamp(rating + variance);
     const attributes = makeAttributes(slot.position, overall);
     return {
-      id: `opp-${teamIndex}-${index}`, name: playerNames[index], season: year,
+      // Adversário não entra no bloqueio de repetidos: a chave é única por vaga.
+      id: `opp-${teamIndex}-${index}`, name: playerNames[index], season: year, personId: `opp-${teamIndex}-${index}`,
       squadId: `opp-${teamIndex}`, primaryPosition: slot.position, secondaryPositions: [], overall, attributes,
       tags: index === 10 ? ["referência"] : ["titular"],
       styleFit: {

@@ -2,6 +2,7 @@ import { Pitch } from "@/components/game/Pitch";
 import { atleticoSquads, playersById } from "@/data/atletico-squads";
 import { formations } from "@/data/formations";
 import { evaluatePosition } from "@/lib/overall";
+import { usedPersonIds } from "@/lib/campaign";
 import type { Campaign, FormationSlot, HistoricalSquad, LineupEntry, Player, Position } from "@/types/game";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckIcon, ShuffleIcon } from "@/components/ui/Icons";
@@ -62,7 +63,9 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   const activePlayer = squad.players.find((player) => player.id === (hoverId ?? selectedId));
   const combined = [...campaign.lineup, ...picks];
   const occupied = new Set(combined.map((entry) => entry.slotId));
-  const alreadyChosen = new Set(combined.map((entry) => entry.playerId));
+  // Bloqueio pela identidade histórica: o Hulk de 2021 tranca o Hulk de 2024.
+  const usedPeople = usedPersonIds(combined);
+  const alreadyChosen = (player: Player) => usedPeople.has(player.personId);
   const openSlots = formation.slots.filter((slot) => !occupied.has(slot.id));
   const maxPicks = Math.min(2, 11 - campaign.lineup.length);
   const totalFilled = combined.length;
@@ -122,6 +125,12 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
 
   const assignPlayer = (player: Player, slot: FormationSlot) => {
     if (advancing || occupied.has(slot.id)) return;
+    // Última barreira: nenhum caminho de escalação aceita um atleta já usado na campanha.
+    if (alreadyChosen(player)) {
+      setRejectedSlotId(slot.id);
+      announce("block", "Jogador já utilizado", `${player.name} já entrou nesta campanha.`);
+      return;
+    }
     if (!canPlay(player, slot)) {
       setRejectedSlotId(slot.id);
       announce("block", "Posição incompatível", `${player.name} joga como ${positionLabels[player.primaryPosition]}.`);
@@ -170,7 +179,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   };
 
   const handlePlayer = (player: Player) => {
-    if (advancing || revealing || alreadyChosen.has(player.id)) return;
+    if (advancing || revealing || alreadyChosen(player)) return;
     if (selectedSlotId) {
       const slot = formation.slots.find((item) => item.id === selectedSlotId)!;
       return assignPlayer(player, slot);
@@ -227,15 +236,22 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
               return <section className="roster-group" key={group.title}>
                 <h3>{group.title}<span>{groupPlayers.length}</span></h3>
                 {groupPlayers.map((player) => {
-                  const isPicked = alreadyChosen.has(player.id);
+                  const isPicked = alreadyChosen(player);
+                  // Escalado neste ano é diferente de já usado num ano anterior.
+                  const inThisSquad = combined.some((entry) => entry.playerId === player.id);
                   const hasRoom = openSlots.some((slot) => canPlay(player, slot));
+                  const blockedLabel = isPicked
+                    ? inThisSquad ? "escalado" : "já utilizado"
+                    : !hasRoom ? "sem vaga" : undefined;
                   return <button type="button" key={player.id} disabled={isPicked || !hasRoom || advancing}
                     className={`player-row ${selectedId === player.id ? "is-selected" : ""} ${isPicked ? "is-picked" : ""} ${!hasRoom && !isPicked ? "is-blocked" : ""}`}
                     onClick={() => handlePlayer(player)} onMouseEnter={() => setHoverId(player.id)} onMouseLeave={() => setHoverId(undefined)}
-                    onFocus={() => setHoverId(player.id)} onBlur={() => setHoverId(undefined)} aria-pressed={selectedId === player.id}>
+                    onFocus={() => setHoverId(player.id)} onBlur={() => setHoverId(undefined)} aria-pressed={selectedId === player.id}
+                    aria-disabled={isPicked || !hasRoom || advancing}
+                    title={isPicked && !inThisSquad ? "Jogador já utilizado nesta campanha" : undefined}>
                     <span className="player-row__position">{positionLabels[player.primaryPosition]}</span>
                     <span className="player-row__name">{player.name}</span>
-                    {!hasRoom && !isPicked && <span className="player-row__state">sem vaga</span>}
+                    {blockedLabel && <span className="player-row__state">{blockedLabel}</span>}
                     {showRatings && <strong className="player-row__ovr">{player.overall}</strong>}
                     {isPicked && <CheckIcon/>}
                   </button>;

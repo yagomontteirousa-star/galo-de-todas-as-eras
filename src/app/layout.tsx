@@ -1,14 +1,15 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow, Barlow_Condensed } from "next/font/google";
+import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL as SHARE_SITE_URL } from "@/lib/share";
 import "./globals.css";
 
 /** Grotesca esportiva para a operação; a condensada dá o tom de placar e súmula. */
 const sans = Barlow({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-sans", display: "swap" });
 const condensed = Barlow_Condensed({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-cond", display: "swap" });
 
-const SITE_URL = "https://pretonobranco.app";
-const TITLE = "Preto no Branco";
-const DESCRIPTION = "Monte elencos, atravesse eras e faça história em um mata-mata de futebol brasileiro.";
+const SITE_URL = SHARE_SITE_URL;
+const TITLE = SITE_TITLE;
+const DESCRIPTION = SITE_DESCRIPTION;
 
 /**
  * `metadataBase` resolve as URLs absolutas que as redes exigem, e as imagens de prévia

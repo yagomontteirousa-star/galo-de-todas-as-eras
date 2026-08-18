@@ -23,6 +23,8 @@ export interface RatingEvidence {
 
 export interface Player {
   id: string; name: string; season: number; squadId: string;
+  /** Mesma pessoa em elencos diferentes compartilha esta chave. Ver `player-identity.ts`. */
+  personId: string;
   primaryPosition: Position; secondaryPositions: Position[]; overall: number;
   attributes: Attributes; tags: string[]; styleFit: Record<TacticId, number>;
   rating?: RatingEvidence;

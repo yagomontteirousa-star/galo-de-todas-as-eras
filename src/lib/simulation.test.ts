@@ -25,6 +25,43 @@ describe("simulation", () => {
     expect(changed.events.filter((event) => event.minute <= 45)).toEqual(base.events.filter((event) => event.minute <= 45));
   });
 
+  it("a postura do intervalo muda o segundo tempo, e só ele", () => {
+    const segundoTempo = (result: ReturnType<typeof simulateMatch>) =>
+      JSON.stringify(result.events.filter((event) => event.minute > 45).map((event) => `${event.minute}${event.type}${event.description}`));
+    const primeiroTempo = (result: ReturnType<typeof simulateMatch>) =>
+      JSON.stringify(result.events.filter((event) => event.minute <= 45));
+
+    // Numa semente isolada as posturas podem coincidir; o que não pode é nunca mudarem.
+    let mudaram = 0;
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const atacar = simulateMatch(opponents[0], opponents[1], seededRandom(seed), { halftime: "attack" });
+      const defender = simulateMatch(opponents[0], opponents[1], seededRandom(seed), { halftime: "defend" });
+      if (segundoTempo(atacar) !== segundoTempo(defender)) mudaram += 1;
+      // o primeiro tempo já aconteceu: a decisão não pode reescrevê-lo em nenhuma semente
+      expect(primeiroTempo(atacar)).toBe(primeiroTempo(defender));
+    }
+    expect(mudaram).toBeGreaterThan(10);
+
+    // e a leitura pós-jogo conta ao jogador o que a decisão provocou
+    const atacar = simulateMatch(opponents[0], opponents[1], seededRandom(7), { halftime: "attack" });
+    const defender = simulateMatch(opponents[0], opponents[1], seededRandom(7), { halftime: "defend" });
+    expect(atacar.instructionImpact).toBeTruthy();
+    expect(atacar.instructionImpact).not.toBe(defender.instructionImpact);
+  });
+
+  it("empurra o time para frente ao atacar e o segura ao defender", () => {
+    // Média sobre muitos jogos: atacar tem de produzir mais gols do que defender.
+    const golsNoSegundoTempo = (halftime: "attack" | "defend") => {
+      let total = 0;
+      for (let seed = 1; seed <= 150; seed += 1) {
+        const result = simulateMatch(opponents[0], opponents[1], seededRandom(seed), { halftime });
+        total += result.events.filter((event) => event.type === "goal" && event.minute > 45).length;
+      }
+      return total;
+    };
+    expect(golsNoSegundoTempo("attack")).toBeGreaterThan(golsNoSegundoTempo("defend"));
+  });
+
   it("bate os pênaltis alternando e para quando o placar já está definido", () => {
     let disputas = 0;
     for (let seed = 1; seed <= 400 && disputas < 12; seed += 1) {

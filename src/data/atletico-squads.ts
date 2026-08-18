@@ -1,3 +1,4 @@
+import { personId, slugifyName } from "@/data/player-identity";
 import type { Attributes, HistoricalSquad, Player, Position, RatingConfidence, RatingEvidence, TacticId } from "@/types/game";
 
 type Seed = [name: string, position: Position, overall: number, secondary?: Position[], tags?: string[]];
@@ -68,10 +69,11 @@ function createSquad(year: number, name: string, context: string, seeds: Seed[],
   const players = seeds.map(([playerName, primaryPosition, overall, secondaryPositions = [], tags = []], index): Player => {
     const attributes = attributesFor(primaryPosition, overall);
     return {
-      id: `${playerName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${year}-${index}`,
+      id: `${slugifyName(playerName)}-${year}-${index}`,
       name: playerName,
       season: year,
       squadId,
+      personId: personId(playerName, year),
       primaryPosition,
       secondaryPositions: withFlankCover(primaryPosition, secondaryPositions),
       overall,

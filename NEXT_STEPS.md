@@ -55,6 +55,23 @@ Progresso do refinamento pedido em 18/08/2026. Cada bloco abaixo foi commitado e
   para os 306 atletas, mais `auditRatings()` e o relatório em `RATINGS.md`. Nenhum overall
   foi alterado.
 
+### Rodada de 18/08/2026 (terceira revisão)
+
+- **Intervalo**: o painel ocupa o lugar do placar. Relógio, placar e controles saem de cena,
+  a simulação congela, o segundo tempo só começa depois de uma postura escolhida e o botão
+  de seguir mora dentro do painel. Acontece uma vez só.
+- **Atleta único por campanha**: `personId` (`src/data/player-identity.ts`) dá ao jogador
+  uma identidade que atravessa os anos, com tabela de apelidos (Cerezo, Romeu, Éder) e de
+  homônimos que são pessoas diferentes (Bruno, Paulinho, Adilson e outros). O sorteio de
+  ano também passou a evitar elencos sem ninguém aproveitável, para a campanha não travar.
+- **Compartilhamento entre aparelhos**: rota `/c/[payload]` com a campanha inteira embutida
+  no link em base64url. Não depende do armazenamento de quem jogou, valida o payload e cai
+  numa mensagem amigável quando o link chega cortado.
+- **Capa OG**: banner 1200×630 centrado, prancheta branca e o nome, sem dado variável. É a
+  mesma capa no link comum e no link de campanha.
+- **Mensagens dinâmicas**: título e descrição mudam por resultado (campeão, vice,
+  eliminado), sempre com fase, adversário e ano reais.
+
 ## Pendente
 
 1. **Revisão dos overalls individuais**: a estrutura existe, mas 216 dos 306 atletas estão

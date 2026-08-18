@@ -61,6 +61,8 @@ export function MatchScreen({
   const [minute, setMinute] = useState(0);
   const [speedIndex, setSpeedIndex] = useState(0);
   const [paused, setPaused] = useState(false);
+  /** Postura escolhida no intervalo, ainda não confirmada. */
+  const [halftimePick, setHalftimePick] = useState<HalftimeInstruction>();
   const [revealedKicks, setRevealedKicks] = useState(0);
   const [goalFlash, setGoalFlash] = useState(false);
   const userTeam = match.home.isUser ? match.home : match.away;
@@ -78,6 +80,11 @@ export function MatchScreen({
     const timer = window.setInterval(() => setMinute((value) => Math.min(maxMinute, value + step)), speeds[speedIndex].ms);
     return () => window.clearInterval(timer);
   }, [maxMinute, running, speedIndex]);
+
+  // O painel do intervalo tem que nascer à vista, mesmo se a página estava rolada.
+  useEffect(() => {
+    if (needsHalftime) window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [needsHalftime]);
 
   // Disputa de pênaltis: uma cobrança por vez, com pausa para leitura.
   useEffect(() => {
@@ -115,46 +122,55 @@ export function MatchScreen({
   const allGoals = result.events.filter((item) => item.type === "goal");
   const timeline = visibleEvents.slice(-TIMELINE_ROWS);
 
-  const chooseHalftime = (choice: HalftimeInstruction) => onInstruction({ ...result.instructions, halftime: choice });
+  // O segundo tempo só começa depois da confirmação, e o intervalo não volta a abrir.
+  const confirmHalftime = () => halftimePick && onInstruction({ ...result.instructions, halftime: halftimePick });
   const skip = () => { setPaused(false); setMinute(result.instructions.halftime ? maxMinute : 45); };
 
   return (
     <main className="screen match-screen" id="main">
-      <div className="match-stage"><span>{roundLabels[match.round]} · {status}</span><b>{clockDone ? "ENCERRADO" : `${minute}′`}</b></div>
-      <section className={`scoreboard ${goalFlash ? "is-goal-flash" : ""}`} aria-live="polite">
-        <div className="score-team">
-          <span>{teamEra(match.home)}</span><h1>{match.home.name}</h1>
-          <small>{match.home.isUser || revealOpponent ? `OVR ${match.home.overall.final} · ` : ""}{match.home.formation}</small>
-        </div>
-        <div className="score-numbers">
-          <strong>{clockDone ? finalHome : homeVisible}</strong><i>×</i><strong>{clockDone ? finalAway : awayVisible}</strong>
-          {penaltyTally && <span>PÊNALTIS {penaltyTally.homeScore} a {penaltyTally.awayScore}</span>}
-        </div>
-        <div className="score-team score-team--away">
-          <span>{teamEra(match.away)}</span><h1>{match.away.name}</h1>
-          <small>{match.away.isUser || revealOpponent ? `OVR ${match.away.overall.final} · ` : ""}{match.away.formation}</small>
-        </div>
-      </section>
-      <div className="match-progress" aria-hidden="true">
-        <span style={{ transform: `scaleX(${Math.min(1, minute / maxMinute)})` }}/>
-        <i style={{ left: `${Math.min(100, (minute / maxMinute) * 100)}%` }}/>
-      </div>
-      {!clockDone && (
-        <div className="match-controls">
-          <button type="button" className="match-control" onClick={() => setPaused((value) => !value)} disabled={needsHalftime} aria-pressed={paused}>
-            {paused ? "▶ Retomar" : "❚❚ Pausar"}
-          </button>
-          <div className="match-speeds" role="group" aria-label="Velocidade da simulação">
-            <span>Velocidade</span>
-            {speeds.map((speed, index) => (
-              <button type="button" key={speed.id} className={index === speedIndex ? "is-active" : ""} aria-pressed={index === speedIndex}
-                onClick={() => { setSpeedIndex(index); setPaused(false); }}>{speed.label}</button>
-            ))}
+      {/* No intervalo o painel ocupa exatamente o espaço do placar: relógio, placar e
+          controles saem de cena para a decisão ficar visível sem rolagem. */}
+      {needsHalftime ? (
+        <HalftimePanel round={roundLabels[match.round]} picked={halftimePick} onPick={setHalftimePick} onConfirm={confirmHalftime}/>
+      ) : (
+        <>
+          <div className="match-stage"><span>{roundLabels[match.round]} · {status}</span><b>{clockDone ? "ENCERRADO" : `${minute}′`}</b></div>
+          <section className={`scoreboard ${goalFlash ? "is-goal-flash" : ""}`} aria-live="polite">
+            <div className="score-team">
+              <span>{teamEra(match.home)}</span><h1>{match.home.name}</h1>
+              <small>{match.home.isUser || revealOpponent ? `OVR ${match.home.overall.final} · ` : ""}{match.home.formation}</small>
+            </div>
+            <div className="score-numbers">
+              <strong>{clockDone ? finalHome : homeVisible}</strong><i>×</i><strong>{clockDone ? finalAway : awayVisible}</strong>
+              {penaltyTally && <span>PÊNALTIS {penaltyTally.homeScore} a {penaltyTally.awayScore}</span>}
+            </div>
+            <div className="score-team score-team--away">
+              <span>{teamEra(match.away)}</span><h1>{match.away.name}</h1>
+              <small>{match.away.isUser || revealOpponent ? `OVR ${match.away.overall.final} · ` : ""}{match.away.formation}</small>
+            </div>
+          </section>
+          <div className="match-progress" aria-hidden="true">
+            <span style={{ transform: `scaleX(${Math.min(1, minute / maxMinute)})` }}/>
+            <i style={{ left: `${Math.min(100, (minute / maxMinute) * 100)}%` }}/>
           </div>
-          <button type="button" className="match-control" onClick={skip} disabled={needsHalftime}>
-            {result.instructions.halftime ? "Avançar até o fim" : "Avançar até o intervalo"}
-          </button>
-        </div>
+          {!clockDone && (
+            <div className="match-controls">
+              <button type="button" className="match-control" onClick={() => setPaused((value) => !value)} aria-pressed={paused}>
+                {paused ? "▶ Retomar" : "❚❚ Pausar"}
+              </button>
+              <div className="match-speeds" role="group" aria-label="Velocidade da simulação">
+                <span>Velocidade</span>
+                {speeds.map((speed, index) => (
+                  <button type="button" key={speed.id} className={index === speedIndex ? "is-active" : ""} aria-pressed={index === speedIndex}
+                    onClick={() => { setSpeedIndex(index); setPaused(false); }}>{speed.label}</button>
+                ))}
+              </div>
+              <button type="button" className="match-control" onClick={skip}>
+                {result.instructions.halftime ? "Avançar até o fim" : "Avançar até o intervalo"}
+              </button>
+            </div>
+          )}
+        </>
       )}
       <div className="match-content">
         <section className="timeline" aria-label="Últimos lances" aria-live="polite">
@@ -172,9 +188,7 @@ export function MatchScreen({
         </section>
         <aside className="match-side">
           <div className={`post-match ${finished ? "is-visible" : ""}`}>
-            {needsHalftime ? (
-              <DecisionPanel eyebrow="INTERVALO · SUA DECISÃO" title="Como o time volta?" options={halftimeOptions} onChoose={chooseHalftime}/>
-            ) : shootoutPending || (clockDone && result.wentToPenalties && !finished) ? (
+            {shootoutPending || (clockDone && result.wentToPenalties && !finished) ? (
               <Shootout kicks={shownKicks} total={kicks.length} match={match}/>
             ) : finished ? (
               <>
@@ -205,6 +219,38 @@ export function MatchScreen({
         </aside>
       </div>
     </main>
+  );
+}
+
+/**
+ * Intervalo: ocupa o lugar do placar, exige uma escolha e só então devolve o jogo. O botão
+ * de seguir mora aqui dentro, para a decisão inteira caber num campo de visão só.
+ */
+function HalftimePanel({ round, picked, onPick, onConfirm }: {
+  round: string;
+  picked?: HalftimeInstruction;
+  onPick: (choice: HalftimeInstruction) => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <section className="halftime" role="group" aria-label="Decisão do intervalo">
+      <header>
+        <span>{round} · INTERVALO</span>
+        <h2>Como o time volta?</h2>
+        <p>A partida está parada. Escolha a postura para o segundo tempo.</p>
+      </header>
+      <div className="halftime__options">
+        {halftimeOptions.map((option) => (
+          <button type="button" key={option.id} className={picked === option.id ? "is-picked" : ""}
+            aria-pressed={picked === option.id} onClick={() => onPick(option.id)}>
+            <b>{option.label}</b><small>{option.detail}</small>
+          </button>
+        ))}
+      </div>
+      <button type="button" className="button button--primary button--wide" disabled={!picked} onClick={onConfirm}>
+        {picked ? "Começar o segundo tempo" : "Escolha uma postura"}<ArrowIcon/>
+      </button>
+    </section>
   );
 }
 
@@ -300,28 +346,3 @@ function ScoreBar({ label, value }: { label: string; value?: number }) {
   return <div><span>{label}</span><i><b style={{ width: `${value ?? 0}%` }}/></i><strong>{value || "·"}</strong></div>;
 }
 
-function DecisionPanel<T extends string>({
-  eyebrow,
-  title,
-  options,
-  onChoose,
-}: {
-  eyebrow: string;
-  title: string;
-  options: { id: T; label: string; detail: string }[];
-  onChoose: (choice: T) => void;
-}) {
-  return (
-    <div className="decision-panel" role="group" aria-label={title}>
-      <span>{eyebrow}</span>
-      <h2>{title}</h2>
-      <div>
-        {options.map((option) => (
-          <button type="button" key={option.id} onClick={() => onChoose(option.id)}>
-            <b>{option.label}</b><small>{option.detail}</small>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
