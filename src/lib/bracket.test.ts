@@ -36,6 +36,31 @@ describe("bracket", () => {
     expect(bracket.rounds.at(-1)?.matches).toHaveLength(1);
   });
 
+  it("endurece o caminho do usuário fase a fase", () => {
+    // Média, sobre muitas campanhas, da força que cada fase pode colocar no caminho.
+    const bands = [0, 0, 0, 0];
+    const runs = 200;
+    for (let seed = 1; seed <= runs; seed += 1) {
+      const bracket = createBracket(userTeam(), seededRandom(seed));
+      const teams = bracket.rounds[0].matches.flatMap((match) => [match.home, match.away]);
+      const userIndex = teams.findIndex((team) => team.isUser);
+      const rivals = teams.filter((team) => !team.isUser).map((team) => team.overall.final);
+      // O adversário direto sai do par do usuário; as demais faixas seguem o pareamento.
+      const direct = teams[userIndex ^ 1].overall.final;
+      const pool = [...rivals];
+      pool.splice(pool.indexOf(direct), 1);
+      const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+      bands[0] += direct;
+      bands[1] += mean(pool.slice(0, 2));
+      bands[2] += mean(pool.slice(2, 6));
+      bands[3] += mean(pool.slice(6));
+    }
+    const curve = bands.map((total) => total / runs);
+    expect(curve[0]).toBeLessThan(curve[1]);
+    expect(curve[1]).toBeLessThan(curve[2]);
+    expect(curve[2]).toBeLessThan(curve[3]);
+  });
+
   it("sorteia adversários diferentes entre campanhas", () => {
     const names = (seed: number) => createBracket(userTeam(), seededRandom(seed)).rounds[0].matches
       .flatMap((match) => [match.home.id, match.away.id]).filter((id) => id !== "user-team").sort().join();

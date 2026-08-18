@@ -9,6 +9,10 @@ export const roundLabels: Record<TournamentRound, string> = {
 export const roundCounts: Record<TournamentRound, number> = { round16: 8, quarterfinal: 4, semifinal: 2, final: 1 };
 export const BRACKET_SIZE = 16;
 
+/** O onze do usuário atravessa eras, então mostrar um ano só seria mentira. */
+export const USER_TEAM_ERA = "Seleção histórica";
+export const teamEra = (team: TeamSnapshot): string => team.eraLabel ?? String(team.year);
+
 function shuffle<T>(items: T[], random: RandomSource): T[] {
   const copy = [...items];
   for (let index = copy.length - 1; index > 0; index -= 1) {
@@ -26,10 +30,48 @@ function pairTeams(teams: TeamSnapshot[], round: TournamentRound): BracketRound 
   return { id: round, matches };
 }
 
+/**
+ * A chave é montada por faixas de força para a campanha endurecer a cada fase: o
+ * adversário das oitavas sai da faixa mais fraca, e os mais fortes ficam presos na outra
+ * metade, onde só podem ser encontrados na final. As faixas seguem o pareamento de
+ * `pairTeams`, que junta os índices dois a dois e mantém a ordem nas fases seguintes.
+ */
+const PATH_BANDS: [start: number, end: number][] = [
+  [0, 1],   // oitavas: adversário direto
+  [1, 3],   // quartas: vem do jogo vizinho
+  [3, 7],   // semifinal: vem do quarto vizinho
+  [7, 15],  // final: a metade forte da chave
+];
+
 export function createBracket(userTeam: TeamSnapshot, random: RandomSource = Math.random): BracketState {
-  const field = shuffle<TeamSnapshot>(opponents, random).slice(0, BRACKET_SIZE - 1);
-  const teams = shuffle<TeamSnapshot>([userTeam, ...field], random);
+  const field = shuffle<TeamSnapshot>(opponents, random)
+    .slice(0, BRACKET_SIZE - 1)
+    .sort((left, right) => left.overall.final - right.overall.final);
+  // Sorteia dentro de cada faixa: a dificuldade sobe, o adversário exato não se repete.
+  const ordered = PATH_BANDS.flatMap(([start, end]) => shuffle(field.slice(start, end), random));
+  const userIsHome = random() < 0.5;
+  const teams = userIsHome ? [userTeam, ...ordered] : [ordered[0], userTeam, ...ordered.slice(1)];
   return { rounds: [pairTeams(teams, "round16")], currentRound: "round16" };
+}
+
+export const rivalOf = (match: BracketMatch) => match.home.isUser ? match.away : match.home;
+
+/** Jogos do usuário já decididos, na ordem em que aconteceram. */
+export function userMatches(bracket?: BracketState): BracketMatch[] {
+  return (bracket?.rounds ?? [])
+    .flatMap((round) => round.matches)
+    .filter((match) => (match.home.isUser || match.away.isUser) && match.result);
+}
+
+/** Placar sempre do ponto de vista do usuário, prorrogação incluída. */
+export function scoreOf(match: BracketMatch) {
+  const result = match.result!;
+  const user = match.home.isUser ? result.homeScore + result.homeExtra : result.awayScore + result.awayExtra;
+  const rival = match.home.isUser ? result.awayScore + result.awayExtra : result.homeScore + result.homeExtra;
+  const userPens = match.home.isUser ? result.homePenalties : result.awayPenalties;
+  const rivalPens = match.home.isUser ? result.awayPenalties : result.homePenalties;
+  const pens = result.wentToPenalties ? ` (${userPens} a ${rivalPens} nos pênaltis)` : "";
+  return { user, rival, pens, won: result.winnerId === "user-team" };
 }
 
 export function getCurrentUserMatch(bracket: BracketState): BracketMatch | undefined {

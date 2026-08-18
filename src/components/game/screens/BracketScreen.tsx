@@ -1,11 +1,11 @@
-import { getCurrentUserMatch, roundCounts, roundLabels, roundOrder } from "@/lib/bracket";
+import { getCurrentUserMatch, roundCounts, roundLabels, roundOrder, teamEra } from "@/lib/bracket";
 import type { BracketMatch, BracketState, RatingsMode, TeamSnapshot } from "@/types/game";
 import { ArrowIcon } from "@/components/ui/Icons";
 
 function TeamLine({ team, score, isWinner, decided }: { team: TeamSnapshot; score?: number; isWinner: boolean; decided: boolean }) {
   return (
     <div className={`bracket-team ${isWinner ? "is-winner" : decided ? "is-out" : ""} ${team.isUser ? "is-user" : ""}`}>
-      <small>{team.year}</small>
+      <small>{teamEra(team)}</small>
       <span>{team.name}{team.isUser && <em>você</em>}</span>
       <b>{score ?? "—"}</b>
     </div>
@@ -25,7 +25,7 @@ export function BracketScreen({ bracket, ratingsMode, onPlay }: { bracket: Brack
           <span className="bracket-heading__phase">{roundLabels[bracket.currentRound]} · 16 equipes na chave</span>
           <h1>{bracket.champion ? "Campanha encerrada." : current ? "Próxima fase." : "O caminho percorrido."}</h1>
           <p>{opponent
-            ? `Você enfrenta ${opponent.name} ${opponent.year} · ${ratingsMode === "visible" ? `overall ${opponent.overall.final}` : "força desconhecida"}`
+            ? `Você enfrenta ${opponent.name} ${teamEra(opponent)} · ${ratingsMode === "visible" ? `overall ${opponent.overall.final}` : "força desconhecida"}`
             : bracket.champion ? `Campeão: ${bracket.champion.name}` : "A chave inteira evolui a cada confronto."}</p>
         </div>
         {current && <button type="button" className="button button--primary" onClick={onPlay}>Jogar contra {opponent?.name}<ArrowIcon/></button>}

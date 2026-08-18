@@ -1,4 +1,4 @@
-import type { Attributes, HistoricalSquad, Player, Position, TacticId } from "@/types/game";
+import type { Attributes, HistoricalSquad, Player, Position, RatingConfidence, RatingEvidence, TacticId } from "@/types/game";
 
 type Seed = [name: string, position: Position, overall: number, secondary?: Position[], tags?: string[]];
 
@@ -43,7 +43,27 @@ function withFlankCover(primary: Position, secondary: Position[]): Position[] {
   return twin && !secondary.includes(twin) ? [...secondary, twin] : secondary;
 }
 
-function createSquad(year: number, name: string, context: string, seeds: Seed[]): HistoricalSquad {
+/** Tags atribu\u00eddas por padr\u00e3o: n\u00e3o distinguem ningu\u00e9m, ent\u00e3o n\u00e3o sustentam confian\u00e7a. */
+const GENERIC_TAGS = new Set(["regular", "titular", "reflexos", "finalizador"]);
+
+/**
+ * A confian\u00e7a sai do que a base realmente registra, e n\u00e3o de uma pesquisa que n\u00e3o fizemos:
+ * caracter\u00edstica pr\u00f3pria somada a titularidade num elenco campe\u00e3o \u00e9 o teto; sem nenhum dos
+ * dois sinais, o n\u00famero \u00e9 uma estimativa e fica marcado como tal.
+ */
+function evidenceFor(player: Player, squad: { name: string; context: string; titled?: boolean }, isStarter: boolean): RatingEvidence {
+  const traits = player.tags.filter((tag) => !GENERIC_TAGS.has(tag));
+  const signals = [traits.length > 0, isStarter && Boolean(squad.titled)].filter(Boolean).length;
+  const confidence: RatingConfidence = signals === 2 ? "alta" : signals === 1 ? "m\u00e9dia" : "baixa";
+  const rationale = [
+    traits.length ? `caracter\u00edsticas registradas: ${traits.join(", ")}` : "sem caracter\u00edstica pr\u00f3pria registrada",
+    isStarter ? "titular pelo overall dentro do elenco" : "fora dos onze mais fortes do elenco",
+    squad.titled ? "elenco com conquista declarada" : "elenco sem conquista declarada",
+  ].join("; ");
+  return { confidence, rationale, source: `base interna \u00b7 ${squad.name} (${squad.context})` };
+}
+
+function createSquad(year: number, name: string, context: string, seeds: Seed[], titled = false): HistoricalSquad {
   const squadId = `atletico-${year}`;
   const players = seeds.map(([playerName, primaryPosition, overall, secondaryPositions = [], tags = []], index): Player => {
     const attributes = attributesFor(primaryPosition, overall);
@@ -60,7 +80,10 @@ function createSquad(year: number, name: string, context: string, seeds: Seed[])
       styleFit: fitFor(attributes),
     };
   });
-  return { id: squadId, year, name, context, players };
+  // Titular aqui \u00e9 quem est\u00e1 entre os onze mais fortes: \u00e9 o sinal que a base sustenta.
+  const starters = new Set([...players].sort((left, right) => right.overall - left.overall).slice(0, 11).map((player) => player.id));
+  players.forEach((player) => { player.rating = evidenceFor(player, { name, context, titled }, starters.has(player.id)); });
+  return { id: squadId, year, name, context, players, titled };
 }
 
 const s = (name: string, position: Position, overall: number, secondary: Position[] = [], tags: string[] = []): Seed => [name, position, overall, secondary, tags];
@@ -75,7 +98,7 @@ export const atleticoSquads: HistoricalSquad[] = [
     s("Renato", "GK", 86, [], ["seguro"]), s("Careca", "GK", 76), s("Grapete", "CB", 86, [], ["liderança", "jogo aéreo"]), s("Vantuir", "CB", 85), s("Oldair", "LB", 84), s("Getúlio", "RB", 83),
     s("Paulo Isidoro", "CM", 84, ["AM"], ["dinâmico"]), s("Humberto Ramos", "DM", 84), s("Zé Carlos", "CM", 83), s("Beto", "AM", 80), s("Romeu Cambalhota", "LW", 83), s("Vaguinho", "RW", 84),
     s("Dario", "ST", 91, [], ["decisivo", "artilheiro"]), s("Lola", "ST", 79), s("Spencer", "RW", 78), s("Vanderlei", "CB", 78), s("Amauri", "DM", 77), s("Nivaldo", "LB", 75),
-  ]),
+  ], true),
   createSquad(1976, "Retomada continental", "Um time físico e competitivo no início de uma era marcante.", [
     s("Ortiz", "GK", 83), s("Marcelo", "GK", 76), s("Márcio", "CB", 84), s("Silvestre", "CB", 82), s("Ângelo", "RB", 81), s("Alfinete", "LB", 79),
     s("Vantuir", "CB", 80), s("Chicão", "DM", 86, [], ["combativo"]), s("Cerezo", "CM", 88, ["DM"], ["classe", "controle"]), s("Marcelo Oliveira", "AM", 84), s("Paulo Isidoro", "CM", 86, ["AM"]), s("Danival", "CM", 78),
@@ -100,7 +123,7 @@ export const atleticoSquads: HistoricalSquad[] = [
     s("Taffarel", "GK", 91, [], ["campeão do mundo"]), s("Milagres", "GK", 79), s("Adílson", "CB", 85), s("Cléber", "CB", 84), s("Paulo Roberto", "RB", 80), s("Paulo César", "LB", 79),
     s("Gelson", "CB", 77), s("Doriva", "DM", 84), s("Sérgio Araújo", "AM", 82), s("Euller", "RW", 85, ["ST"], ["velocidade"]), s("Valdir", "CM", 80), s("Gutemberg", "DM", 78),
     s("Reinaldo", "ST", 84), s("Renaldo", "ST", 86, [], ["artilheiro"]), s("Éder Aleixo", "LW", 83), s("Marques", "ST", 82, ["RW"]), s("Clayton", "LW", 79), s("Gérson", "ST", 76),
-  ]),
+  ], true),
   createSquad(1997, "Centenário em formação", "Talento ofensivo e transição veloz no fim da década.", [
     s("Taffarel", "GK", 90), s("Milagres", "GK", 80), s("Cléber", "CB", 85), s("Adílson", "CB", 83), s("Bruno", "RB", 80), s("Dedimar", "LB", 78),
     s("Gelson", "CB", 77), s("Doriva", "DM", 85), s("Lincoln", "AM", 84), s("Valdir", "CM", 81), s("Gutemberg", "DM", 79), s("Djair", "CM", 78),
@@ -125,12 +148,12 @@ export const atleticoSquads: HistoricalSquad[] = [
     s("Victor", "GK", 94, [], ["santo", "decisivo"]), s("Giovanni", "GK", 78), s("Réver", "CB", 91, [], ["capitão", "jogo aéreo"]), s("Leonardo Silva", "CB", 90), s("Marcos Rocha", "RB", 89, ["RWB"], ["apoio"]), s("Richarlyson", "LB", 84, ["DM"]),
     s("Rafael Marques", "CB", 80), s("Pierre", "DM", 88, [], ["combativo"]), s("Leandro Donizete", "DM", 87, ["CM"]), s("Ronaldinho", "AM", 95, ["LW"], ["gênio", "maestro"]), s("Bernard", "LW", 91, ["AM"], ["drible"]), s("Josué", "DM", 84),
     s("Jô", "ST", 91, [], ["artilheiro"]), s("Diego Tardelli", "ST", 92, ["RW"], ["decisivo"]), s("Luan", "RW", 86, ["ST"], ["intensidade"]), s("Guilherme", "AM", 86, ["ST"]), s("Alecsandro", "ST", 82), s("Neto Berola", "RW", 80),
-  ]),
+  ], true),
   createSquad(2014, "Copa do Brasil 2014", "Viradas improváveis e uma equipe que transformou desvantagens em combustível.", [
     s("Victor", "GK", 92), s("Giovanni", "GK", 78), s("Leonardo Silva", "CB", 90), s("Jemerson", "CB", 87), s("Marcos Rocha", "RB", 89, ["RWB"]), s("Douglas Santos", "LB", 86, ["LWB"]),
     s("Réver", "CB", 86), s("Leandro Donizete", "DM", 87), s("Josué", "DM", 84), s("Dátolo", "AM", 88, ["CM"], ["criação"]), s("Maicosuel", "LW", 84), s("Marion", "RW", 78),
     s("Diego Tardelli", "ST", 93, ["RW"], ["decisivo"]), s("Luan", "RW", 88, ["ST"], ["intensidade"]), s("Carlos", "ST", 83), s("Guilherme", "AM", 87, ["ST"]), s("Jô", "ST", 84), s("André", "ST", 80),
-  ]),
+  ], true),
   createSquad(2017, "Ataque de estrelas", "Um elenco de grande força individual buscando transformar talento em domínio.", [
     s("Victor", "GK", 89), s("Giovanni", "GK", 77), s("Leonardo Silva", "CB", 87), s("Gabriel", "CB", 84), s("Marcos Rocha", "RB", 87), s("Fábio Santos", "LB", 86),
     s("Felipe Santana", "CB", 81), s("Rafael Carioca", "CM", 87, ["DM"], ["passe"]), s("Adilson", "DM", 84), s("Cazares", "AM", 88), s("Elias", "CM", 86), s("Otero", "AM", 85, ["LW"], ["bola parada"]),
@@ -145,7 +168,7 @@ export const atleticoSquads: HistoricalSquad[] = [
     s("Éverson", "GK", 91, [], ["jogo com os pés", "seguro"]), s("Rafael", "GK", 82), s("Junior Alonso", "CB", 91, ["LB"], ["liderança"]), s("Nathan Silva", "CB", 87), s("Mariano", "RB", 86), s("Guilherme Arana", "LB", 92, ["LWB"], ["apoio"]),
     s("Réver", "CB", 85), s("Allan", "DM", 89), s("Jair", "CM", 88, ["DM"]), s("Nacho Fernández", "AM", 91, ["CM"], ["criação"]), s("Zaracho", "CM", 90, ["AM"], ["intensidade"]), s("Tchê Tchê", "CM", 83, ["DM"]),
     s("Hulk", "ST", 94, ["RW"], ["decisivo", "artilheiro"]), s("Keno", "LW", 90, ["RW"]), s("Diego Costa", "ST", 87), s("Savarino", "RW", 88, ["LW"]), s("Eduardo Vargas", "ST", 85, ["RW"]), s("Eduardo Sasha", "ST", 82, ["LW"]),
-  ]),
+  ], true),
   createSquad(2024, "Finalista continental 2024", "Um elenco experiente que voltou a disputar as maiores decisões do continente.", [
     s("Éverson", "GK", 90, [], ["jogo com os pés"]), s("Matheus Mendes", "GK", 81), s("Junior Alonso", "CB", 89, ["LB"]), s("Battaglia", "CB", 88, ["DM"]), s("Saravia", "RB", 85, ["RWB"]), s("Guilherme Arana", "LB", 91, ["LWB"]),
     s("Bruno Fuchs", "CB", 83), s("Otávio", "DM", 87), s("Alan Franco", "CM", 86, ["DM"]), s("Gustavo Scarpa", "AM", 89, ["RW"], ["criação", "bola parada"]), s("Zaracho", "CM", 87, ["AM"]), s("Igor Gomes", "AM", 83, ["CM"]),

@@ -1,32 +1,15 @@
-import { getCurrentUserMatch, roundLabels } from "@/lib/bracket";
-import { tacticLabels } from "@/data/formations";
-import type { BracketMatch, Campaign, TeamSnapshot } from "@/types/game";
+import { getCurrentUserMatch, rivalOf, roundLabels, scoreOf, teamEra, userMatches } from "@/lib/bracket";
+import { formations, tacticLabels } from "@/data/formations";
+import type { BracketMatch, Campaign, PlayerEvaluation, TeamSnapshot } from "@/types/game";
 import type { CSSProperties } from "react";
 import { useState } from "react";
 import { ArrowIcon } from "@/components/ui/Icons";
 import { BrandMark, SiteFooter } from "@/components/ui/Brand";
 
 const SHARE_URL = "https://pretonobranco.app";
-
-function userMatches(campaign: Campaign): BracketMatch[] {
-  return (campaign.bracket?.rounds ?? [])
-    .flatMap((round) => round.matches)
-    .filter((match) => (match.home.isUser || match.away.isUser) && match.result);
-}
-
-const rivalOf = (match: BracketMatch) => match.home.isUser ? match.away : match.home;
-
-function scoreOf(match: BracketMatch) {
-  const result = match.result!;
-  const user = match.home.isUser ? result.homeScore + result.homeExtra : result.awayScore + result.awayExtra;
-  const rival = match.home.isUser ? result.awayScore + result.awayExtra : result.homeScore + result.homeExtra;
-  const pens = result.wentToPenalties
-    ? match.home.isUser
-      ? ` (${result.homePenalties} a ${result.awayPenalties} nos pênaltis)`
-      : ` (${result.awayPenalties} a ${result.homePenalties} nos pênaltis)`
-    : "";
-  return { user, rival, pens, won: result.winnerId === "user-team" };
-}
+/** Tags que todo atleta ganha por padrão; o que sobra é o que faz o nome ser especial. */
+const GENERIC_TAGS = new Set(["regular", "titular", "reflexos", "finalizador"]);
+const isSpecial = (entry: PlayerEvaluation) => entry.player.tags.some((tag) => !GENERIC_TAGS.has(tag));
 
 export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
   campaign: Campaign;
@@ -35,7 +18,7 @@ export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
   onRestart: () => void;
 }) {
   const next = campaign.bracket ? getCurrentUserMatch(campaign.bracket) : undefined;
-  const played = userMatches(campaign);
+  const played = userMatches(campaign.bracket);
   const lastMatch = played.find((match) => match.id === campaign.lastMatchId) ?? played[played.length - 1];
   const result = lastMatch?.result;
   const homeTotal = result ? result.homeScore + result.homeExtra : 0;
@@ -62,7 +45,7 @@ export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
         </div>
       </section>
       <aside className="result-sheet">
-        <header><span>{lastMatch ? roundLabels[lastMatch.round] : "Resultado"}</span><b>{lastMatch?.home.year} · {lastMatch?.away.year}</b></header>
+        <header><span>{lastMatch ? roundLabels[lastMatch.round] : "Resultado"}</span><b>{lastMatch && `${teamEra(lastMatch.home)} · ${teamEra(lastMatch.away)}`}</b></header>
         <div className="result-score"><div><small>{lastMatch?.home.name}</small><strong>{homeTotal}</strong></div><i>×</i><div><small>{lastMatch?.away.name}</small><strong>{awayTotal}</strong></div></div>
         {result?.wentToPenalties && <p className="penalty-result">Pênaltis · {result.homePenalties} a {result.awayPenalties}</p>}
         <div className="result-facts">
@@ -75,6 +58,27 @@ export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
       <SiteFooter/>
     </main>
   );
+}
+
+/**
+ * Cópia de texto que ainda funciona onde a Clipboard API não existe (http, WebView antiga).
+ * Sem isso o botão de compartilhar só teria caminho feliz.
+ */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
+  } catch { /* segue para o modo antigo */ }
+  try {
+    const field = document.createElement("textarea");
+    field.value = text;
+    field.setAttribute("readonly", "");
+    field.style.cssText = "position:fixed;top:0;left:-9999px;opacity:0";
+    document.body.appendChild(field);
+    field.select();
+    const copied = document.execCommand("copy");
+    document.body.removeChild(field);
+    return copied;
+  } catch { return false; }
 }
 
 function CampaignReport({ campaign, outcome, played, userTeam, onContinue, onRestart }: {
@@ -90,25 +94,38 @@ function CampaignReport({ campaign, outcome, played, userTeam, onContinue, onRes
   const phase = champion ? "Campeão" : roundLabels[campaign.bracket?.currentRound ?? "round16"];
   const tactic = campaign.tactic ? tacticLabels[campaign.tactic].name : "·";
   const years = played.map((match) => rivalOf(match).year);
-  const best = [...(userTeam?.overall.evaluations ?? [])].sort((left, right) => right.adjustedOverall - left.adjustedOverall).slice(0, 4);
+  const lastMatch = played.at(-1);
+  const finalScore = lastMatch && scoreOf(lastMatch);
+
+  const evaluations = userTeam?.overall.evaluations ?? [];
+  const best = [...evaluations].sort((left, right) => right.adjustedOverall - left.adjustedOverall).slice(0, 4);
   const topRating = best[0]?.adjustedOverall ?? 99;
+  const highlighted = new Set(best.map((entry) => entry.slot.id));
+  // O elenco inteiro entra na arte, na ordem da formação, para a escalação ser lida de cima a baixo.
+  const order = userTeam ? formations[userTeam.formation].slots : [];
+  const squad = [...evaluations].sort(
+    (left, right) => order.findIndex((slot) => slot.id === left.slot.id) - order.findIndex((slot) => slot.id === right.slot.id),
+  );
 
   const shareText = [
     champion ? "Campeão com o Galo no Preto no Branco." : `Caí nas ${phase.toLowerCase()} no Preto no Branco.`,
+    finalScore ? `${finalScore.user} a ${finalScore.rival}${finalScore.pens} contra ${rivalOf(lastMatch!).name}.` : "",
     `${campaign.wins} ${campaign.wins === 1 ? "vitória" : "vitórias"} · overall ${userTeam?.overall.final ?? "?"} · ${campaign.formation ?? ""} ${tactic.toLowerCase()}`,
     years.length ? `Peguei ${years.join(", ")}.` : "",
     SHARE_URL,
   ].filter(Boolean).join("\n");
 
   const share = async () => {
-    try {
-      if (typeof navigator !== "undefined" && navigator.share) {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
         await navigator.share({ title: "Preto no Branco", text: shareText, url: SHARE_URL });
         return;
+      } catch (error) {
+        // Desistir da folha de compartilhamento não é falha: nada a avisar.
+        if (error instanceof DOMException && error.name === "AbortError") return;
       }
-      await navigator.clipboard.writeText(shareText);
-      setShareState("copied");
-    } catch { setShareState("failed"); }
+    }
+    setShareState(await copyText(shareText) ? "copied" : "failed");
   };
 
   return (
@@ -116,11 +133,18 @@ function CampaignReport({ campaign, outcome, played, userTeam, onContinue, onRes
       <div className={champion ? "champion-scene" : "farewell-scene"} aria-hidden="true"/>
       <section className="report-card">
         <header className="report-head">
-          <BrandMark size={40}/>
+          <BrandMark size={44}/>
           <div>
             <span className="report-eyebrow">{champion ? "Campeão" : "Fim de campanha"}</span>
             <h1>{champion ? "A taça é do Galo." : "O arquivo fecha aqui."}</h1>
           </div>
+          {finalScore && (
+            <div className="report-final">
+              <small>{lastMatch ? roundLabels[lastMatch.round] : ""}</small>
+              <b>{finalScore.user}<i>×</i>{finalScore.rival}</b>
+              <span>{rivalOf(lastMatch!).name}{finalScore.pens}</span>
+            </div>
+          )}
         </header>
 
         <dl className="report-facts">
@@ -132,6 +156,36 @@ function CampaignReport({ campaign, outcome, played, userTeam, onContinue, onRes
         </dl>
 
         <div className="report-grid">
+          <section className="report-block">
+            <h2>Destaques da campanha</h2>
+            <ul className="report-stars">
+              {best.map((entry) => (
+                <li key={entry.slot.id} style={{ "--force": `${Math.round((entry.adjustedOverall / topRating) * 100)}%` } as CSSProperties}>
+                  <b>{entry.player.name}{isSpecial(entry) && <i className="report-flag" title={entry.player.tags.join(", ")}>★</i>}</b>
+                  <em>{entry.slot.label} · {entry.player.season}</em>
+                  <strong>{entry.adjustedOverall}</strong>
+                  <span className="report-bar" aria-hidden="true"/>
+                </li>
+              ))}
+              {!best.length && <li><b>Elenco não registrado.</b></li>}
+            </ul>
+          </section>
+
+          <section className="report-block">
+            <h2>O onze completo</h2>
+            <ul className="report-squad">
+              {squad.map((entry) => (
+                <li key={entry.slot.id} className={`${highlighted.has(entry.slot.id) ? "is-top" : ""} ${isSpecial(entry) ? "is-special" : ""}`}>
+                  <em>{entry.slot.label}</em>
+                  <b>{entry.player.name}</b>
+                  <small>{entry.player.season}</small>
+                  <strong>{entry.adjustedOverall}</strong>
+                </li>
+              ))}
+              {!squad.length && <li><b>Escalação não registrada.</b></li>}
+            </ul>
+          </section>
+
           <section className="report-block">
             <h2>A campanha</h2>
             <ul className="report-runs">
@@ -147,32 +201,18 @@ function CampaignReport({ campaign, outcome, played, userTeam, onContinue, onRes
               })}
               {!played.length && <li><span>Nenhum jogo disputado.</span></li>}
             </ul>
-          </section>
-
-          <section className="report-block">
-            <h2>Nomes da campanha</h2>
-            <ul className="report-stars">
-              {best.map((entry) => (
-                <li key={entry.slot.id} style={{ "--force": `${Math.round((entry.adjustedOverall / topRating) * 100)}%` } as CSSProperties}>
-                  <b>{entry.player.name}</b>
-                  <em>{entry.slot.label} · {entry.player.season}</em>
-                  <strong>{entry.adjustedOverall}</strong>
-                  <i aria-hidden="true"/>
-                </li>
-              ))}
-              {!best.length && <li><b>Elenco não registrado.</b></li>}
-            </ul>
             {years.length > 0 && <p className="report-years">Anos enfrentados: {years.join(", ")}.</p>}
           </section>
         </div>
 
         <div className="outcome-actions">
           <button type="button" className="button button--primary" onClick={share}>
-            {shareState === "copied" ? "Resultado copiado" : shareState === "failed" ? "Copie pela barra do navegador" : "Compartilhar resultado"}
+            {shareState === "copied" ? "Resultado copiado" : shareState === "failed" ? "Não deu para copiar" : "Compartilhar resultado"}
           </button>
           <button type="button" className="button button--quiet" onClick={onContinue}>Ver a chave</button>
           <button type="button" className="button button--quiet" onClick={onRestart}>Nova campanha</button>
         </div>
+        {shareState === "failed" && <p className="share-fallback" role="status">Copie manualmente: <code>{SHARE_URL}</code></p>}
         <SiteFooter/>
       </section>
     </main>

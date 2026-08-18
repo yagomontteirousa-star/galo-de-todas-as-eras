@@ -1,6 +1,6 @@
 import { atleticoSquads, playersById, squadsById } from "@/data/atletico-squads";
 import { formations } from "@/data/formations";
-import { roundOrder } from "@/lib/bracket";
+import { rivalOf, roundOrder, scoreOf, userMatches, USER_TEAM_ERA } from "@/lib/bracket";
 import { calculateTeamOverall } from "@/lib/overall";
 import type { Campaign, CampaignRecord, FormationId, HistoricalSquad, MatchEvent, MatchResult, RatingsMode, TacticId, TeamSnapshot } from "@/types/game";
 
@@ -19,6 +19,8 @@ export function createCampaign(): Campaign {
 }
 
 export function toRecord(campaign: Campaign): CampaignRecord {
+  const last = userMatches(campaign.bracket).at(-1);
+  const score = last && scoreOf(last);
   return {
     id: campaign.id,
     finishedAt: campaign.finishedAt ?? new Date().toISOString(),
@@ -27,6 +29,8 @@ export function toRecord(campaign: Campaign): CampaignRecord {
     roundReached: campaign.bracket?.currentRound ?? "round16",
     formation: campaign.formation,
     overall: campaign.bracket?.rounds[0]?.matches.flatMap((match) => [match.home, match.away]).find((team) => team.isUser)?.overall.final,
+    lastOpponent: last && rivalOf(last).name,
+    lastScore: score && `${score.user} a ${score.rival}${score.pens}`,
   };
 }
 
@@ -84,7 +88,7 @@ export function buildUserTeam(campaign: Campaign): TeamSnapshot {
     return { player, slotId: entry.slotId };
   });
   return {
-    id: "user-team", name: "Preto no Branco", year: 2026, formation: campaign.formation, tactic: campaign.tactic,
+    id: "user-team", name: "Preto no Branco", year: 2026, eraLabel: USER_TEAM_ERA, formation: campaign.formation, tactic: campaign.tactic,
     lineup: positioned.map((entry) => entry.player), overall: calculateTeamOverall(positioned, campaign.formation, campaign.tactic), isUser: true,
   };
 }

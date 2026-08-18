@@ -6,9 +6,32 @@ import "./globals.css";
 const sans = Barlow({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-sans", display: "swap" });
 const condensed = Barlow_Condensed({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-cond", display: "swap" });
 
+const SITE_URL = "https://pretonobranco.app";
+const TITLE = "Preto no Branco";
+const DESCRIPTION = "Monte elencos, atravesse eras e faça história em um mata-mata de futebol brasileiro.";
+
+/**
+ * `metadataBase` resolve as URLs absolutas que as redes exigem, e as imagens de prévia
+ * vêm das convenções `opengraph-image` e `twitter-image` na raiz de app/.
+ */
 export const metadata: Metadata = {
-  title: "Preto no Branco",
-  description: "Monte elencos, atravesse eras e faça história em um mata-mata de futebol brasileiro.",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
+  applicationName: TITLE,
+  openGraph: {
+    type: "website",
+    siteName: TITLE,
+    locale: "pt_BR",
+    url: SITE_URL,
+    title: TITLE,
+    description: DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#0b0c0c" };

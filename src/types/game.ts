@@ -11,14 +11,27 @@ export interface Attributes {
   defending: number; positioning: number; reflexes: number;
 }
 
+export type RatingConfidence = "alta" | "média" | "baixa";
+
+/**
+ * Por que o overall é o que é. A fonte aponta para o registro do próprio elenco na base:
+ * não citamos referência externa que não tenhamos conferido, e sem evidência a confiança cai.
+ */
+export interface RatingEvidence {
+  confidence: RatingConfidence; rationale: string; source: string;
+}
+
 export interface Player {
   id: string; name: string; season: number; squadId: string;
   primaryPosition: Position; secondaryPositions: Position[]; overall: number;
   attributes: Attributes; tags: string[]; styleFit: Record<TacticId, number>;
+  rating?: RatingEvidence;
 }
 
 export interface HistoricalSquad {
   id: string; year: number; name: string; context: string; players: Player[];
+  /** Conquista declarada pelo próprio registro do elenco; sustenta a confiança dos titulares. */
+  titled?: boolean;
 }
 
 export interface FormationSlot {
@@ -46,6 +59,8 @@ export interface TeamOverall {
 export interface TeamSnapshot {
   id: string; name: string; year: number; formation: FormationId; tactic: TacticId;
   lineup: Player[]; overall: TeamOverall; isUser?: boolean;
+  /** Substitui o ano na interface quando o elenco não pertence a uma única temporada. */
+  eraLabel?: string;
 }
 
 export type Opponent = TeamSnapshot;
@@ -96,4 +111,6 @@ export interface Campaign {
 export interface CampaignRecord {
   id: string; finishedAt: string; outcome: CampaignOutcome; wins: number;
   roundReached: TournamentRound; formation?: FormationId; overall?: number;
+  /** Retrato do último jogo, para o card do histórico não precisar do elenco inteiro. */
+  lastOpponent?: string; lastScore?: string;
 }

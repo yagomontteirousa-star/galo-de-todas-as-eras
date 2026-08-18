@@ -64,31 +64,105 @@ function profile(team: TeamSnapshot) {
   };
 }
 
-function weightedPlayer(team: TeamSnapshot, random: RandomSource, weight: (player: Player) => number): Player {
-  const weights = team.lineup.map(weight);
+/** Função em campo, e não a sigla da vaga: é ela que decide quem pode protagonizar cada lance. */
+type Role = "keeper" | "centreBack" | "fullBack" | "holding" | "midfield" | "winger" | "forward";
+
+const roleOf: Record<Player["primaryPosition"], Role> = {
+  GK: "keeper", CB: "centreBack", LB: "fullBack", RB: "fullBack", LWB: "fullBack", RWB: "fullBack",
+  DM: "holding", CM: "midfield", AM: "midfield", LW: "winger", RW: "winger", ST: "forward",
+};
+
+const OUTFIELD: Role[] = ["centreBack", "fullBack", "holding", "midfield", "winger", "forward"];
+const FINISHERS: Role[] = ["forward", "winger", "midfield"];
+const STOPPERS: Role[] = ["centreBack", "fullBack", "holding"];
+const FLANKS: Role[] = ["winger", "fullBack"];
+
+function pickFrom(pool: Player[], random: RandomSource, weight: (player: Player) => number): Player {
+  const weights = pool.map((player) => Math.max(1, weight(player)));
   let cursor = random() * weights.reduce((sum, value) => sum + value, 0);
-  for (let index = 0; index < team.lineup.length; index += 1) {
+  for (let index = 0; index < pool.length; index += 1) {
     cursor -= weights[index];
-    if (cursor <= 0) return team.lineup[index];
+    if (cursor <= 0) return pool[index];
   }
-  return team.lineup.at(-1)!;
+  return pool.at(-1)!;
 }
 
+/**
+ * Uma formação pode não ter ponta nem volante, então a lista de funções é uma preferência:
+ * sem ninguém elegível, o lance cai para a linha inteira em vez de sumir.
+ */
+function pickByRole(team: TeamSnapshot, random: RandomSource, roles: Role[], weight: (player: Player) => number): Player {
+  const pool = team.lineup.filter((player) => roles.includes(roleOf[player.primaryPosition]));
+  const outfield = team.lineup.filter((player) => player.primaryPosition !== "GK");
+  return pickFrom(pool.length ? pool : outfield.length ? outfield : team.lineup, random, weight);
+}
+
+const finishingWeight = (player: Player) => {
+  const bonus = roleOf[player.primaryPosition] === "forward" ? 1.45 : roleOf[player.primaryPosition] === "winger" ? 1.2 : 0.8;
+  return (player.attributes.finishing * 0.62 + player.attributes.positioning * 0.38) * bonus;
+};
+const creationWeight = (player: Player) => player.attributes.creation + player.attributes.pace * 0.25;
+const defendingWeight = (player: Player) => player.attributes.defending + player.attributes.physical * 0.35;
+
+/** Gol de zagueiro em bola parada existe; gol de goleiro, não. */
 function attackingWeight(player: Player): number {
-  const positionWeight = player.primaryPosition === "ST"
-    ? 1.45
-    : ["LW", "RW", "AM"].includes(player.primaryPosition)
-      ? 1.2
-      : ["CM", "LWB", "RWB"].includes(player.primaryPosition)
-        ? 0.72
-        : 0.28;
+  if (player.primaryPosition === "GK") return 0;
+  const role = roleOf[player.primaryPosition];
+  const positionWeight = role === "forward" ? 1.45 : role === "winger" || player.primaryPosition === "AM" ? 1.2
+    : role === "midfield" || role === "fullBack" ? 0.72 : 0.28;
   return Math.max(1, (player.attributes.finishing * 0.62 + player.attributes.positioning * 0.38) * positionWeight);
 }
 
-const pickScorer = (team: TeamSnapshot, random: RandomSource) => weightedPlayer(team, random, attackingWeight);
-const pickCreator = (team: TeamSnapshot, random: RandomSource) => weightedPlayer(team, random, (player) => Math.max(4, player.attributes.creation + player.attributes.pace * 0.25));
-const pickDefender = (team: TeamSnapshot, random: RandomSource) => weightedPlayer(team, random, (player) => Math.max(4, player.attributes.defending + player.attributes.physical * 0.35));
+const pickScorer = (team: TeamSnapshot, random: RandomSource) =>
+  pickFrom(team.lineup.filter((player) => player.primaryPosition !== "GK"), random, attackingWeight);
+const pickFinisher = (team: TeamSnapshot, random: RandomSource) => pickByRole(team, random, FINISHERS, finishingWeight);
+const pickCreator = (team: TeamSnapshot, random: RandomSource) => pickByRole(team, random, OUTFIELD, creationWeight);
+const pickDefender = (team: TeamSnapshot, random: RandomSource) => pickByRole(team, random, STOPPERS, defendingWeight);
+const pickFlank = (team: TeamSnapshot, random: RandomSource) => pickByRole(team, random, FLANKS, creationWeight);
 const pickKeeper = (team: TeamSnapshot) => team.lineup.find((player) => player.primaryPosition === "GK") ?? team.lineup[0];
+
+/** Construção de jogada narrada pela função de quem está com a bola. */
+const buildUpLine: Record<Role, (name: string) => string> = {
+  keeper: (name) => `${name} recompõe a saída de bola.`,
+  centreBack: (name) => `${name} sobe a linha e dá cobertura.`,
+  fullBack: (name) => `${name} apoia pela lateral.`,
+  holding: (name) => `${name} pressiona e devolve o passe.`,
+  midfield: (name) => `${name} controla o ritmo do jogo.`,
+  winger: (name) => `${name} acelera pela ponta.`,
+  forward: (name) => `${name} se movimenta entre os zagueiros.`,
+};
+
+const finishLine: Record<Role, (name: string) => string> = {
+  keeper: (name) => `${name} arrisca de longe.`,
+  centreBack: (name) => `${name} sobe na bola parada e cabeceia para fora.`,
+  fullBack: (name) => `${name} chega da lateral e manda por cima.`,
+  holding: (name) => `${name} arrisca de fora da área.`,
+  midfield: (name) => `${name} finaliza da entrada da área.`,
+  winger: (name) => `${name} corta para o meio e chuta para fora.`,
+  forward: (name) => `${name} finaliza e leva perigo.`,
+};
+
+const stopLine: Record<Role, (name: string) => string> = {
+  keeper: (name) => `${name} sai do gol e afasta o perigo.`,
+  centreBack: (name) => `${name} corta o cruzamento no duelo aéreo.`,
+  fullBack: (name) => `${name} recupera a bola pelo lado.`,
+  holding: (name) => `${name} desarma no meio-campo.`,
+  midfield: (name) => `${name} bloqueia a linha de passe.`,
+  winger: (name) => `${name} volta e ajuda na marcação.`,
+  forward: (name) => `${name} pressiona a saída de bola.`,
+};
+
+const foulLine: Record<Role, (name: string) => string> = {
+  keeper: (name) => `${name} derruba o atacante na saída.`,
+  centreBack: (name) => `${name} chega atrasado no duelo aéreo.`,
+  fullBack: (name) => `${name} comete falta na disputa pelo lado.`,
+  holding: (name) => `${name} para o contra-ataque com falta.`,
+  midfield: (name) => `${name} faz falta tática no meio.`,
+  winger: (name) => `${name} erra o tempo do carrinho.`,
+  forward: (name) => `${name} empurra o zagueiro na disputa.`,
+};
+
+const role = (player: Player) => roleOf[player.primaryPosition];
 
 function matchEvent(
   type: MatchEvent["type"],
@@ -130,32 +204,43 @@ function ambientEvents(
     const opponent = teams[1 - teamIndex];
     const minute = randomMinute(start, end, random);
     const roll = random();
-    if (roll < 0.17) {
+    // Cada faixa escolhe primeiro a função que faria o lance, e só depois o nome.
+    if (roll < 0.15) {
       const player = pickCreator(team, random);
-      return matchEvent("pressure", minute, `${player.name} sobe a pressão.`, period, team, player);
+      return matchEvent("pressure", minute, buildUpLine[role(player)](player.name), period, team, player);
     }
-    if (roll < 0.31) return matchEvent("possession", minute, `${team.name} troca passes.`, period, team);
+    if (roll < 0.24) {
+      const keeper = pickKeeper(team);
+      return matchEvent("possession", minute, `${keeper.name} repõe a bola e ${team.name} recomeça.`, period, team, keeper);
+    }
+    if (roll < 0.33) {
+      const player = pickDefender(opponent, random);
+      return matchEvent("possession", minute, stopLine[role(player)](player.name), period, opponent, player);
+    }
     if (roll < 0.47) {
-      const player = pickScorer(team, random);
-      return matchEvent("shot_off", minute, `${player.name} chuta para fora.`, period, team, player);
+      const player = pickFinisher(team, random);
+      return matchEvent("shot_off", minute, finishLine[role(player)](player.name), period, team, player);
     }
     if (roll < 0.62) {
-      const player = pickScorer(team, random);
-      return matchEvent("shot_saved", minute, `${player.name} bate, ${pickKeeper(opponent).name} segura.`, period, team, player);
+      const player = pickFinisher(team, random);
+      return matchEvent("shot_saved", minute, `${player.name} bate, ${pickKeeper(opponent).name} defende.`, period, team, player);
     }
     if (roll < 0.72) {
       const keeper = pickKeeper(opponent);
-      const shooter = pickScorer(team, random);
+      const shooter = pickFinisher(team, random);
       return matchEvent("big_save", minute, `Defesaça de ${keeper.name} em ${shooter.name}.`, period, opponent, keeper, true);
     }
-    if (roll < 0.8) return matchEvent("corner", minute, `Escanteio para ${team.name}.`, period, team);
+    if (roll < 0.8) {
+      const player = pickFlank(team, random);
+      return matchEvent("corner", minute, `${player.name} cobra o escanteio para ${team.name}.`, period, team, player);
+    }
     if (roll < 0.87) {
       const player = pickDefender(opponent, random);
-      return matchEvent("dangerous_foul", minute, `Falta dura de ${player.name}.`, period, opponent, player);
+      return matchEvent("dangerous_foul", minute, foulLine[role(player)](player.name), period, opponent, player);
     }
     if (roll < 0.94) {
-      const player = pickScorer(team, random);
-      return matchEvent("offside", minute, `${player.name} em impedimento.`, period, team, player);
+      const player = pickByRole(team, random, ["forward", "winger"], finishingWeight);
+      return matchEvent("offside", minute, `${player.name} sai antes e fica em impedimento.`, period, team, player);
     }
     const player = pickDefender(opponent, random);
     return matchEvent("yellow_card", minute, `Amarelo para ${player.name}.`, period, opponent, player);
@@ -213,7 +298,7 @@ function maybePenalty(home: TeamSnapshot, away: TeamSnapshot, start: number, end
   if (random() > 0.045) return [];
   const team = random() < 0.5 ? home : away;
   const opponent = team.id === home.id ? away : home;
-  const taker = pickScorer(team, random);
+  const taker = pickFinisher(team, random);
   const keeper = pickKeeper(opponent);
   const minute = randomMinute(start, end, random);
   const awarded = matchEvent("penalty", minute, `Pênalti para ${team.name}. ${taker.name} cobra.`, period, team, taker, true);

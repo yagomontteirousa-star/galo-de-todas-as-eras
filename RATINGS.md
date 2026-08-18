@@ -70,6 +70,34 @@ A faixa está travada por teste (`src/lib/balance.test.ts`): nenhuma equipe pode
 76 a 93, a média precisa ficar entre 82 e 87 e a chave precisa manter pelo menos cinco
 times abaixo de 82 e três acima de 89.
 
+## Curva progressiva de dificuldade
+
+A faixa 77–92 já estava calibrada, mas a chave era sorteada sem ordem: dava para pegar o
+Flamengo 2019 nas oitavas e o Coritiba 1985 na final. `createBracket` agora distribui o
+sorteio por faixas de força, de modo que os mais fortes ficam presos na metade oposta e só
+podem ser encontrados no fim.
+
+Força média do adversário enfrentado em cada fase, medida sobre 400 campanhas:
+
+| fase | antes (sorteio livre) | depois |
+| --- | --- | --- |
+| oitavas | 84,5 | 77,7 |
+| quartas | 84,5 | 79,7 |
+| semifinal | 84,5 | 82,7 |
+| final | 84,5 | 89,3 |
+
+Taxa de título por qualidade do onze montado, sobre 300 campanhas simuladas sem forçar
+resultado:
+
+| onze do usuário | títulos | eliminação nas oitavas |
+| --- | --- | --- |
+| overall 96 (melhor possível) | 55,7% | 5% |
+| overall 92 (bom) | 34,7% | 8% |
+| overall 86 (irregular) | 12,0% | 13% |
+
+A curva está travada por `bracket.test.ts`, que falha se a força média das faixas deixar de
+subir de uma fase para a outra.
+
 ## O que mudou nos elencos do Galo
 
 Nenhum overall de jogador do Atlético foi alterado nesta rodada. A base tem 306 atletas,
@@ -80,6 +108,64 @@ Uma equivalência foi cadastrada: **lateral cobre ala e ala cobre lateral**
 jogador elegível para as vagas de ala em 13 dos 17 elencos, e a regra de posição
 compatível travava a campanha. `src/lib/coverage.test.ts` verifica toda vaga de toda
 formação contra todo elenco.
+
+## Base estruturada e relatório de confiança
+
+A base agora carrega, por atleta, os campos pedidos: nome, temporada, posição primária e
+secundária, atributos utilizados, overall, **nível de confiança**, **justificativa** e
+**referência**. A estrutura está em `RatingEvidence` (`src/types/game.ts`) e é preenchida
+por `evidenceFor` em `src/data/atletico-squads.ts`.
+
+A referência aponta para o registro do próprio elenco na base (`base interna · <elenco>`).
+Nenhuma fonte externa foi citada, porque nenhuma foi conferida: inventar bibliografia para
+306 atletas seria pior do que admitir a lacuna. `ratings.test.ts` falha se qualquer `source`
+virar uma URL.
+
+A confiança é derivada de sinais que a base realmente possui, e não de opinião:
+
+| confiança | critério | atletas |
+| --- | --- | --- |
+| alta | característica própria registrada **e** titular em elenco com conquista declarada | 25 |
+| média | um dos dois sinais | 65 |
+| baixa | nenhum sinal: o overall é estimativa | 216 |
+
+Total de 306 atletas, faixa de 74 a 95, média 83,8. **Nenhum overall foi alterado.** Mexer
+nos números sem medir o efeito na chave quebraria a faixa travada por `balance.test.ts`, e
+a auditoria (`src/lib/ratings.ts`) é somente leitura de propósito.
+
+### Achados da auditoria
+
+Rodada por `auditRatings()`, verificada por `src/lib/ratings.test.ts`.
+
+**Ratings discrepantes** (fora de dois desvios na mesma posição e década) — 1 caso:
+
+- Gérson 1995, atacante: 76 contra média 85,1 dos atacantes dos anos 90 (desvio 4,3).
+
+**Jogadores com pouca informação** — 216 de 306 (71%). É a maior lacuna da base: são
+reservas e atletas sem característica registrada, cujo overall é estimativa. O número alto
+é o resultado honesto do critério, não um defeito do relatório.
+
+**Reservas com overall alto demais** (fora dos onze, a um ponto ou menos do titular da
+mesma função) — 2 casos:
+
+- Alfinete 1977, lateral: 82 contra Ângelo (83).
+- Paulo César 1995, lateral: 79 contra Paulo Roberto (80).
+
+**Ídolos com overall abaixo do esperado** — nenhum caso. Todo atleta com característica de
+ídolo registrada pontua acima da média do próprio elenco.
+
+**Diferenças injustificadas entre jogadores da mesma posição e era** (salto de 10 pontos ou
+mais entre vizinhos diretos) — 15 casos, concentrados em dois padrões:
+
+- Goleiro reserva: Careca 1971 (−10 para Renato), Montezuma 1980 (−12), Gaspar 1985 (−11),
+  Milagres 1995 (−12) e 1997 (−10), Giovanni 2012 (−13), 2013 (−16) e 2014 (−14).
+- Centroavante reserva: Lola 1969 (−10) e 1971 (−12), Campos 1976 (−12), 1977 (−14) e
+  1980 (−17 para Reinaldo).
+- Zaga: Rafael Marques 2013 (−10 para Leonardo Silva).
+
+O padrão é consistente: a base separa muito o titular histórico do reserva nas posições de
+um jogador só (gol e centroavante). Isso é defensável como desenho, mas explica por que o
+sorteio de um ano ruim pesa tanto na escalação.
 
 ## Revisão pendente dos ratings individuais
 

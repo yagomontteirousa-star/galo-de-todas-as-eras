@@ -30,13 +30,39 @@ Progresso do refinamento pedido em 18/08/2026. Cada bloco abaixo foi commitado e
   que a estrutura, a contagem e o goleiro não mudam.
 - **Rodapé**: logo branca oficial da Master Digital em SVG, vinda do brand kit.
 
+### Rodada de 18/08/2026 (segunda revisão)
+
+- **Marcadores do campo**: o botão virou um disco compacto com a sigla da posição centrada
+  e nada mais; nome e overall saíram para uma etiqueta com fundo próprio logo abaixo. Nome
+  longo cai para o sobrenome e reduz a fonte, com ellipsis como último recurso.
+- **Ano do time do usuário**: `eraLabel` substitui o "2026" por "Seleção histórica" na
+  chave, no placar, na simulação, no resultado e no compartilhamento.
+- **Lances por posição**: os seletores de jogador agora filtram por função (`pickByRole`) e
+  cada família de lance tem frase própria por posição. Goleiro só aparece em reposição e
+  defesa; `simulation.test.ts` falha se ele voltar a "subir a pressão".
+- **Histórico da home**: o card ganhou placar da queda, adversário, vitórias, overall e
+  formação, tudo vindo de `CampaignRecord`.
+- **Tela final**: composição centrada em 1220px, três blocos (destaques, onze completo,
+  campanha), placar em evidência no topo e marcação visual para os quatro melhores e para
+  os atletas com característica própria. O compartilhamento tem três camadas de fallback.
+- **Metadados sociais**: `og:*` e `twitter:*` completos com `metadataBase` em
+  `pretonobranco.app`, mais `opengraph-image`/`twitter-image` geradas em 1200×630.
+- **Marca**: redução vetorial (`PnbGlyph`) para header e favicon, porque a arte com
+  respingos vira mancha abaixo de ~46px. A arte original segue nos tamanhos grandes.
+- **Curva de dificuldade**: `createBracket` distribui a chave por faixas de força. Números
+  medidos em `RATINGS.md`, travados por `bracket.test.ts`.
+- **Base de ratings**: `RatingEvidence` com confiança, justificativa e referência interna
+  para os 306 atletas, mais `auditRatings()` e o relatório em `RATINGS.md`. Nenhum overall
+  foi alterado.
+
 ## Pendente
 
-1. **Base estruturada de ratings do Atlético** (item 11). Congelado a pedido: os overalls
-   atuais dos jogadores ficam como estão. Escopo e pontos de atenção seguem em `RATINGS.md`
-   caso volte à pauta.
-2. **Link da Master Digital**: a faixa continua sem href porque o brand kit não traz a URL
-   oficial. Basta informar o endereço para ligar.
+1. **Revisão dos overalls individuais**: a estrutura existe, mas 216 dos 306 atletas estão
+   marcados como confiança baixa. Subir isso exige cruzar referências históricas reais, não
+   dá para derivar da própria base. Achados priorizados em `RATINGS.md`.
+2. **Link da Master Digital**: a faixa vira link assim que
+   `NEXT_PUBLIC_MASTER_DIGITAL_URL` for definida. Sem a variável, ela continua sem href —
+   não chutamos um domínio.
 
 ## Publicar
 

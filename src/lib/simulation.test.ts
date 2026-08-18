@@ -54,6 +54,23 @@ describe("simulation", () => {
     expect(disputas).toBeGreaterThan(0);
   });
 
+  it("não coloca o goleiro em lances que não são dele", () => {
+    const home = opponents[0];
+    const away = opponents[5];
+    const keepers = new Set([...home.lineup, ...away.lineup].filter((player) => player.primaryPosition === "GK").map((player) => player.name));
+    // O goleiro só protagoniza reposição e defesa; nunca pressão, chute, impedimento ou gol.
+    const proibidos = new Set(["pressure", "shot_off", "shot_saved", "offside", "goal", "corner"]);
+    const infracoes: string[] = [];
+    for (let seed = 1; seed <= 60; seed += 1) {
+      for (const event of simulateMatch(home, away, seeded(seed)).events) {
+        if (event.playerName && keepers.has(event.playerName) && proibidos.has(event.type)) {
+          infracoes.push(`${event.type}: ${event.description}`);
+        }
+      }
+    }
+    expect(infracoes).toEqual([]);
+  });
+
   it("mantém chance de zebra contra um time superior", () => {
     let underdogWins = 0;
     for (let seed = 1; seed <= 120; seed += 1) {

@@ -12,7 +12,7 @@ import type {
 import { useEffect, useMemo, useState } from "react";
 import { ArrowIcon } from "@/components/ui/Icons";
 import { formations } from "@/data/formations";
-import { roundLabels } from "@/lib/bracket";
+import { roundLabels, teamEra } from "@/lib/bracket";
 
 const eventCodes: Record<MatchEventType, string> = {
   kickoff: "INI", pressure: "PRE", possession: "POS", shot_off: "FOR", shot_saved: "DEF", big_save: "DEF",
@@ -123,7 +123,7 @@ export function MatchScreen({
       <div className="match-stage"><span>{roundLabels[match.round]} · {status}</span><b>{clockDone ? "ENCERRADO" : `${minute}′`}</b></div>
       <section className={`scoreboard ${goalFlash ? "is-goal-flash" : ""}`} aria-live="polite">
         <div className="score-team">
-          <span>{match.home.year}</span><h1>{match.home.name}</h1>
+          <span>{teamEra(match.home)}</span><h1>{match.home.name}</h1>
           <small>{match.home.isUser || revealOpponent ? `OVR ${match.home.overall.final} · ` : ""}{match.home.formation}</small>
         </div>
         <div className="score-numbers">
@@ -131,7 +131,7 @@ export function MatchScreen({
           {penaltyTally && <span>PÊNALTIS {penaltyTally.homeScore} a {penaltyTally.awayScore}</span>}
         </div>
         <div className="score-team score-team--away">
-          <span>{match.away.year}</span><h1>{match.away.name}</h1>
+          <span>{teamEra(match.away)}</span><h1>{match.away.name}</h1>
           <small>{match.away.isUser || revealOpponent ? `OVR ${match.away.overall.final} · ` : ""}{match.away.formation}</small>
         </div>
       </section>
@@ -194,7 +194,7 @@ export function MatchScreen({
               <>
                 <span>EM CAMPO</span>
                 <dl>
-                  <div><dt>Adversário</dt><dd>{opponent.name} {opponent.year}</dd></div>
+                  <div><dt>Adversário</dt><dd>{opponent.name} {teamEra(opponent)}</dd></div>
                   <div><dt>Orientação</dt><dd>{chosen ? chosen.label : "Definida no intervalo"}</dd></div>
                   <div><dt>Ritmo</dt><dd>{paused ? "Pausado" : speeds[speedIndex].label}</dd></div>
                 </dl>

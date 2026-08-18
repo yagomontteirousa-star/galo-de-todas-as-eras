@@ -11,7 +11,7 @@ export function GameHeader({ campaign, onHome, onRestart }: { campaign: Campaign
   return (
     <header className="game-header">
       <button type="button" className="game-brand" onClick={onHome} aria-label="Ir para o início">
-        <BrandMark size={30} className="game-brand__mark"/><span>Preto <b>no Branco</b></span>
+        <BrandMark size={34} className="game-brand__mark"/><span>Preto <b>no Branco</b></span>
       </button>
       {isCampaign && (
         <div className="campaign-strip" aria-label="Estado da campanha">
