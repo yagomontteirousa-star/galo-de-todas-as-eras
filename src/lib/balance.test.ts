@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { atleticoSquads } from "@/data/atletico-squads";
 import { opponents } from "@/data/opponents";
 import { createBracket, getCurrentUserMatch, resolveCurrentRound } from "@/lib/bracket";
 import { seededRandom, simulateMatch } from "@/lib/simulation";
@@ -65,14 +66,31 @@ describe("balanceamento dos adversários", () => {
   });
 
   it("mantém a média competitiva sem nivelar todos por cima", () => {
-    expect(media).toBeGreaterThan(86);
-    expect(media).toBeLessThan(90);
+    expect(media).toBeGreaterThan(89);
+    expect(media).toBeLessThan(91);
   });
 
   it("distribui a chave entre fracos, médios e fortes", () => {
-    expect(finals.filter((value) => value <= 83).length).toBeGreaterThanOrEqual(3);
-    expect(finals.filter((value) => value >= 84 && value <= 88).length).toBeGreaterThanOrEqual(10);
+    expect(finals.filter((value) => value <= 84).length).toBeGreaterThanOrEqual(3);
+    expect(finals.filter((value) => value >= 85 && value <= 90).length).toBeGreaterThanOrEqual(4);
     expect(finals.filter((value) => value >= 89).length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("usa notas individuais e a mesma régua dos ídolos do Atlético", () => {
+    const inter1979 = opponents.find((team) => team.name === "Internacional" && team.year === 1979)!;
+    const falcao = inter1979.lineup.find((player) => player.name === "Falcão")!;
+    const cerezo = atleticoSquads.flatMap((squad) => squad.players)
+      .find((player) => player.name === "Toninho Cerezo" && player.season === 1980)!;
+    const reinaldo = atleticoSquads.flatMap((squad) => squad.players)
+      .find((player) => player.name === "Reinaldo" && player.season === 1980)!;
+
+    expect(falcao.overall).toBe(94);
+    expect(falcao.overall).toBeGreaterThan(cerezo.overall);
+    expect(falcao.overall).toBeLessThan(reinaldo.overall);
+    for (const opponent of opponents) {
+      const ratings = opponent.lineup.map((player) => player.overall);
+      expect(Math.max(...ratings) - Math.min(...ratings)).toBeGreaterThanOrEqual(8);
+    }
   });
 
   it("mantém os grandes elencos no topo sem bônus de 99", () => {
@@ -110,7 +128,7 @@ describe("balanceamento dos adversários", () => {
     let titles = 0;
     let eliminations = 0;
     for (const rating of [87, 90, 92]) {
-      for (let seed = 1; seed <= 8; seed += 1) {
+      for (let seed = 1; seed <= 16; seed += 1) {
         let bracket = createBracket(userAt(rating), seededRandom(rating * 100 + seed));
         for (let round = 0; round < 4; round += 1) {
           const match = getCurrentUserMatch(bracket);

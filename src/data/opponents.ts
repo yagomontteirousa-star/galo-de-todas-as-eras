@@ -1,38 +1,23 @@
 import { formations } from "@/data/formations";
 import { calculateTeamOverall } from "@/lib/overall";
-import type { Attributes, FormationId, Opponent, Player, Position, TacticId } from "@/types/game";
+import { attributesForOverall, styleFitFor } from "@/lib/player-rating";
+import type { FormationId, Opponent, Player, TacticId } from "@/types/game";
 
-type OpponentSeed = [name: string, year: number, rating: number, formation: FormationId, tactic: TacticId, players: string[]];
-const clamp = (value: number) => Math.max(0, Math.min(99, Math.round(value)));
+type OpponentPlayerSeed = [name: string, overall: number];
+type OpponentSeed = [name: string, year: number, formation: FormationId, tactic: TacticId, players: OpponentPlayerSeed[]];
 
-function makeAttributes(position: Position, overall: number): Attributes {
-  const attack = ["ST", "LW", "RW"].includes(position);
-  const midfield = ["DM", "CM", "AM", "LWB", "RWB"].includes(position);
-  if (position === "GK") return { finishing: 8, creation: 45, pace: 44, physical: clamp(overall - 4), defending: 35, positioning: overall, reflexes: clamp(overall + 2) };
-  return {
-    finishing: clamp(overall + (attack ? 3 : midfield ? -7 : -30)), creation: clamp(overall + (midfield ? 2 : attack ? -3 : -12)),
-    pace: clamp(overall + (attack ? 2 : 0)), physical: clamp(overall), defending: clamp(overall + (attack ? -40 : midfield ? -5 : 3)),
-    positioning: overall, reflexes: 0,
-  };
-}
-
-function makeOpponent([name, year, rating, formationId, tactic, playerNames]: OpponentSeed, teamIndex: number): Opponent {
+function makeOpponent([name, year, formationId, tactic, playerSeeds]: OpponentSeed, teamIndex: number): Opponent {
   const formation = formations[formationId];
+  if (playerSeeds.length !== formation.slots.length) throw new Error(`${name} ${year}: o onze rival precisa ter 11 jogadores`);
   const lineup = formation.slots.map((slot, index): Player => {
-    const variance = ((index * 3 + teamIndex) % 5) - 2;
-    const overall = clamp(rating + variance);
-    const attributes = makeAttributes(slot.position, overall);
+    const [playerName, overall] = playerSeeds[index];
+    const attributes = attributesForOverall(slot.position, overall);
     return {
       // Adversário não entra no bloqueio de repetidos: a chave é única por vaga.
-      id: `opp-${teamIndex}-${index}`, name: playerNames[index], season: year, personId: `opp-${teamIndex}-${index}`,
+      id: `opp-${teamIndex}-${index}`, name: playerName, season: year, personId: `opp-${teamIndex}-${index}`,
       squadId: `opp-${teamIndex}`, primaryPosition: slot.position, secondaryPositions: [], overall, attributes,
       tags: index === 10 ? ["referência"] : ["titular"],
-      styleFit: {
-        balanced: clamp((attributes.positioning + attributes.creation + attributes.physical) / 3),
-        attacking: clamp((attributes.finishing + attributes.creation + attributes.pace) / 3),
-        defensive: clamp((attributes.defending + attributes.positioning + attributes.physical) / 3),
-        pressing: clamp((attributes.pace + attributes.physical + attributes.positioning) / 3),
-      },
+      styleFit: styleFitFor(attributes),
     };
   });
   return {
@@ -41,38 +26,44 @@ function makeOpponent([name, year, rating, formationId, tactic, playerNames]: Op
   };
 }
 
+/**
+ * Notas individuais na mesma escala do arquivo do Atlético: 93+ é uma temporada de
+ * referência histórica; 89–92 identifica protagonistas de elite; 84–88, titulares
+ * fortes; 79–83, peças funcionais; abaixo disso, somente contextos realmente modestos.
+ * A ordem acompanha as onze vagas da formação para preservar posição e peso setorial.
+ */
 const opponentSeeds: OpponentSeed[] = [
-  ["Santos", 1962, 88, "4-3-3", "attacking", ["Gilmar", "Dalmo", "Mauro", "Calvet", "Lima", "Zito", "Mengálvio", "Pepe", "Pelé", "Coutinho", "Dorval"]],
-  ["Botafogo", 1968, 85, "4-3-3", "attacking", ["Manga", "Valtencir", "Leônidas", "Moreira", "Fidélis", "Carlos Roberto", "Gérson", "Paulo César", "Roberto", "Jairzinho", "Rogério"]],
-  ["Palmeiras", 1972, 85, "4-4-2", "balanced", ["Leão", "Zeca", "Luís Pereira", "Fedato", "Eurico", "Dudu", "Ademir da Guia", "Edu Bala", "Nei", "Leivinha", "César Maluco"]],
-  ["Internacional", 1975, 84, "4-3-3", "balanced", ["Manga", "Vacaria", "Figueroa", "Hermínio", "Cláudio", "Caçapava", "Falcão", "Valdomiro", "Escurinho", "Flávio", "Lula"]],
-  ["Internacional", 1979, 84, "4-3-3", "pressing", ["Benítez", "Cláudio Mineiro", "Mauro Galvão", "Mário Sérgio", "João Carlos", "Batista", "Falcão", "Jair", "Bira", "Valdomiro", "Chico Spina"]],
-  ["Flamengo", 1981, 87, "4-3-3", "attacking", ["Raul", "Júnior", "Marinho", "Mozer", "Leandro", "Andrade", "Adílio", "Lico", "Nunes", "Tita", "Zico"]],
-  ["Grêmio", 1983, 86, "4-4-2", "defensive", ["Mazaropi", "Casemiro", "De León", "Baidek", "Paulo Roberto", "China", "Osvaldo", "Tarciso", "Paulo César", "Caio", "Renato"]],
-  ["Coritiba", 1985, 79, "4-4-2", "defensive", ["Rafael", "Dida", "Gomes", "Heraldinho", "André", "Almir", "Marco Aurélio", "Lela", "Indio", "Toquinho", "Édson"]],
-  ["São Paulo", 1986, 83, "4-4-2", "balanced", ["Gilmar", "Nelsinho", "Dario Pereyra", "Oscar", "Zé Teodoro", "Falcão", "Pita", "Silas", "Müller", "Careca", "Sidney"]],
-  ["Bahia", 1988, 80, "4-4-2", "defensive", ["Ronaldo", "Paulo Robson", "João Marcelo", "Claudir", "Tarântini", "Edevaldo", "Zé Carlos", "Bobô", "Gil", "Charles", "Marlon"]],
-  ["Vasco", 1989, 83, "4-3-3", "balanced", ["Acácio", "Mazinho", "Quiñónez", "Marco Aurélio", "Paulo Roberto", "Andrade", "William", "Bismarck", "Bebeto", "Sorato", "Tita"]],
-  ["Corinthians", 1990, 81, "4-4-2", "defensive", ["Ronaldo", "Jacenir", "Marcelo", "Guinei", "Giba", "Márcio", "Wilson Mano", "Tupãzinho", "Neto", "Fabinho", "Viola"]],
-  ["São Paulo", 1992, 88, "4-3-3", "attacking", ["Zetti", "Nelsinho", "Ronaldão", "Adilson", "Cafu", "Pintado", "Raí", "Palhinha", "Müller", "Elivélton", "Macêdo"]],
-  ["Palmeiras", 1993, 86, "4-4-2", "attacking", ["Sérgio", "Roberto Carlos", "Antônio Carlos", "Tonhão", "Cláudio", "César Sampaio", "Mazinho", "Zinho", "Edílson", "Evair", "Edmundo"]],
-  ["Grêmio", 1995, 85, "4-4-2", "pressing", ["Danrlei", "Roger", "Adilson", "Rivarola", "Arce", "Dinho", "Goiano", "Carlos Miguel", "Arílson", "Paulo Nunes", "Jardel"]],
-  ["Cruzeiro", 1997, 82, "4-4-2", "balanced", ["Dida", "Nonato", "Gélson", "Célio Lúcio", "Vítor", "Fabinho", "Ricardinho", "Palhinha", "Elivélton", "Marcelo Ramos", "Alex Mineiro"]],
-  ["Vasco", 1998, 85, "4-3-3", "attacking", ["Carlos Germano", "Felipe", "Mauro Galvão", "Odvan", "Vágner", "Nasa", "Juninho", "Pedrinho", "Luizão", "Donizete", "Ramon"]],
-  ["Corinthians", 1999, 86, "4-4-2", "balanced", ["Dida", "Kléber", "Gamarra", "Adílson", "Índio", "Rincón", "Vampeta", "Marcelinho", "Edílson", "Luizão", "Dinei"]],
-  ["Vasco", 2000, 85, "4-3-3", "attacking", ["Hélton", "Jorginho Paulista", "Odvan", "Júnior Baiano", "Paulo Miranda", "Nasa", "Juninho", "Romário", "Viola", "Euller", "Juninho Paulista"]],
-  ["Athletico Paranaense", 2001, 81, "3-5-2", "attacking", ["Flávio", "Gustavo", "Nem", "Igor", "Alessandro", "Cocito", "Kléberson", "Fabiano", "Alex Mineiro", "Kléber", "Adriano"]],
-  ["Santos", 2002, 84, "4-4-2", "attacking", ["Fábio Costa", "Léo", "Alex", "André Luís", "Maurinho", "Paulo Almeida", "Renato", "Elano", "Diego", "Robinho", "Alberto"]],
-  ["Cruzeiro", 2003, 89, "4-3-3", "attacking", ["Gomes", "Leandro", "Edu Dracena", "Luisão", "Maicon", "Maldonado", "Felipe Melo", "Alex", "Mota", "Aristizábal", "Deivid"]],
-  ["São Paulo", 2005, 86, "3-5-2", "balanced", ["Rogério Ceni", "Fabão", "Lugano", "Edcarlos", "Júnior", "Mineiro", "Josué", "Cicinho", "Danilo", "Amoroso", "Aloísio"]],
-  ["Internacional", 2006, 85, "4-4-2", "balanced", ["Clemer", "Rubens Cardoso", "Índio", "Fabiano Eller", "Ceará", "Edinho", "Fabinho", "Alex", "Fernandão", "Iarley", "Rafael Sóbis"]],
-  ["Fluminense", 2010, 83, "4-2-3-1", "balanced", ["Diego Cavalieri", "Carlinhos", "Leandro Euzébio", "Gum", "Mariano", "Diguinho", "Diogo", "Conca", "Emerson", "Marquinho", "Fred"]],
-  ["Corinthians", 2012, 86, "4-2-3-1", "defensive", ["Cássio", "Fábio Santos", "Chicão", "Paulo André", "Alessandro", "Ralf", "Paulinho", "Danilo", "Jorge Henrique", "Emerson", "Guerrero"]],
-  ["Cruzeiro", 2014, 83, "4-2-3-1", "attacking", ["Fábio", "Egídio", "Dedé", "Léo", "Mayke", "Lucas Silva", "Henrique", "Éverton Ribeiro", "Willian", "Ricardo Goulart", "Marcelo Moreno"]],
-  ["Grêmio", 2017, 86, "4-2-3-1", "balanced", ["Marcelo Grohe", "Cortez", "Kannemann", "Geromel", "Edílson", "Arthur", "Maicon", "Luan", "Fernandinho", "Ramiro", "Lucas Barrios"]],
-  ["Flamengo", 2019, 89, "4-2-3-1", "attacking", ["Diego Alves", "Filipe Luís", "Pablo Marí", "Rodrigo Caio", "Rafinha", "Willian Arão", "Gerson", "Arrascaeta", "Bruno Henrique", "Éverton Ribeiro", "Gabigol"]],
-  ["Palmeiras", 2021, 87, "4-2-3-1", "defensive", ["Weverton", "Piquerez", "Gustavo Gómez", "Luan", "Marcos Rocha", "Danilo", "Zé Rafael", "Raphael Veiga", "Dudu", "Rony", "Luiz Adriano"]],
-  ["Fluminense", 2023, 84, "4-2-3-1", "pressing", ["Fábio", "Marcelo", "Felipe Melo", "Nino", "Samuel Xavier", "André", "Martinelli", "Ganso", "Keno", "Jhon Arias", "Cano"]],
+  ["Santos", 1962, "4-3-3", "attacking", [["Gilmar", 92], ["Dalmo", 84], ["Mauro", 89], ["Calvet", 85], ["Lima", 86], ["Zito", 89], ["Mengálvio", 85], ["Pepe", 91], ["Pelé", 98], ["Coutinho", 92], ["Dorval", 87]]],
+  ["Botafogo", 1968, "4-3-3", "attacking", [["Manga", 90], ["Valtencir", 82], ["Leônidas", 85], ["Moreira", 82], ["Fidélis", 84], ["Carlos Roberto", 86], ["Gérson", 94], ["Paulo César", 89], ["Roberto", 88], ["Rogério", 84], ["Jairzinho", 95]]],
+  ["Palmeiras", 1972, "4-4-2", "balanced", [["Leão", 91], ["Zeca", 81], ["Luís Pereira", 93], ["Fedato", 84], ["Eurico", 84], ["Edu Bala", 86], ["Dudu", 89], ["Ademir da Guia", 95], ["Nei", 83], ["Leivinha", 90], ["César Maluco", 88]]],
+  ["Internacional", 1975, "4-3-3", "balanced", [["Manga", 90], ["Vacaria", 81], ["Figueroa", 94], ["Hermínio", 83], ["Cláudio", 82], ["Caçapava", 86], ["Falcão", 91], ["Escurinho", 84], ["Lula", 84], ["Flávio", 88], ["Valdomiro", 89]]],
+  ["Internacional", 1979, "4-3-3", "pressing", [["Benítez", 89], ["Cláudio Mineiro", 84], ["Mauro Pastor", 84], ["Mauro Galvão", 90], ["João Carlos", 84], ["Batista", 90], ["Falcão", 94], ["Jair", 87], ["Mário Sérgio", 91], ["Bira", 87], ["Valdomiro", 90]]],
+  ["Flamengo", 1981, "4-3-3", "attacking", [["Raul", 86], ["Júnior", 92], ["Marinho", 84], ["Mozer", 87], ["Leandro", 92], ["Andrade", 86], ["Adílio", 89], ["Zico", 97], ["Lico", 85], ["Nunes", 90], ["Tita", 87]]],
+  ["Grêmio", 1983, "4-4-2", "defensive", [["Mazaropi", 86], ["Casemiro", 80], ["De León", 93], ["Baidek", 82], ["Paulo Roberto", 83], ["China", 82], ["Osvaldo", 82], ["Tarciso", 87], ["Paulo César", 84], ["Caio", 83], ["Renato", 92]]],
+  ["Coritiba", 1985, "4-4-2", "defensive", [["Rafael", 82], ["Dida", 77], ["Gomes", 80], ["Heraldinho", 78], ["André", 79], ["Almir", 78], ["Marco Aurélio", 82], ["Lela", 86], ["Indio", 80], ["Toquinho", 79], ["Édson", 84]]],
+  ["São Paulo", 1986, "4-4-2", "balanced", [["Gilmar", 87], ["Nelsinho", 84], ["Dario Pereyra", 92], ["Oscar", 88], ["Zé Teodoro", 83], ["Sidney", 82], ["Falcão", 87], ["Pita", 90], ["Silas", 86], ["Müller", 89], ["Careca", 94]]],
+  ["Bahia", 1988, "4-4-2", "defensive", [["Ronaldo", 81], ["Paulo Robson", 77], ["João Marcelo", 79], ["Claudir", 80], ["Tarântini", 79], ["Edevaldo", 81], ["Zé Carlos", 80], ["Bobô", 89], ["Gil", 79], ["Charles", 82], ["Marlon", 85]]],
+  ["Vasco", 1989, "4-3-3", "balanced", [["Acácio", 88], ["Mazinho", 90], ["Quiñónez", 83], ["Marco Aurélio", 84], ["Paulo Roberto", 82], ["Andrade", 85], ["William", 83], ["Bismarck", 89], ["Bebeto", 94], ["Sorato", 88], ["Tita", 86]]],
+  ["Corinthians", 1990, "4-4-2", "defensive", [["Ronaldo", 85], ["Jacenir", 76], ["Marcelo", 79], ["Guinei", 80], ["Giba", 78], ["Márcio", 81], ["Wilson Mano", 80], ["Tupãzinho", 84], ["Fabinho", 81], ["Neto", 93], ["Viola", 85]]],
+  ["São Paulo", 1992, "4-3-3", "attacking", [["Zetti", 92], ["Nelsinho", 86], ["Ronaldão", 88], ["Adilson", 84], ["Cafu", 91], ["Pintado", 86], ["Raí", 95], ["Palhinha", 91], ["Müller", 92], ["Elivélton", 86], ["Macêdo", 84]]],
+  ["Palmeiras", 1993, "4-4-2", "attacking", [["Sérgio", 86], ["Roberto Carlos", 91], ["Antônio Carlos", 88], ["Tonhão", 82], ["Cláudio", 84], ["César Sampaio", 90], ["Mazinho", 88], ["Zinho", 90], ["Edílson", 89], ["Evair", 92], ["Edmundo", 91]]],
+  ["Grêmio", 1995, "4-4-2", "pressing", [["Danrlei", 89], ["Roger", 84], ["Adilson", 87], ["Rivarola", 86], ["Arce", 90], ["Dinho", 86], ["Goiano", 84], ["Carlos Miguel", 89], ["Arílson", 84], ["Paulo Nunes", 91], ["Jardel", 93]]],
+  ["Cruzeiro", 1997, "4-4-2", "balanced", [["Dida", 92], ["Nonato", 81], ["Gélson", 82], ["Célio Lúcio", 83], ["Vítor", 84], ["Fabinho", 82], ["Ricardinho", 86], ["Palhinha", 88], ["Elivélton", 83], ["Marcelo Ramos", 90], ["Alex Mineiro", 85]]],
+  ["Vasco", 1998, "4-3-3", "attacking", [["Carlos Germano", 90], ["Felipe", 89], ["Mauro Galvão", 88], ["Odvan", 84], ["Vágner", 82], ["Nasa", 84], ["Juninho", 93], ["Pedrinho", 91], ["Ramon", 88], ["Luizão", 90], ["Donizete", 89]]],
+  ["Corinthians", 1999, "4-4-2", "balanced", [["Dida", 93], ["Kléber", 85], ["Gamarra", 94], ["Adílson", 84], ["Índio", 82], ["Rincón", 92], ["Vampeta", 91], ["Marcelinho", 94], ["Edílson", 92], ["Luizão", 91], ["Dinei", 82]]],
+  ["Vasco", 2000, "4-3-3", "attacking", [["Hélton", 87], ["Jorginho Paulista", 84], ["Odvan", 84], ["Júnior Baiano", 87], ["Paulo Miranda", 82], ["Nasa", 84], ["Juninho", 93], ["Juninho Paulista", 92], ["Euller", 88], ["Romário", 96], ["Viola", 86]]],
+  ["Athletico Paranaense", 2001, "3-5-2", "attacking", [["Flávio", 84], ["Gustavo", 82], ["Nem", 83], ["Igor", 82], ["Alessandro", 86], ["Cocito", 83], ["Kléberson", 90], ["Fabiano", 84], ["Alex Mineiro", 89], ["Kléber", 91], ["Adriano", 86]]],
+  ["Santos", 2002, "4-4-2", "attacking", [["Fábio Costa", 87], ["Léo", 89], ["Alex", 90], ["André Luís", 84], ["Maurinho", 83], ["Paulo Almeida", 84], ["Renato", 87], ["Elano", 88], ["Diego", 92], ["Robinho", 93], ["Alberto", 85]]],
+  ["Cruzeiro", 2003, "4-3-3", "attacking", [["Gomes", 90], ["Leandro", 85], ["Edu Dracena", 89], ["Luisão", 91], ["Maicon", 90], ["Maldonado", 88], ["Felipe Melo", 84], ["Alex", 96], ["Mota", 88], ["Aristizábal", 88], ["Deivid", 91]]],
+  ["São Paulo", 2005, "3-5-2", "balanced", [["Rogério Ceni", 93], ["Fabão", 86], ["Lugano", 91], ["Edcarlos", 83], ["Júnior", 88], ["Mineiro", 91], ["Josué", 88], ["Cicinho", 92], ["Danilo", 90], ["Amoroso", 91], ["Aloísio", 86]]],
+  ["Internacional", 2006, "4-4-2", "balanced", [["Clemer", 87], ["Rubens Cardoso", 82], ["Índio", 89], ["Fabiano Eller", 87], ["Ceará", 85], ["Edinho", 86], ["Fabinho", 84], ["Alex", 88], ["Fernandão", 93], ["Iarley", 89], ["Rafael Sóbis", 91]]],
+  ["Fluminense", 2010, "4-2-3-1", "balanced", [["Diego Cavalieri", 86], ["Carlinhos", 84], ["Leandro Euzébio", 83], ["Gum", 85], ["Mariano", 87], ["Diguinho", 84], ["Diogo", 82], ["Emerson", 85], ["Conca", 94], ["Marquinho", 84], ["Fred", 91]]],
+  ["Corinthians", 2012, "4-2-3-1", "defensive", [["Cássio", 92], ["Fábio Santos", 87], ["Chicão", 88], ["Paulo André", 85], ["Alessandro", 84], ["Ralf", 90], ["Paulinho", 92], ["Jorge Henrique", 86], ["Danilo", 88], ["Emerson", 91], ["Guerrero", 88]]],
+  ["Cruzeiro", 2014, "4-2-3-1", "attacking", [["Fábio", 91], ["Egídio", 86], ["Dedé", 88], ["Léo", 84], ["Mayke", 86], ["Lucas Silva", 88], ["Henrique", 87], ["Willian", 88], ["Éverton Ribeiro", 94], ["Ricardo Goulart", 93], ["Marcelo Moreno", 88]]],
+  ["Grêmio", 2017, "4-2-3-1", "balanced", [["Marcelo Grohe", 92], ["Cortez", 84], ["Kannemann", 91], ["Geromel", 93], ["Edílson", 87], ["Arthur", 93], ["Maicon", 89], ["Fernandinho", 85], ["Luan", 94], ["Ramiro", 88], ["Lucas Barrios", 87]]],
+  ["Flamengo", 2019, "4-2-3-1", "attacking", [["Diego Alves", 87], ["Filipe Luís", 91], ["Pablo Marí", 84], ["Rodrigo Caio", 87], ["Rafinha", 88], ["Willian Arão", 85], ["Gerson", 88], ["Bruno Henrique", 94], ["Arrascaeta", 93], ["Éverton Ribeiro", 91], ["Gabigol", 94]]],
+  ["Palmeiras", 2021, "4-2-3-1", "defensive", [["Weverton", 92], ["Piquerez", 86], ["Gustavo Gómez", 93], ["Luan", 85], ["Marcos Rocha", 88], ["Danilo", 90], ["Zé Rafael", 87], ["Dudu", 91], ["Raphael Veiga", 93], ["Rony", 88], ["Luiz Adriano", 84]]],
+  ["Fluminense", 2023, "4-2-3-1", "pressing", [["Fábio", 89], ["Marcelo", 87], ["Felipe Melo", 83], ["Nino", 89], ["Samuel Xavier", 85], ["André", 92], ["Martinelli", 86], ["Keno", 87], ["Ganso", 88], ["Jhon Arias", 92], ["Cano", 93]]],
 ];
 
 export const opponents: Opponent[] = opponentSeeds.map(makeOpponent);

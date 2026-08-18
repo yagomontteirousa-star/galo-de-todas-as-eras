@@ -89,10 +89,10 @@ export function MatchScreen({
     return () => window.clearInterval(timer);
   }, [maxMinute, running, speedIndex]);
 
-  // No desktop alto o box score completa a coluna lateral. Em celular ou viewport baixo,
+  // No desktop o box score horizontal completa a largura da composição. Em celular,
   // começa recolhido para placar, controles e lances terem prioridade.
   useEffect(() => {
-    const constrained = window.matchMedia("(max-width: 920px), (max-height: 740px)");
+    const constrained = window.matchMedia("(max-width: 920px)");
     const collapse = () => { if (constrained.matches) setBoxOpen(false); };
     collapse();
     constrained.addEventListener("change", collapse);
@@ -248,13 +248,13 @@ export function MatchScreen({
               </>
             )}
           </div>
-          {!finished && !needsHalftime && (
-            <details className="boxscore-collapse" open={boxOpen} onToggle={(event) => setBoxOpen(event.currentTarget.open)}>
-              <summary>Box score do seu time</summary>
-              <BoxScore team={userTeam} opponent={opponent} reveal={revealOpponent}/>
-            </details>
-          )}
         </aside>
+        {!finished && !needsHalftime && (
+          <details className="boxscore-collapse" open={boxOpen} onToggle={(event) => setBoxOpen(event.currentTarget.open)}>
+            <summary>Box score do seu time</summary>
+            <BoxScore team={userTeam} opponent={opponent} reveal={revealOpponent}/>
+          </details>
+        )}
       </div>
     </main>
   );
