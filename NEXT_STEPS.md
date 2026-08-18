@@ -13,8 +13,16 @@ Registro curto de progresso para retomar o trabalho sem perder contexto.
 - **Tipografia**: Barlow (corpo) + Barlow Condensed (rótulos, abas, placares) via `next/font/google`; Archive segue no display.
 - **Amarelo-estrela** (`--star: #f5c542`) como destaque pontual: assinatura da home, selo de era, passos do "como funciona", fase atual, aba ativa, velocidade ativa, confronto atual na chave, overall do elenco, vagas acesas.
 
-## Próximo passo
+- **Revisão final**: 1920×1080 e 390×844 auditados. No mobile o painel do draft voltou a ocupar 100% da largura (`width: auto` resolvia como shrink-to-fit; agora é `width: 100%`).
 
-1. Revisão visual final em desktop amplo (1920) e mobile (390) — sem regressão em seleção, troca de posição e confirmação.
-2. `npm run typecheck && npm run lint && npm test && npm run build`.
-3. Publicar: `npx vercel deploy --prod` (o projeto **não** está ligado ao GitHub; push sozinho não publica).
+## Estado
+
+Solicitação concluída e publicada. Validações: typecheck, lint, 18 testes e build — todos verdes.
+
+## Se for retomar
+
+Publicar exige a CLI, porque o projeto Vercel **não** está ligado ao GitHub (push sozinho não publica):
+
+```
+npx vercel deploy --prod
+```
