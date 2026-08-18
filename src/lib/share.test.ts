@@ -76,6 +76,26 @@ describe("compartilhamento", () => {
     expect(back.matches[1].pens).toBeUndefined();
   });
 
+  it("preserva o onze do rival enfrentado no snapshot", async () => {
+    const rivalSquad = eleven.map(([name, , overall], index) => ({
+      position: formations["4-3-3"].slots[index].label,
+      name: `Rival ${name}`,
+      overall,
+    }));
+    const withRival: SharedCampaign = {
+      ...base,
+      matches: [{
+        ...base.matches[0],
+        rivalFormation: "4-3-3",
+        rivalOverall: 89,
+        rivalSquad,
+      }],
+    };
+    expect(isSharedCampaign(withRival)).toBe(true);
+    expect(await decodeCampaign(await encodeCampaign(withRival))).toEqual(withRival);
+    expect(isSharedCampaign({ ...withRival, matches: [{ ...withRival.matches[0], rivalSquad: rivalSquad.slice(0, 10) }] })).toBe(false);
+  });
+
   it("encurta o link de verdade, medindo a mesma campanha nos dois formatos", async () => {
     // Reproduz o formato antigo para a comparação ser do mesmo dado, não de outro exemplo.
     const legacyTuple = [

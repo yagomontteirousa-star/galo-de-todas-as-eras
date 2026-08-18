@@ -1,14 +1,12 @@
 import { Pitch } from "@/components/game/Pitch";
 import { ArrowIcon } from "@/components/ui/Icons";
 import { SiteFooter } from "@/components/ui/Brand";
+import { CampaignHistoryPopover } from "@/components/game/CampaignHistoryPopover";
 import Image from "next/image";
 import { atleticoSquads } from "@/data/atletico-squads";
 import { formations } from "@/data/formations";
-import { roundLabels } from "@/lib/bracket";
 import { evaluatePosition } from "@/lib/overall";
 import type { CampaignOutcome, CampaignRecord, LineupEntry } from "@/types/game";
-
-const shortDate = (value: string) => new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
 
 /**
  * Vitrine da home: ídolos reais da base ocupando parte do 4-3-3 e o resto em aberto,
@@ -29,11 +27,12 @@ const showcase: LineupEntry[] = (() => {
   });
 })();
 
-export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOutcome, history, onReplayTutorial }: {
+export function HomeScreen({ onStart, onResume, canResume, onReviewLast, onReviewHistory, lastOutcome, history, onReplayTutorial }: {
   onStart: () => void;
   onResume: () => void;
   canResume: boolean;
   onReviewLast: () => void;
+  onReviewHistory: (record: CampaignRecord) => void;
   lastOutcome?: CampaignOutcome;
   history: CampaignRecord[];
   onReplayTutorial?: () => void;
@@ -71,29 +70,7 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
           </div>
 
           {history.length > 0 ? (
-            <details className="home-archive">
-              <summary>
-                <span>Histórico de campanhas</span>
-                <b>{history.length} {history.length === 1 ? "registro" : "registros"}</b>
-              </summary>
-              <ul className="home-history" aria-label="Campanhas anteriores">
-                {history.slice(0, 3).map((record) => (
-                  <li key={record.id} className={record.outcome === "champion" ? "is-champion" : ""}>
-                    <b>{record.outcome === "champion" ? "Campeão" : "Eliminado"}</b>
-                    <span>{roundLabels[record.roundReached]}</span>
-                    <time dateTime={record.finishedAt}>{shortDate(record.finishedAt)}</time>
-                    {/* Segunda linha: só aparece o que a campanha realmente registrou. */}
-                    <dl>
-                      {record.lastScore && <div><dt>{record.outcome === "champion" ? "Final" : "Queda"}</dt><dd>{record.lastScore}</dd></div>}
-                      {record.lastOpponent && <div><dt>Contra</dt><dd>{record.lastOpponent}</dd></div>}
-                      <div><dt>Vitórias</dt><dd>{record.wins}</dd></div>
-                      {record.overall !== undefined && <div><dt>Overall</dt><dd>{record.overall}</dd></div>}
-                      {record.formation && <div><dt>Formação</dt><dd>{record.formation}</dd></div>}
-                    </dl>
-                  </li>
-                ))}
-              </ul>
-            </details>
+            <CampaignHistoryPopover history={history} onReview={onReviewHistory} onStart={onStart}/>
           ) : (
             <p className="home-empty">{canResume ? "Nenhuma campanha concluída no arquivo ainda." : "Nenhuma campanha no arquivo ainda. A primeira súmula é sua."}</p>
           )}

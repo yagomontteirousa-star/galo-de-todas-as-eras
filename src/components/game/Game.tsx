@@ -10,13 +10,14 @@ import { AnalysisScreen } from "@/components/game/screens/AnalysisScreen";
 import { BracketScreen } from "@/components/game/screens/BracketScreen";
 import { MatchScreen } from "@/components/game/screens/MatchScreen";
 import { OutcomeScreen } from "@/components/game/screens/OutcomeScreen";
+import { CampaignSnapshotScreen } from "@/components/game/screens/CampaignSnapshotScreen";
 import { appendHistory, archiveCampaign, buildUserTeam, CAMPAIGN_STORAGE_KEY, clearLegacyStorage, createCampaign, LAST_CAMPAIGN_STORAGE_KEY, nextAvailableSquad, readHistory, readStoredCampaign, startDraft, toRecord, touchCampaign } from "@/lib/campaign";
 import { createBracket, getCurrentUserMatch, resolveCurrentRound } from "@/lib/bracket";
 import { seededRandom, simulateMatch } from "@/lib/simulation";
 import { TutorialCoach } from "@/components/game/TutorialCoach";
 import { BrandMark } from "@/components/ui/Brand";
 import { nextTip, readTutorial, restartTutorial, saveTutorial, tutorialTouched, type TutorialState } from "@/lib/tutorial";
-import type { Campaign, CampaignRecord, FormationId, LineupEntry, MatchInstructions, RatingsMode, TacticId } from "@/types/game";
+import type { Campaign, CampaignRecord, FormationId, LineupEntry, MatchInstructions, RatingsMode, SharedCampaign, TacticId } from "@/types/game";
 
 function homeCampaign(): Campaign { return { ...createCampaign(), screen: "home" }; }
 
@@ -24,6 +25,7 @@ export function Game() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [lastCampaign, setLastCampaign] = useState<Campaign | null>(null);
   const [history, setHistory] = useState<CampaignRecord[]>([]);
+  const [reviewedSnapshot, setReviewedSnapshot] = useState<SharedCampaign>();
   const [tutorial, setTutorial] = useState<TutorialState>({ dismissed: true, seen: [] });
   const [storageWarning, setStorageWarning] = useState(false);
   const activeScreen = campaign?.screen;
@@ -32,8 +34,15 @@ export function Game() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       clearLegacyStorage();
-      setLastCampaign(readStoredCampaign(LAST_CAMPAIGN_STORAGE_KEY));
-      setHistory(readHistory());
+      const storedLast = readStoredCampaign(LAST_CAMPAIGN_STORAGE_KEY);
+      const storedHistory = readHistory();
+      const storedLastRecord = storedLast ? toRecord(storedLast) : undefined;
+      setLastCampaign(storedLast);
+      setHistory(storedLast
+        ? storedHistory.map((record) => record.id === storedLast.id && !record.snapshot
+          ? { ...record, snapshot: storedLastRecord?.snapshot }
+          : record)
+        : storedHistory);
       setTutorial(readTutorial());
       // Chegou de um link compartilhado pedindo campanha nova: começa do zero neste
       // aparelho, sem tocar no resultado que o link carrega.
@@ -62,12 +71,19 @@ export function Game() {
   if (!campaign) return <main className="loading-screen"><BrandMark size={72}/><div/><span>Abrindo o arquivo do Galo</span></main>;
 
   const update = (next: Campaign) => setCampaign(touchCampaign(next));
-  const restart = () => setCampaign(createCampaign());
+  const restart = () => { setReviewedSnapshot(undefined); setCampaign(createCampaign()); };
   // Campanha encerrada só navega; nada é reescrito no armazenamento ativo.
   const show = (screen: Campaign["screen"]) => campaign.finishedAt ? setCampaign({ ...campaign, screen }) : update({ ...campaign, screen });
-  const goHome = () => show("home");
+  const goHome = () => { setReviewedSnapshot(undefined); show("home"); };
   const canResume = !campaign.finishedAt && Boolean(campaign.formation || campaign.lineup.length || campaign.bracket);
-  const reviewLast = () => lastCampaign && setCampaign({ ...lastCampaign, screen: lastCampaign.outcome === "champion" ? "champion" : "eliminated" });
+  const reviewLast = () => {
+    if (!lastCampaign) return;
+    setReviewedSnapshot(undefined);
+    setCampaign({ ...lastCampaign, screen: lastCampaign.outcome === "champion" ? "champion" : "eliminated" });
+  };
+  const reviewHistory = (record: CampaignRecord) => {
+    if (record.snapshot) setReviewedSnapshot(record.snapshot);
+  };
   const resume = () => {
     const screen = campaign.pendingResult ? "match" : campaign.bracket ? "bracket" : campaign.lineup.length === 11 ? "analysis" : campaign.formation ? "draft" : "setup";
     update({ ...campaign, screen });
@@ -149,7 +165,8 @@ export function Game() {
     <a className="skip-link" href="#main">Pular para o conteúdo</a>
     <GameHeader campaign={campaign} overall={team?.overall.final} onHome={goHome} onRestart={restart}/>
     {storageWarning && <div className="storage-warning" role="status">O navegador bloqueou o salvamento. Você pode jogar, mas esta campanha pode não continuar após fechar a aba.</div>}
-    {campaign.screen === "home" && <HomeScreen onStart={restart} onResume={resume} canResume={canResume} onReviewLast={reviewLast} lastOutcome={lastCampaign?.outcome} history={history} onReplayTutorial={tutorialTouched(tutorial) ? replayTutorial : undefined}/>}
+    {campaign.screen === "home" && reviewedSnapshot && <CampaignSnapshotScreen data={reviewedSnapshot} onBack={() => setReviewedSnapshot(undefined)} onRestart={restart}/>}
+    {campaign.screen === "home" && !reviewedSnapshot && <HomeScreen onStart={restart} onResume={resume} canResume={canResume} onReviewLast={reviewLast} onReviewHistory={reviewHistory} lastOutcome={lastCampaign?.outcome} history={history} onReplayTutorial={tutorialTouched(tutorial) ? replayTutorial : undefined}/>}
     {campaign.screen === "setup" && <SetupScreen onContinue={setup}/>}
     {campaign.screen === "draft" && currentSquad && (
       <DraftScreen key={currentSquad.id} campaign={campaign} squad={currentSquad} onConfirm={confirmPicks} onReroll={reroll} onRelocateLineupEntry={relocateLineupEntry}/>

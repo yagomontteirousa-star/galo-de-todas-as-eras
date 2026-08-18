@@ -37,9 +37,10 @@ export function CampaignArt({ data, children }: { data: SharedCampaign; children
               <span>{last.rivalName} {last.rivalYear}{pensLabel(last)}</span>
             </div>
           )}
-          <CampaignDetailsDialog data={data}/>
         </div>
       </header>
+
+      <CampaignDetailsDialog data={data}/>
 
       <dl className="report-facts">
         <div className="is-wide"><dt>Fase</dt><dd className="is-text">{phase}</dd></div>

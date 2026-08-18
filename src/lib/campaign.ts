@@ -3,6 +3,7 @@ import { formations } from "@/data/formations";
 import type { SharedCampaign } from "@/lib/share";
 import { rivalOf, roundOrder, scoreOf, userMatches, USER_TEAM_ERA } from "@/lib/bracket";
 import { calculateTeamOverall, evaluatePosition } from "@/lib/overall";
+import { rivalRosterFromTeam } from "@/lib/rival-roster";
 import type { Campaign, CampaignRecord, FormationId, HistoricalSquad, LineupEntry, MatchEvent, MatchResult, RatingsMode, TacticId, TeamSnapshot } from "@/types/game";
 
 /** Campanha em andamento. Some assim que a campanha termina. */
@@ -22,6 +23,7 @@ export function createCampaign(): Campaign {
 export function toRecord(campaign: Campaign): CampaignRecord {
   const last = userMatches(campaign.bracket).at(-1);
   const score = last && scoreOf(last);
+  const userTeam = last?.home.isUser ? last.home : last?.away;
   return {
     id: campaign.id,
     finishedAt: campaign.finishedAt ?? new Date().toISOString(),
@@ -32,6 +34,7 @@ export function toRecord(campaign: Campaign): CampaignRecord {
     overall: campaign.bracket?.rounds[0]?.matches.flatMap((match) => [match.home, match.away]).find((team) => team.isUser)?.overall.final,
     lastOpponent: last && rivalOf(last).name,
     lastScore: score && `${score.user} a ${score.rival}${score.pens}`,
+    snapshot: userTeam ? buildSharedCampaign(campaign, userTeam) ?? undefined : undefined,
   };
 }
 
@@ -56,6 +59,7 @@ export function buildSharedCampaign(campaign: Campaign, userTeam: TeamSnapshot):
   const matches = played.map((match) => {
     const score = scoreOf(match);
     const rival = rivalOf(match);
+    const rivalRoster = rivalRosterFromTeam(rival);
     const userTeamId = match.home.isUser ? match.home.id : match.away.id;
     return {
       round: match.round, user: score.user, rival: score.rival,
@@ -63,6 +67,9 @@ export function buildSharedCampaign(campaign: Campaign, userTeam: TeamSnapshot):
         ? { user: score.userPens, rival: score.rivalPens }
         : undefined,
       rivalName: rival.name, rivalYear: rival.year, won: score.won,
+      rivalFormation: rivalRoster.formation,
+      rivalOverall: rivalRoster.overall,
+      rivalSquad: rivalRoster.squad,
       goals: (match.result?.events ?? [])
         .filter((event) => event.type === "goal" && event.playerName)
         .map((event) => ({ name: event.playerName!, minute: event.minute, forUser: event.teamId === userTeamId })),

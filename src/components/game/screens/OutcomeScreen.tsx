@@ -5,6 +5,8 @@ import { ShareActions } from "@/components/game/ShareActions";
 import type { Campaign, TeamSnapshot } from "@/types/game";
 import { ArrowIcon } from "@/components/ui/Icons";
 import { BrandMark, SiteFooter } from "@/components/ui/Brand";
+import { RivalSquadDisclosure } from "@/components/game/RivalSquadDisclosure";
+import { rivalRosterFromTeam } from "@/lib/rival-roster";
 
 export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
   campaign: Campaign;
@@ -49,6 +51,7 @@ export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
           <div><span>Impacto tático</span><b>{result?.instructionImpact ?? "Plano mantido do começo ao fim."}</b></div>
         </div>
         <div className="result-goals"><span>Gols</span>{goals.length ? goals.map((goal) => <p key={goal.id}><time>{goal.minute}′</time><b>{goal.playerName}</b><small>{goalLine(goal.teamId)}</small></p>) : <p>Sem gols no tempo de jogo.</p>}</div>
+        {opponent && <RivalSquadDisclosure rival={rivalRosterFromTeam(opponent)} className="rival-roster--outcome"/>}
       </aside>
       <SiteFooter/>
     </main>

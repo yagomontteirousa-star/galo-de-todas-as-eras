@@ -1,35 +1,25 @@
 import { formations, tacticLabels } from "@/data/formations";
 import { roundLabels } from "@/lib/bracket";
-import type { CampaignOutcome, FormationId, TacticId, TournamentRound } from "@/types/game";
+import type { FormationId, SharedCampaign, SharedGoal, SharedMatch, SharedPlayer, SharedRivalPlayer, TacticId, TournamentRound } from "@/types/game";
+
+export type { SharedCampaign, SharedGoal, SharedMatch, SharedPlayer, SharedRivalPlayer } from "@/types/game";
 
 export const SITE_URL = "https://pretonobranco.app";
 export const SITE_TITLE = "Preto no Branco";
 export const SITE_DESCRIPTION = "Monte seu elenco histórico, atravesse as eras e faça história.";
 
-export interface SharedPlayer { slot: string; name: string; season: number; overall: number; special: boolean }
-export interface SharedGoal { name: string; minute: number; forUser: boolean }
-export interface SharedMatch {
-  round: TournamentRound; user: number; rival: number;
-  /** Só existe quando a partida foi para a marca da cal. */
-  pens?: { user: number; rival: number };
-  rivalName: string; rivalYear: number; won: boolean; goals: SharedGoal[];
-}
-
-export interface SharedCampaign {
-  outcome: CampaignOutcome;
-  /** Perdeu a decisão: muda o texto e o tom da prévia. */
-  runnerUp: boolean;
-  round: TournamentRound;
-  wins: number;
-  overall: number;
-  formation: FormationId;
-  tactic: TacticId;
-  squad: SharedPlayer[];
-  matches: SharedMatch[];
-}
-
 const isShortText = (value: unknown, max = 80): value is string =>
   typeof value === "string" && value.trim().length > 0 && value.length <= max;
+
+function validRivalSquad(match: SharedMatch): boolean {
+  const hasRoster = match.rivalFormation !== undefined || match.rivalOverall !== undefined || match.rivalSquad !== undefined;
+  if (!hasRoster) return true;
+  return Boolean(match.rivalFormation && FORMATIONS.includes(match.rivalFormation)
+    && Number.isInteger(match.rivalOverall) && match.rivalOverall! >= 40 && match.rivalOverall! <= 99
+    && Array.isArray(match.rivalSquad) && match.rivalSquad.length === 11
+    && match.rivalSquad.every((player) => player && isShortText(player.position, 12) && isShortText(player.name)
+      && Number.isInteger(player.overall) && player.overall >= 40 && player.overall <= 99));
+}
 
 /**
  * A rota de compartilhamento é pública. Validar o retrato inteiro evita gravar objetos
@@ -56,7 +46,8 @@ export function isSharedCampaign(value: unknown): value is SharedCampaign {
     && (!match.pens || (Number.isInteger(match.pens.user) && Number.isInteger(match.pens.rival)))
     && Array.isArray(match.goals) && match.goals.length <= 30
     && match.goals.every((goal) => goal && isShortText(goal.name) && Number.isInteger(goal.minute)
-      && goal.minute >= 0 && goal.minute <= 130 && typeof goal.forUser === "boolean"));
+      && goal.minute >= 0 && goal.minute <= 130 && typeof goal.forUser === "boolean")
+    && validRivalSquad(match));
 }
 
 const ROUNDS: TournamentRound[] = ["round16", "quarterfinal", "semifinal", "final"];
@@ -104,8 +95,8 @@ async function inflate(bytes: Uint8Array): Promise<string | null> {
 }
 
 /* Separadores do formato compacto. Nenhum nome da base os contém, mas limpamos por garantia. */
-const SEP = { field: "|", item: ";", part: ",", goal: "+", goalPart: "~" };
-const clean = (name: string) => name.replace(/[|;,+~]/g, " ").trim();
+const SEP = { field: "|", item: ";", part: ",", goal: "+", goalPart: "~", roster: ":", rosterPart: "^" };
+const clean = (name: string) => name.replace(/[|;,+~:^]/g, " ").trim();
 
 /**
  * Formato 2: texto delimitado em vez de JSON. Fases, formações e perfis viram índices, o
@@ -117,12 +108,19 @@ function toCompactText(data: SharedCampaign): string {
     .map((player) => [clean(player.name), player.season - YEAR_BASE, player.overall, player.special ? 1 : 0].join(SEP.part))
     .join(SEP.item);
   const matches = data.matches
-    .map((match) => [
-      ROUNDS.indexOf(match.round), match.user, match.rival,
-      match.pens ? match.pens.user : "", match.pens ? match.pens.rival : "",
-      clean(match.rivalName), match.rivalYear - YEAR_BASE, match.won ? 1 : 0,
-      match.goals.map((goal) => [clean(goal.name), goal.minute, goal.forUser ? 1 : 0].join(SEP.goalPart)).join(SEP.goal),
-    ].join(SEP.part))
+    .map((match) => {
+      const rivalSquad = match.rivalSquad
+        ?.map((player) => [clean(player.position), clean(player.name), player.overall].join(SEP.rosterPart))
+        .join(SEP.roster) ?? "";
+      return [
+        ROUNDS.indexOf(match.round), match.user, match.rival,
+        match.pens ? match.pens.user : "", match.pens ? match.pens.rival : "",
+        clean(match.rivalName), match.rivalYear - YEAR_BASE, match.won ? 1 : 0,
+        match.goals.map((goal) => [clean(goal.name), goal.minute, goal.forUser ? 1 : 0].join(SEP.goalPart)).join(SEP.goal),
+        match.rivalFormation ? FORMATIONS.indexOf(match.rivalFormation) : "",
+        match.rivalOverall ?? "", rivalSquad,
+      ].join(SEP.part);
+    })
     .join(SEP.item);
   return [
     data.outcome === "champion" ? 1 : 0, data.runnerUp ? 1 : 0, ROUNDS.indexOf(data.round),
@@ -165,7 +163,7 @@ function fromCompactText(text: string): SharedCampaign | null {
 
   const matches: SharedMatch[] = [];
   for (const entry of rawMatches ? rawMatches.split(SEP.item) : []) {
-    const [matchRound, user, rival, pensUser, pensRival, rivalName, rivalYear, won, goals] = entry.split(SEP.part);
+    const [matchRound, user, rival, pensUser, pensRival, rivalName, rivalYear, won, goals, rivalFormation, rivalOverall, rawRivalSquad] = entry.split(SEP.part);
     const roundValue = ROUNDS[toInt(matchRound) ?? -1];
     const userValue = toInt(user);
     const rivalValue = toInt(rival);
@@ -173,6 +171,19 @@ function fromCompactText(text: string): SharedCampaign | null {
     if (!roundValue || userValue === null || rivalValue === null || !rivalName || yearValue === null) return null;
     const penUser = toInt(pensUser ?? "");
     const penRival = toInt(pensRival ?? "");
+    const formationValue = FORMATIONS[toInt(rivalFormation ?? "") ?? -1];
+    const rivalOverallValue = toInt(rivalOverall ?? "");
+    let rivalSquad: SharedRivalPlayer[] | undefined;
+    if (rawRivalSquad) {
+      rivalSquad = [];
+      for (const rawPlayer of rawRivalSquad.split(SEP.roster)) {
+        const [position, name, playerOverall] = rawPlayer.split(SEP.rosterPart);
+        const playerOverallValue = toInt(playerOverall ?? "");
+        if (!position || !name || playerOverallValue === null) return null;
+        rivalSquad.push({ position, name, overall: playerOverallValue });
+      }
+    }
+    const hasRivalRoster = Boolean(formationValue && rivalOverallValue !== null && rivalSquad?.length);
     matches.push({
       round: roundValue, user: userValue, rival: rivalValue,
       pens: penUser !== null && penRival !== null ? { user: penUser, rival: penRival } : undefined,
@@ -182,6 +193,7 @@ function fromCompactText(text: string): SharedCampaign | null {
         const minuteValue = toInt(minute ?? "");
         return name && minuteValue !== null ? [{ name, minute: minuteValue, forUser: forUser === "1" }] : [];
       }),
+      ...(hasRivalRoster ? { rivalFormation: formationValue, rivalOverall: rivalOverallValue!, rivalSquad } : {}),
     });
   }
 

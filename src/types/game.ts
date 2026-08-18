@@ -101,6 +101,31 @@ export interface BracketState { rounds: BracketRound[]; currentRound: Tournament
 export type GameScreen = "home" | "setup" | "draft" | "analysis" | "bracket" | "match" | "victory" | "eliminated" | "champion";
 export type CampaignOutcome = "champion" | "eliminated";
 
+export interface SharedPlayer { slot: string; name: string; season: number; overall: number; special: boolean }
+export interface SharedGoal { name: string; minute: number; forUser: boolean }
+export interface SharedRivalPlayer { position: string; name: string; overall: number }
+export interface SharedMatch {
+  round: TournamentRound; user: number; rival: number;
+  /** Só existe quando a partida foi para a marca da cal. */
+  pens?: { user: number; rival: number };
+  rivalName: string; rivalYear: number; won: boolean; goals: SharedGoal[];
+  /** Disponível apenas para adversários que já foram enfrentados. */
+  rivalFormation?: FormationId; rivalOverall?: number; rivalSquad?: SharedRivalPlayer[];
+}
+
+export interface SharedCampaign {
+  outcome: CampaignOutcome;
+  /** Perdeu a decisão: muda o texto e o tom da prévia. */
+  runnerUp: boolean;
+  round: TournamentRound;
+  wins: number;
+  overall: number;
+  formation: FormationId;
+  tactic: TacticId;
+  squad: SharedPlayer[];
+  matches: SharedMatch[];
+}
+
 export interface Campaign {
   version: 2; id: string; createdAt: string; updatedAt: string; screen: GameScreen;
   formation?: FormationId; tactic?: TacticId; ratingsMode?: RatingsMode; lineup: LineupEntry[]; usedSquadIds: string[];
@@ -109,10 +134,12 @@ export interface Campaign {
   finishedAt?: string; outcome?: CampaignOutcome;
 }
 
-/** Linha do histórico: leve de propósito, para caber no localStorage sem carregar elencos inteiros. */
+/** Linha do histórico. Campanhas novas guardam também o retrato público completo. */
 export interface CampaignRecord {
   id: string; finishedAt: string; outcome: CampaignOutcome; wins: number;
   roundReached: TournamentRound; formation?: FormationId; overall?: number;
   /** Retrato do último jogo, para o card do histórico não precisar do elenco inteiro. */
   lastOpponent?: string; lastScore?: string;
+  /** Registros antigos podem não ter este campo; nunca inventamos dados ausentes. */
+  snapshot?: SharedCampaign;
 }

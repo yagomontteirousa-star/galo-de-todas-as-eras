@@ -13,6 +13,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowIcon } from "@/components/ui/Icons";
 import { formations } from "@/data/formations";
 import { roundLabels, teamEra } from "@/lib/bracket";
+import { RivalSquadDisclosure } from "@/components/game/RivalSquadDisclosure";
+import { rivalRosterFromTeam } from "@/lib/rival-roster";
 
 const eventCodes: Record<MatchEventType, string> = {
   kickoff: "INI", pressure: "PRE", possession: "POS", shot_off: "FOR", shot_saved: "DEF", big_save: "DEF",
@@ -171,6 +173,15 @@ export function MatchScreen({
             <span style={{ transform: `scaleX(${Math.min(1, minute / maxMinute)})` }}/>
             <i style={{ left: `${Math.min(100, (minute / maxMinute) * 100)}%` }}/>
           </div>
+          {finished && (
+            <section className="match-finish-action" aria-label="Partida encerrada">
+              <div>
+                <span>Partida encerrada</span>
+                <b>{result.winnerId === userTeam.id ? "Vitória confirmada" : "Resultado confirmado"}</b>
+              </div>
+              <button type="button" className="button button--primary" onClick={onFinish}>Ver resultado<ArrowIcon/></button>
+            </section>
+          )}
           {!clockDone && (
             <div className="match-controls">
               <button type="button" className="match-control" onClick={() => setPaused((value) => !value)} aria-pressed={paused}>
@@ -224,7 +235,7 @@ export function MatchScreen({
                   <div><dt>Melhor em campo</dt><dd>{result.playerOfMatch}</dd></div>
                   <div><dt>Decisão</dt><dd>{result.wentToPenalties ? "Pênaltis" : result.wentToExtraTime ? "Prorrogação" : "90 minutos"}</dd></div>
                 </dl>
-                <button type="button" className="button button--primary button--wide" onClick={onFinish}>Confirmar resultado<ArrowIcon/></button>
+                <RivalSquadDisclosure rival={rivalRosterFromTeam(opponent)} className="rival-roster--match"/>
               </>
             ) : (
               <>

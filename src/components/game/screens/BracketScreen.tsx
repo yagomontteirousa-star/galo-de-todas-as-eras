@@ -2,6 +2,8 @@ import { getCurrentUserMatch, roundCounts, roundLabels, roundOrder, teamEra } fr
 import { useState } from "react";
 import type { BracketMatch, BracketState, RatingsMode, TeamSnapshot } from "@/types/game";
 import { ArrowIcon } from "@/components/ui/Icons";
+import { RivalSquadDisclosure } from "@/components/game/RivalSquadDisclosure";
+import { rivalRosterFromTeam } from "@/lib/rival-roster";
 
 function TeamLine({ team, score, isWinner, decided }: { team: TeamSnapshot; score?: number; isWinner: boolean; decided: boolean }) {
   return (
@@ -68,6 +70,9 @@ export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult }: 
                   const isCurrent = match.id === current?.id;
                   const hasUser = match.home.isUser || match.away.isUser;
                   const decided = Boolean(match.result);
+                  const facedRival = hasUser && decided
+                    ? rivalRosterFromTeam(match.home.isUser ? match.away : match.home)
+                    : undefined;
                   const homeTotal = match.result ? match.result.homeScore + match.result.homeExtra : undefined;
                   const awayTotal = match.result ? match.result.awayScore + match.result.awayExtra : undefined;
                   return <article className={`bracket-match ${isCurrent ? "is-current" : ""} ${hasUser ? "has-user" : ""}`} key={match.id}>
@@ -85,6 +90,7 @@ export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult }: 
                         </ul>
                         : <small className="bracket-match__scorers">Sem gols</small>
                     )}
+                    {facedRival && <RivalSquadDisclosure rival={facedRival} className="rival-roster--bracket"/>}
                     {isCurrent && <span className="bracket-match__flag">Seu próximo jogo</span>}
                   </article>;
                 })}
