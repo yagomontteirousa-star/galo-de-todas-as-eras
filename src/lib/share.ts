@@ -241,6 +241,26 @@ export async function decodeCampaign(payload: string): Promise<SharedCampaign | 
 export const campaignUrl = async (data: SharedCampaign, origin = SITE_URL) =>
   `${origin}/c/${await encodeCampaign(data)}`;
 
+/**
+ * Tenta o link curto: o servidor guarda o snapshot e devolve um id de dez caracteres.
+ * Se o store não estiver ligado ou a gravação falhar, devolve o link longo, que abre do
+ * mesmo jeito. Quem chama nunca recebe um endereço quebrado.
+ */
+export async function shortCampaignUrl(data: SharedCampaign, origin = SITE_URL): Promise<{ url: string; short: boolean }> {
+  try {
+    const response = await fetch("/api/c", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (response.ok) {
+      const { id } = await response.json() as { id?: string };
+      if (id) return { url: `${origin}/c/${id}`, short: true };
+    }
+  } catch { /* offline ou store fora do ar: cai no formato longo */ }
+  return { url: await campaignUrl(data, origin), short: false };
+}
+
 /** Quem tirou a campanha do caminho: o adversário da última partida perdida. */
 export const eliminator = (data: SharedCampaign) => data.matches.find((match) => !match.won) ?? data.matches.at(-1);
 

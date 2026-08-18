@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { campaignUrl, shareMessage, shareText, type SharedCampaign } from "@/lib/share";
+import { shareMessage, shareText, shortCampaignUrl, type SharedCampaign } from "@/lib/share";
 
 type Feedback = "idle" | "copied" | "linked" | "failed";
 
@@ -33,7 +33,7 @@ export function ShareActions({ data, children }: { data: SharedCampaign; childre
   // O link é comprimido, então nasce assíncrono. Só os cliques precisam dele, e a origem
   // real do navegador faz o compartilhamento funcionar também fora de produção.
   const buildUrl = async () => {
-    const url = await campaignUrl(data, typeof window === "undefined" ? undefined : window.location.origin);
+    const { url } = await shortCampaignUrl(data, typeof window === "undefined" ? undefined : window.location.origin);
     setLink(url);
     return url;
   };

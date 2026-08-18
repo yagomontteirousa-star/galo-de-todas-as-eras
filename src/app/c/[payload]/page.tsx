@@ -4,6 +4,20 @@ import { CampaignArt } from "@/components/game/CampaignArt";
 import { ShareActions } from "@/components/game/ShareActions";
 import { BrandMark, SiteFooter } from "@/components/ui/Brand";
 import { decodeCampaign, shareMessage, SITE_DESCRIPTION, SITE_TITLE } from "@/lib/share";
+import { looksLikeShareId, readSharedCampaign } from "@/lib/share-store";
+import type { SharedCampaign } from "@/lib/share";
+
+/**
+ * Dois formatos convivem no mesmo endereço: id curto guardado no servidor e o payload
+ * longo dos links já enviados. O id é tentado primeiro porque é o formato novo.
+ */
+async function loadCampaign(token: string): Promise<SharedCampaign | null> {
+  if (looksLikeShareId(token)) {
+    const stored = await readSharedCampaign(token);
+    if (stored) return stored;
+  }
+  return decodeCampaign(token);
+}
 
 type Params = { params: Promise<{ payload: string }> };
 
@@ -12,7 +26,7 @@ type Params = { params: Promise<{ payload: string }> };
  * que aparece na prévia do WhatsApp, do Discord e das redes.
  */
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const data = await decodeCampaign((await params).payload);
+  const data = await loadCampaign((await params).payload);
   const { title, description } = data ? shareMessage(data) : { title: SITE_TITLE, description: SITE_DESCRIPTION };
   // Declarar openGraph aqui substitui o do layout inteiro, então a capa volta explícita:
   // é sempre a arte oficial, só o texto muda com o resultado.
@@ -26,7 +40,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
 }
 
 export default async function SharedCampaignPage({ params }: Params) {
-  const data = await decodeCampaign((await params).payload);
+  const data = await loadCampaign((await params).payload);
 
   if (!data) {
     return (
