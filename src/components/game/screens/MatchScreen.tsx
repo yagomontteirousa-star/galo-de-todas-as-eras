@@ -9,7 +9,7 @@ import type {
   RatingsMode,
   TeamSnapshot,
 } from "@/types/game";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowIcon } from "@/components/ui/Icons";
 import { formations } from "@/data/formations";
 import { roundLabels, teamEra } from "@/lib/bracket";
@@ -68,7 +68,7 @@ export function MatchScreen({
   /** Passo da disputa: 0 antes da primeira, `kicks.length` na conclusão, acima disso liberou. */
   const [kickStep, setKickStep] = useState(0);
   const [goalFlash, setGoalFlash] = useState(false);
-  const boxRef = useRef<HTMLDetailsElement>(null);
+  const [boxOpen, setBoxOpen] = useState(true);
   const userTeam = match.home.isUser ? match.home : match.away;
   const opponent = match.home.isUser ? match.away : match.home;
   const needsHalftime = minute >= 45 && !result.instructions.halftime;
@@ -87,10 +87,14 @@ export function MatchScreen({
     return () => window.clearInterval(timer);
   }, [maxMinute, running, speedIndex]);
 
-  // No desktop o box score completa a coluna lateral; no celular começa recolhido para
-  // placar, controles e lances terem prioridade, mas continua disponível num toque.
+  // No desktop alto o box score completa a coluna lateral. Em celular ou viewport baixo,
+  // começa recolhido para placar, controles e lances terem prioridade.
   useEffect(() => {
-    if (window.matchMedia("(max-width: 920px)").matches) boxRef.current?.removeAttribute("open");
+    const constrained = window.matchMedia("(max-width: 920px), (max-height: 740px)");
+    const collapse = () => { if (constrained.matches) setBoxOpen(false); };
+    collapse();
+    constrained.addEventListener("change", collapse);
+    return () => constrained.removeEventListener("change", collapse);
   }, []);
 
   // O painel do intervalo tem que nascer à vista, mesmo se a página estava rolada.
@@ -234,7 +238,7 @@ export function MatchScreen({
             )}
           </div>
           {!finished && !needsHalftime && (
-            <details ref={boxRef} className="boxscore-collapse" open>
+            <details className="boxscore-collapse" open={boxOpen} onToggle={(event) => setBoxOpen(event.currentTarget.open)}>
               <summary>Box score do seu time</summary>
               <BoxScore team={userTeam} opponent={opponent} reveal={revealOpponent}/>
             </details>

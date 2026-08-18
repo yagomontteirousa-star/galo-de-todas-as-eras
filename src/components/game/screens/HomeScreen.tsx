@@ -71,23 +71,29 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
           </div>
 
           {history.length > 0 ? (
-            <ul className="home-history" aria-label="Campanhas anteriores">
-              {history.slice(0, 3).map((record) => (
-                <li key={record.id} className={record.outcome === "champion" ? "is-champion" : ""}>
-                  <b>{record.outcome === "champion" ? "Campeão" : "Eliminado"}</b>
-                  <span>{roundLabels[record.roundReached]}</span>
-                  <time dateTime={record.finishedAt}>{shortDate(record.finishedAt)}</time>
-                  {/* Segunda linha: só aparece o que a campanha realmente registrou. */}
-                  <dl>
-                    {record.lastScore && <div><dt>{record.outcome === "champion" ? "Final" : "Queda"}</dt><dd>{record.lastScore}</dd></div>}
-                    {record.lastOpponent && <div><dt>Contra</dt><dd>{record.lastOpponent}</dd></div>}
-                    <div><dt>Vitórias</dt><dd>{record.wins}</dd></div>
-                    {record.overall !== undefined && <div><dt>Overall</dt><dd>{record.overall}</dd></div>}
-                    {record.formation && <div><dt>Formação</dt><dd>{record.formation}</dd></div>}
-                  </dl>
-                </li>
-              ))}
-            </ul>
+            <details className="home-archive">
+              <summary>
+                <span>Histórico de campanhas</span>
+                <b>{history.length} {history.length === 1 ? "registro" : "registros"}</b>
+              </summary>
+              <ul className="home-history" aria-label="Campanhas anteriores">
+                {history.slice(0, 3).map((record) => (
+                  <li key={record.id} className={record.outcome === "champion" ? "is-champion" : ""}>
+                    <b>{record.outcome === "champion" ? "Campeão" : "Eliminado"}</b>
+                    <span>{roundLabels[record.roundReached]}</span>
+                    <time dateTime={record.finishedAt}>{shortDate(record.finishedAt)}</time>
+                    {/* Segunda linha: só aparece o que a campanha realmente registrou. */}
+                    <dl>
+                      {record.lastScore && <div><dt>{record.outcome === "champion" ? "Final" : "Queda"}</dt><dd>{record.lastScore}</dd></div>}
+                      {record.lastOpponent && <div><dt>Contra</dt><dd>{record.lastOpponent}</dd></div>}
+                      <div><dt>Vitórias</dt><dd>{record.wins}</dd></div>
+                      {record.overall !== undefined && <div><dt>Overall</dt><dd>{record.overall}</dd></div>}
+                      {record.formation && <div><dt>Formação</dt><dd>{record.formation}</dd></div>}
+                    </dl>
+                  </li>
+                ))}
+              </ul>
+            </details>
           ) : (
             <p className="home-empty">{canResume ? "Nenhuma campanha concluída no arquivo ainda." : "Nenhuma campanha no arquivo ainda. A primeira súmula é sua."}</p>
           )}
