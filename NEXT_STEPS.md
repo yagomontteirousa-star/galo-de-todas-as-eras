@@ -72,6 +72,24 @@ Progresso do refinamento pedido em 18/08/2026. Cada bloco abaixo foi commitado e
 - **Mensagens dinâmicas**: título e descrição mudam por resultado (campeão, vice,
   eliminado), sempre com fase, adversário e ano reais.
 
+### Rodada de 18/08/2026 (quarta revisão)
+
+- **Pênaltis no lugar da timeline**: a disputa substitui os últimos lances na mesma região,
+  em duas colunas (uma por equipe), com ponto de convertida, cobrador e placar parcial. Sem
+  `overflow`, sem `max-height`: as 12 cobranças do pior caso cabem inteiras. A última
+  cobrança pisca uma vez, a morte súbita ganha marca própria e a série completa fica 2,2s na
+  tela antes de liberar o resultado.
+- **Timeline invertida**: o lance mais novo entra no topo e o mais antigo desce até sair com
+  fade. A correção é na ordenação (`reverse()`), não no CSS, e o fade migrou para o último
+  item da lista.
+- **Link compacto**: o payload virou texto delimitado (fases, formações e perfis como
+  índices, ano como deslocamento, sigla da vaga derivada da formação) e passa por
+  `CompressionStream("deflate-raw")`, nativo no navegador e no Node. Uma campanha de quatro
+  jogos sai em ~281 a 340 caracteres, contra ~740 do formato anterior.
+- **Três formatos convivem**: `3` comprimido (padrão), `2` texto puro (onde não houver
+  compressão) e sem prefixo o JSON dos primeiros links. Link antigo real está travado por
+  teste e continua abrindo.
+
 ## Pendente
 
 1. **Revisão dos overalls individuais**: a estrutura existe, mas 216 dos 306 atletas estão

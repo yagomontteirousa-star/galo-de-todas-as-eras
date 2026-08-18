@@ -1,5 +1,5 @@
 import { atleticoSquads, playersById, squadsById } from "@/data/atletico-squads";
-import { formations, tacticLabels } from "@/data/formations";
+import { formations } from "@/data/formations";
 import type { SharedCampaign } from "@/lib/share";
 import { rivalOf, roundOrder, scoreOf, userMatches, USER_TEAM_ERA } from "@/lib/bracket";
 import { calculateTeamOverall, evaluatePosition } from "@/lib/overall";
@@ -58,7 +58,10 @@ export function buildSharedCampaign(campaign: Campaign, userTeam: TeamSnapshot):
     const rival = rivalOf(match);
     const userTeamId = match.home.isUser ? match.home.id : match.away.id;
     return {
-      round: match.round, user: score.user, rival: score.rival, pens: score.pens || undefined,
+      round: match.round, user: score.user, rival: score.rival,
+      pens: score.userPens !== undefined && score.rivalPens !== undefined
+        ? { user: score.userPens, rival: score.rivalPens }
+        : undefined,
       rivalName: rival.name, rivalYear: rival.year, won: score.won,
       goals: (match.result?.events ?? [])
         .filter((event) => event.type === "goal" && event.playerName)
@@ -73,7 +76,7 @@ export function buildSharedCampaign(campaign: Campaign, userTeam: TeamSnapshot):
     // Vice é quem chegou à decisão e perdeu; a fase sozinha não distingue.
     runnerUp: !champion && round === "final",
     round, wins: campaign.wins, overall: userTeam.overall.final,
-    formation: campaign.formation, tactic: tacticLabels[campaign.tactic].name,
+    formation: campaign.formation, tactic: campaign.tactic,
     squad, matches,
   };
 }

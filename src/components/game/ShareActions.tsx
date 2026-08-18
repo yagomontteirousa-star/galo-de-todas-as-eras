@@ -28,11 +28,19 @@ async function copyText(text: string): Promise<boolean> {
 
 export function ShareActions({ data, children }: { data: SharedCampaign; children?: React.ReactNode }) {
   const [feedback, setFeedback] = useState<Feedback>("idle");
-  // No navegador o link sai com a origem real, o que faz o compartilhamento local funcionar.
-  const url = campaignUrl(data, typeof window === "undefined" ? undefined : window.location.origin);
-  const text = shareText(data, url);
+  const [link, setLink] = useState<string>();
+
+  // O link é comprimido, então nasce assíncrono. Só os cliques precisam dele, e a origem
+  // real do navegador faz o compartilhamento funcionar também fora de produção.
+  const buildUrl = async () => {
+    const url = await campaignUrl(data, typeof window === "undefined" ? undefined : window.location.origin);
+    setLink(url);
+    return url;
+  };
 
   const share = async () => {
+    const url = await buildUrl();
+    const text = shareText(data, url);
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({ title: shareMessage(data).title, text, url });
@@ -45,7 +53,10 @@ export function ShareActions({ data, children }: { data: SharedCampaign; childre
     setFeedback(await copyText(text) ? "copied" : "failed");
   };
 
-  const copyLink = async () => setFeedback(await copyText(url) ? "linked" : "failed");
+  const copyLink = async () => {
+    const url = await buildUrl();
+    setFeedback(await copyText(url) ? "linked" : "failed");
+  };
 
   const saveImage = () => {
     // A capa é a arte oficial do site: abrir em aba própria deixa salvar ou compartilhar.
@@ -63,7 +74,7 @@ export function ShareActions({ data, children }: { data: SharedCampaign; childre
       <p className="share-feedback" role="status" aria-live="polite">
         {feedback === "copied" && "Resultado copiado. É só colar."}
         {feedback === "linked" && "Link copiado. Quem abrir vê esta campanha."}
-        {feedback === "failed" && <>Não deu para copiar aqui. O link é <code>{url}</code></>}
+        {feedback === "failed" && <>Não deu para copiar aqui. O link é <code>{link}</code></>}
       </p>
     </>
   );

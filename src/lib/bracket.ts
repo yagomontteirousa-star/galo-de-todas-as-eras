@@ -71,7 +71,7 @@ export function scoreOf(match: BracketMatch) {
   const userPens = match.home.isUser ? result.homePenalties : result.awayPenalties;
   const rivalPens = match.home.isUser ? result.awayPenalties : result.homePenalties;
   const pens = result.wentToPenalties ? ` (${userPens} a ${rivalPens} nos pênaltis)` : "";
-  return { user, rival, pens, won: result.winnerId === "user-team" };
+  return { user, rival, pens, userPens, rivalPens, won: result.winnerId === "user-team" };
 }
 
 export function getCurrentUserMatch(bracket: BracketState): BracketMatch | undefined {

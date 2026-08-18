@@ -1,5 +1,6 @@
 import { roundLabels } from "@/lib/bracket";
-import { eliminator, type SharedCampaign } from "@/lib/share";
+import { eliminator, type SharedCampaign, type SharedMatch } from "@/lib/share";
+import { tacticLabels } from "@/data/formations";
 import type { CSSProperties } from "react";
 import { BrandMark } from "@/components/ui/Brand";
 
@@ -7,6 +8,10 @@ import { BrandMark } from "@/components/ui/Brand";
  * A arte da campanha. A tela final e a página pública do link renderizam este mesmo
  * componente a partir do mesmo retrato, então o que a pessoa compartilha é o que ela viu.
  */
+/** A frase dos pênaltis é remontada aqui: no link viajam só os dois números. */
+const pensLabel = (match: SharedMatch) =>
+  match.pens ? ` (${match.pens.user} a ${match.pens.rival} nos pênaltis)` : "";
+
 export function CampaignArt({ data }: { data: SharedCampaign }) {
   const champion = data.outcome === "champion";
   const phase = champion ? "Campeão" : data.runnerUp ? "Vice-campeão" : roundLabels[data.round];
@@ -28,7 +33,7 @@ export function CampaignArt({ data }: { data: SharedCampaign }) {
           <div className="report-final">
             <small>{roundLabels[last.round]}</small>
             <b>{last.user}<i>×</i>{last.rival}</b>
-            <span>{last.rivalName} {last.rivalYear}{last.pens ?? ""}</span>
+            <span>{last.rivalName} {last.rivalYear}{pensLabel(last)}</span>
           </div>
         )}
       </header>
@@ -38,7 +43,7 @@ export function CampaignArt({ data }: { data: SharedCampaign }) {
         <div><dt>Vitórias</dt><dd>{data.wins}</dd></div>
         <div><dt>Overall</dt><dd>{data.overall}</dd></div>
         <div><dt>Formação</dt><dd>{data.formation}</dd></div>
-        <div><dt>Perfil</dt><dd>{data.tactic}</dd></div>
+        <div><dt>Perfil</dt><dd>{tacticLabels[data.tactic].name}</dd></div>
       </dl>
 
       <div className="report-grid">
@@ -80,7 +85,7 @@ export function CampaignArt({ data }: { data: SharedCampaign }) {
               <li key={`${match.round}-${match.rivalName}`} className={match.won ? "is-win" : "is-loss"}>
                 <em>{roundLabels[match.round]}</em>
                 <b>{match.user} a {match.rival}</b>
-                <span>{match.rivalName} {match.rivalYear}{match.pens ?? ""}</span>
+                <span>{match.rivalName} {match.rivalYear}{pensLabel(match)}</span>
                 {match.goals.length > 0 && (
                   <ul className="report-scorers">
                     {match.goals.map((goal, index) => (

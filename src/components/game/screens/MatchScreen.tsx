@@ -42,6 +42,8 @@ const speeds = [
 ];
 const TIMELINE_ROWS = 4;
 const KICK_MS = 1050;
+/** Pausa final: a série completa fica na tela antes de liberar o resultado. */
+const CONCLUSION_MS = 2200;
 
 export function MatchScreen({
   match,
@@ -63,14 +65,17 @@ export function MatchScreen({
   const [paused, setPaused] = useState(false);
   /** Postura escolhida no intervalo, ainda não confirmada. */
   const [halftimePick, setHalftimePick] = useState<HalftimeInstruction>();
-  const [revealedKicks, setRevealedKicks] = useState(0);
+  /** Passo da disputa: 0 antes da primeira, `kicks.length` na conclusão, acima disso liberou. */
+  const [kickStep, setKickStep] = useState(0);
   const [goalFlash, setGoalFlash] = useState(false);
   const userTeam = match.home.isUser ? match.home : match.away;
   const opponent = match.home.isUser ? match.away : match.home;
   const needsHalftime = minute >= 45 && !result.instructions.halftime;
   const clockDone = minute >= maxMinute;
-  const shootoutPending = clockDone && result.wentToPenalties && revealedKicks < kicks.length;
-  const finished = clockDone && !shootoutPending;
+  /** A disputa segue no ar até um passo além da última cobrança, para a conclusão ser lida. */
+  const inShootout = clockDone && result.wentToPenalties && kickStep <= kicks.length;
+  const concluded = inShootout && kickStep >= kicks.length;
+  const finished = clockDone && !inShootout;
   const running = !needsHalftime && !paused && !clockDone;
 
   useEffect(() => {
@@ -86,12 +91,13 @@ export function MatchScreen({
     if (needsHalftime) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [needsHalftime]);
 
-  // Disputa de pênaltis: uma cobrança por vez, com pausa para leitura.
+  // Disputa: uma cobrança por vez e, no fim, uma pausa maior mostrando a conclusão.
   useEffect(() => {
-    if (!shootoutPending) return;
-    const timer = window.setTimeout(() => setRevealedKicks((value) => value + 1), revealedKicks === 0 ? 700 : KICK_MS);
+    if (!inShootout) return;
+    const delay = kickStep === 0 ? 700 : kickStep >= kicks.length ? CONCLUSION_MS : KICK_MS;
+    const timer = window.setTimeout(() => setKickStep((value) => value + 1), delay);
     return () => window.clearTimeout(timer);
-  }, [shootoutPending, revealedKicks]);
+  }, [inShootout, kickStep, kicks.length]);
 
   const visibleEvents = useMemo(() => result.events.filter((item) => item.minute <= minute), [minute, result.events]);
   const lastUserGoal = useMemo(() => {
@@ -112,15 +118,16 @@ export function MatchScreen({
   const awayVisible = visibleGoals.filter((item) => item.teamId === match.away.id).length;
   const finalHome = result.homeScore + result.homeExtra;
   const finalAway = result.awayScore + result.awayExtra;
-  const shownKicks = kicks.slice(0, revealedKicks);
+  const shownKicks = kicks.slice(0, Math.min(kickStep, kicks.length));
   const penaltyTally = shownKicks.length ? shownKicks[shownKicks.length - 1] : undefined;
   const status = clockDone
-    ? result.wentToPenalties ? (shootoutPending ? "Pênaltis" : "Fim nos pênaltis") : result.wentToExtraTime ? "Fim na prorrogação" : "Fim de jogo"
+    ? result.wentToPenalties ? (inShootout ? "Pênaltis" : "Fim nos pênaltis") : result.wentToExtraTime ? "Fim na prorrogação" : "Fim de jogo"
     : minute > 90 ? "Prorrogação" : minute > 45 ? "Segundo tempo" : "Primeiro tempo";
   const revealOpponent = ratingsMode === "visible" || clockDone;
   const chosen = halftimeOptions.find((option) => option.id === result.instructions.halftime);
   const allGoals = result.events.filter((item) => item.type === "goal");
-  const timeline = visibleEvents.slice(-TIMELINE_ROWS);
+  // Fila invertida: o lance mais novo encabeça a lista e o mais antigo cai no fim.
+  const timeline = visibleEvents.slice(-TIMELINE_ROWS).reverse();
 
   // O segundo tempo só começa depois da confirmação, e o intervalo não volta a abrir.
   const confirmHalftime = () => halftimePick && onInstruction({ ...result.instructions, halftime: halftimePick });
@@ -173,24 +180,28 @@ export function MatchScreen({
         </>
       )}
       <div className="match-content">
-        <section className="timeline" aria-label="Últimos lances" aria-live="polite">
-          <h2>Últimos lances</h2>
-          <div className="timeline__rows">
-            {timeline.map((item, index) => (
-              <article key={item.id} className={`${eventTone[item.type] ?? ""} ${index === 0 && timeline.length === TIMELINE_ROWS ? "is-fading" : ""}`}>
-                <time>{item.minute ? `${item.minute}′` : "0′"}</time>
-                <span className={item.teamId === match.home.id ? "is-home" : item.teamId === match.away.id ? "is-away" : ""}>{eventCodes[item.type]}</span>
-                <b>{item.description}</b>
-                {item.teamId && <small>{item.teamId === match.home.id ? match.home.name : match.away.name}</small>}
-              </article>
-            ))}
-          </div>
-        </section>
+        {/* Na disputa, a marca da cal substitui os últimos lances: mesma região, sem
+            empilhar um painel embaixo do outro. */}
+        {inShootout ? (
+          <Shootout kicks={shownKicks} total={kicks.length} match={match} decided={concluded}/>
+        ) : (
+          <section className="timeline" aria-label="Últimos lances" aria-live="polite">
+            <h2>Últimos lances</h2>
+            <div className="timeline__rows">
+              {timeline.map((item, index) => (
+                <article key={item.id} className={`${eventTone[item.type] ?? ""} ${index === timeline.length - 1 && timeline.length === TIMELINE_ROWS ? "is-fading" : ""}`}>
+                  <time>{item.minute ? `${item.minute}′` : "0′"}</time>
+                  <span className={item.teamId === match.home.id ? "is-home" : item.teamId === match.away.id ? "is-away" : ""}>{eventCodes[item.type]}</span>
+                  <b>{item.description}</b>
+                  {item.teamId && <small>{item.teamId === match.home.id ? match.home.name : match.away.name}</small>}
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
         <aside className="match-side">
           <div className={`post-match ${finished ? "is-visible" : ""}`}>
-            {shootoutPending || (clockDone && result.wentToPenalties && !finished) ? (
-              <Shootout kicks={shownKicks} total={kicks.length} match={match}/>
-            ) : finished ? (
+            {finished ? (
               <>
                 <span>LEITURA PÓS-JOGO</span>
                 <div className="result-compact"><b>{finalHome} × {finalAway}</b><small>OVR {match.home.overall.final} × {match.away.overall.final}</small></div>
@@ -254,30 +265,60 @@ function HalftimePanel({ round, picked, onPick, onConfirm }: {
   );
 }
 
-function Shootout({ kicks, total, match }: { kicks: PenaltyKick[]; total: number; match: BracketMatch }) {
+/**
+ * Disputa de pênaltis no lugar da timeline. Cada lado tem a sua coluna e toda cobrança
+ * fica à vista de uma vez: nada de rolagem interna, porque o placar da série só se lê
+ * inteiro. A última batida acende por um instante para o olho achar onde parou.
+ */
+function Shootout({ kicks, total, match, decided }: {
+  kicks: PenaltyKick[];
+  total: number;
+  match: BracketMatch;
+  decided: boolean;
+}) {
   const current = kicks[kicks.length - 1];
+  const userSide = match.home.isUser ? "home" : "away";
+  const columns = (["home", "away"] as const).map((side) => ({
+    side,
+    team: side === "home" ? match.home : match.away,
+    kicks: kicks.filter((kick) => kick.side === side),
+  }));
+
   return (
-    <div className="shootout" role="status">
-      <span>DISPUTA DE PÊNALTIS</span>
-      <div className="shootout__scoreline">
-        <b>{current ? current.homeScore : 0}</b><i>a</i><b>{current ? current.awayScore : 0}</b>
+    <section className="shootout" aria-label="Disputa de pênaltis" aria-live="polite">
+      <h2>Disputa de pênaltis</h2>
+      <div className="shootout__body">
+        <div className="shootout__scoreline">
+          <b>{current ? current.homeScore : 0}</b><i>a</i><b>{current ? current.awayScore : 0}</b>
+        </div>
+        <p className="shootout__now">
+          {decided
+            ? <strong>Disputa encerrada.</strong>
+            : current
+              ? <><strong>{current.taker}</strong> {current.scored ? "converteu" : "parou no goleiro"}</>
+              : "As equipes vão para a marca da cal."}
+        </p>
+        <div className="shootout__grid">
+          {columns.map(({ side, team, kicks: sideKicks }) => (
+            <ol key={side} className={`shootout__column ${side === userSide ? "is-user" : ""}`} aria-label={`Cobranças de ${team.name}`}>
+              <li className="shootout__team"><b>{team.name}</b></li>
+              {sideKicks.map((kick) => (
+                <li key={kick.order}
+                  className={`${kick.scored ? "is-scored" : "is-missed"} ${kick.order === current?.order ? "is-latest" : ""} ${kick.suddenDeath ? "is-sudden" : ""}`}>
+                  <i aria-hidden="true"/>
+                  <b>{kick.taker}</b>
+                  <em>{kick.homeScore}–{kick.awayScore}</em>
+                </li>
+              ))}
+              {!sideKicks.length && <li className="shootout__waiting"><b>Aguardando</b></li>}
+            </ol>
+          ))}
+        </div>
+        <small className="shootout__count">
+          {decided ? `${kicks.length} cobranças até a decisão` : `${kicks.length} de ${total} cobranças`}
+        </small>
       </div>
-      <p className="shootout__now">
-        {current
-          ? <><strong>{current.taker}</strong> {current.scored ? "converteu" : "parou no goleiro"}</>
-          : "As equipes vão para a marca da cal."}
-      </p>
-      <ol className="shootout__list">
-        {kicks.map((kick) => (
-          <li key={kick.order} className={`${kick.scored ? "is-scored" : "is-missed"} ${kick.side === (match.home.isUser ? "home" : "away") ? "is-user" : ""}`}>
-            <em>{kick.side === "home" ? match.home.name : match.away.name}</em>
-            <b>{kick.taker}</b>
-            <span>{kick.scored ? "gol" : "perdeu"}</span>
-          </li>
-        ))}
-      </ol>
-      <small className="shootout__count">{kicks.length} de {total} cobranças</small>
-    </div>
+    </section>
   );
 }
 
