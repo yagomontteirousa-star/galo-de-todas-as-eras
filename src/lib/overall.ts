@@ -39,7 +39,9 @@ export function calculateTeamOverall(positioned: PositionedPlayer[], formationId
   const naturalCount = evaluations.filter((entry) => entry.fit === "natural").length;
   const secondaryCount = evaluations.filter((entry) => entry.fit === "secondary").length;
   const cohesion = Math.round(clamp(((naturalCount + secondaryCount * 0.55) / 11) * 4 - 2, -2, 2));
-  const tacticBonus = Math.round(clamp((styleAverage - 78) / 8 + formation.tacticAffinity[tactic] / 2, -1, 3));
+  // A tática premia encaixe, mas não cria sozinha uma equipe de elite nem leva um
+  // elenco ao teto da escala. A qualidade dos jogadores continua sendo o eixo da nota.
+  const tacticBonus = Math.round(clamp((styleAverage - 78) / 8 + formation.tacticAffinity[tactic] / 2, -1, 2));
   const improvisationPenalty = Math.round(clamp(evaluations.reduce((sum, entry) => sum + entry.penalty, 0) / 6, 0, 7));
   const spread = presentSectors.length ? Math.max(...presentSectors) - Math.min(...presentSectors) : 0;
   const balancePenalty = spread > 15 ? 3 : spread > 10 ? 2 : spread > 7 ? 1 : 0;

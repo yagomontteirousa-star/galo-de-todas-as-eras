@@ -263,8 +263,9 @@ function segmentLambdas(
   const edge = home.overall.final - away.overall.final;
   // A diferença de força pesa, mas continua menor que o conjunto de setores e que a
   // variância do Poisson. O favorito ganha vantagem real sem receber resultado pronto.
-  const homeBase = 1.2 + (a.attack + mod.attack - b.defense) / 24 + (a.midfield + mod.midfield - b.midfield) / 42 + edge / 48 + a.volatility + mod.volatility;
-  const awayBase = 1.14 + (b.attack - (a.defense + mod.defense)) / 24 + (b.midfield - (a.midfield + mod.midfield)) / 42 - edge / 48 + b.volatility;
+  const boundedEdge = clamp(edge, -12, 12) / 52;
+  const homeBase = 1.2 + (a.attack + mod.attack - b.defense) / 24 + (a.midfield + mod.midfield - b.midfield) / 42 + boundedEdge + a.volatility + mod.volatility;
+  const awayBase = 1.14 + (b.attack - (a.defense + mod.defense)) / 24 + (b.midfield - (a.midfield + mod.midfield)) / 42 - boundedEdge + b.volatility;
   return {
     home: clamp((homeBase - red.home + red.away * 0.45) * factor, 0.08, 2.25),
     away: clamp((awayBase - red.away + red.home * 0.45) * factor, 0.08, 2.25),

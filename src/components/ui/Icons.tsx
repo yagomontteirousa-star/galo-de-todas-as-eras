@@ -15,3 +15,7 @@ export function ShuffleIcon(props: SVGProps<SVGSVGElement>) {
 export function CheckIcon(props: SVGProps<SVGSVGElement>) {
   return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" {...props}><path d="M4 10.5l4 4L16 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 }
+
+export function CloseIcon(props: SVGProps<SVGSVGElement>) {
+  return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" {...props}><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>;
+}

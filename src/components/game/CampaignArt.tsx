@@ -3,6 +3,7 @@ import { eliminator, type SharedCampaign, type SharedMatch } from "@/lib/share";
 import { tacticLabels } from "@/data/formations";
 import type { CSSProperties } from "react";
 import { BrandMark } from "@/components/ui/Brand";
+import { CampaignDetailsDialog } from "@/components/game/CampaignDetailsDialog";
 
 /**
  * A arte da campanha. A tela final e a página pública do link renderizam este mesmo
@@ -19,24 +20,25 @@ export function CampaignArt({ data, children }: { data: SharedCampaign; children
   const last = eliminator(data) ?? data.matches.at(-1);
   const best = [...data.squad].sort((left, right) => right.overall - left.overall).slice(0, 4);
   const topRating = best[0]?.overall ?? 99;
-  const highlighted = new Set(best.map((player) => `${player.slot}-${player.name}`));
-  const years = data.matches.map((match) => match.rivalYear);
 
   return (
     <>
       <header className="report-head">
         <BrandMark size={44}/>
-        <div>
+        <div className="report-title">
           <span className="report-eyebrow">{champion ? "Campeão" : data.runnerUp ? "Vice-campeão" : "Fim de campanha"}</span>
           <h1>{champion ? "A taça é do Galo." : data.runnerUp ? "Faltou o último passo." : "O arquivo fecha aqui."}</h1>
         </div>
-        {last && (
-          <div className="report-final">
-            <small>{roundLabels[last.round]}</small>
-            <b>{last.user}<i>×</i>{last.rival}</b>
-            <span>{last.rivalName} {last.rivalYear}{pensLabel(last)}</span>
-          </div>
-        )}
+        <div className="report-summary-rail">
+          {last && (
+            <div className="report-final">
+              <small>{roundLabels[last.round]}</small>
+              <b>{last.user}<i>×</i>{last.rival}</b>
+              <span>{last.rivalName} {last.rivalYear}{pensLabel(last)}</span>
+            </div>
+          )}
+          <CampaignDetailsDialog data={data}/>
+        </div>
       </header>
 
       <dl className="report-facts">
@@ -64,51 +66,6 @@ export function CampaignArt({ data, children }: { data: SharedCampaign; children
         </section>
         {children}
       </div>
-
-      <details className="report-details">
-        <summary>Jogos e elenco</summary>
-        <div className="report-grid">
-          <section className="report-block">
-            <h2>O onze completo</h2>
-            <ul className="report-squad">
-              {data.squad.map((player) => (
-                <li key={`${player.slot}-${player.name}`}
-                  className={`${highlighted.has(`${player.slot}-${player.name}`) ? "is-top" : ""} ${player.special ? "is-special" : ""}`}>
-                  <em>{player.slot}</em>
-                  <b>{player.name}</b>
-                  <small>{player.season}</small>
-                  <strong>{player.overall}</strong>
-                </li>
-              ))}
-              {!data.squad.length && <li><b>Escalação não registrada.</b></li>}
-            </ul>
-          </section>
-
-          <section className="report-block">
-            <h2>A campanha</h2>
-            <ul className="report-runs">
-              {data.matches.map((match) => (
-                <li key={`${match.round}-${match.rivalName}`} className={match.won ? "is-win" : "is-loss"}>
-                  <em>{roundLabels[match.round]}</em>
-                  <b>{match.user} a {match.rival}</b>
-                  <span>{match.rivalName} {match.rivalYear}{pensLabel(match)}</span>
-                  {match.goals.length > 0 && (
-                    <ul className="report-scorers">
-                      {match.goals.map((goal, index) => (
-                        <li key={`${goal.name}-${goal.minute}-${index}`} className={goal.forUser ? "is-user" : ""}>
-                          <time>{goal.minute}′</time>{goal.name}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-              {!data.matches.length && <li><span>Nenhum jogo disputado.</span></li>}
-            </ul>
-            {years.length > 0 && <p className="report-years">Anos enfrentados: {years.join(", ")}.</p>}
-          </section>
-        </div>
-      </details>
     </>
   );
 }

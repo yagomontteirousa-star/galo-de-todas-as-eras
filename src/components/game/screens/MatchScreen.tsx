@@ -22,7 +22,7 @@ const eventCodes: Record<MatchEventType, string> = {
 
 /** Cada família de lance tem a sua cor, para a leitura ser instantânea. */
 const eventTone: Partial<Record<MatchEventType, string>> = {
-  goal: "is-goal", penalty: "is-penalty", yellow_card: "is-card", red_card: "is-card",
+  penalty: "is-penalty", yellow_card: "is-card", red_card: "is-card",
   halftime: "is-break", second_half: "is-break", extra_time: "is-break", full_time: "is-break", shootout: "is-break",
   kickoff: "is-break", big_save: "is-save",
 };
@@ -196,9 +196,9 @@ export function MatchScreen({
             <h2>Últimos lances</h2>
             <div className="timeline__rows">
               {timeline.map((item, index) => (
-                <article key={item.id} className={`${eventTone[item.type] ?? ""} ${index === timeline.length - 1 && timeline.length === TIMELINE_ROWS ? "is-fading" : ""}`}>
+                <article key={item.id} className={`${item.type === "goal" ? item.teamId === userTeam.id ? "is-goal is-user-goal" : "is-goal is-rival-goal" : eventTone[item.type] ?? ""} ${index === timeline.length - 1 && timeline.length === TIMELINE_ROWS ? "is-fading" : ""}`}>
                   <time>{item.minute ? `${item.minute}′` : "0′"}</time>
-                  <span className={item.teamId === match.home.id ? "is-home" : item.teamId === match.away.id ? "is-away" : ""}>{eventCodes[item.type]}</span>
+                  <span className={item.teamId === userTeam.id ? "is-user" : item.teamId ? "is-rival" : ""}>{eventCodes[item.type]}</span>
                   <b>{item.description}</b>
                   {item.teamId && <small>{item.teamId === match.home.id ? match.home.name : match.away.name}</small>}
                 </article>

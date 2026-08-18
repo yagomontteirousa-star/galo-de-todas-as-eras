@@ -1,6 +1,7 @@
 import { Pitch } from "@/components/game/Pitch";
 import { ArrowIcon } from "@/components/ui/Icons";
-import { BrandMark, SiteFooter } from "@/components/ui/Brand";
+import { SiteFooter } from "@/components/ui/Brand";
+import Image from "next/image";
 import { atleticoSquads } from "@/data/atletico-squads";
 import { formations } from "@/data/formations";
 import { roundLabels } from "@/lib/bracket";
@@ -48,7 +49,7 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
     <main className="home-screen" id="main">
       <section className="home-panel">
         <div className="home-copy">
-          <BrandMark size={54}/>
+          <Image className="home-brand" src="/icon.svg" alt="" width={54} height={59} priority unoptimized/>
           <h1>Preto<br/>no Branco.</h1>
           <p className="home-signature">Monte elencos. Atravesse eras. Faça história.</p>
           <p className="home-lead">{lead}</p>
