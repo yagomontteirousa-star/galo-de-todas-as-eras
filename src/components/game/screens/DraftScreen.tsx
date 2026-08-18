@@ -189,18 +189,24 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
             <span>ANO SORTEADO</span>
             <div className={revealing ? "is-spinning" : ""}>
               <strong aria-live="polite">{spinYear ?? squad.year}</strong>
-              <h1>{revealing ? "Sorteando…" : squad.name}</h1>
+              <h1>{revealing ? "Girando o arquivo" : squad.name}</h1>
             </div>
           </header>
 
+          {revealing ? (
+            <div className="roster-draw" role="status">
+              <span>Sorteando o ano</span>
+              <p>O elenco aparece quando a roleta parar.</p>
+            </div>
+          ) : (<>
           <div className="roster-heading">
             <div><h2>{maxPicks === 1 ? "Escolha o jogador" : "Escolha 2 jogadores"}</h2><span>{picks.length} de {maxPicks} neste ano</span></div>
-            <button type="button" className="reroll-action" disabled={!campaign.rerollsLeft || advancing || revealing} onClick={onReroll}>
+            <button type="button" className="reroll-action" disabled={!campaign.rerollsLeft || advancing} onClick={onReroll}>
               <ShuffleIcon/>Outro ano<em>{campaign.rerollsLeft}</em>
             </button>
           </div>
 
-          <div className="roster-scroll" aria-busy={revealing}>
+          <div className="roster-scroll">
             {groups.map((group) => {
               const groupPlayers = players.filter((player) => group.positions.includes(player.primaryPosition));
               if (!groupPlayers.length) return null;
@@ -209,7 +215,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
                 {groupPlayers.map((player) => {
                   const isPicked = alreadyChosen.has(player.id);
                   const hasRoom = openSlots.some((slot) => canPlay(player, slot));
-                  return <button type="button" key={player.id} disabled={isPicked || !hasRoom || advancing || revealing}
+                  return <button type="button" key={player.id} disabled={isPicked || !hasRoom || advancing}
                     className={`player-row ${selectedId === player.id ? "is-selected" : ""} ${isPicked ? "is-picked" : ""} ${!hasRoom && !isPicked ? "is-blocked" : ""}`}
                     onClick={() => handlePlayer(player)} onMouseEnter={() => setHoverId(player.id)} onMouseLeave={() => setHoverId(undefined)}
                     onFocus={() => setHoverId(player.id)} onBlur={() => setHoverId(undefined)} aria-pressed={selectedId === player.id}>
@@ -223,6 +229,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
               </section>;
             })}
           </div>
+          </>)}
         </section>
 
         <section className={`draft-column field-column ${mobileTab === "pitch" ? "is-mobile-active" : ""}`} aria-label="Campo e escalação">

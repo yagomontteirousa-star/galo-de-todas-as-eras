@@ -5,8 +5,8 @@ import { useState } from "react";
 import { ArrowIcon, CheckIcon } from "@/components/ui/Icons";
 
 const ratingsOptions: { id: RatingsMode; label: string; detail: string }[] = [
-  { id: "visible", label: "Sem cabedal histórico", detail: "Overall e força do rival à vista." },
-  { id: "memory", label: "Com cabedal vasto", detail: "Escolha por nome, ano e lembrança." },
+  { id: "memory", label: "Tenho cabedal", detail: "Jogar sem overall, confiando no conhecimento histórico." },
+  { id: "visible", label: "Quero uma ajuda", detail: "Jogar com overall visível como apoio." },
 ];
 
 export function SetupScreen({ onContinue }: { onContinue: (formation: FormationId, tactic: TacticId, ratingsMode: RatingsMode) => void }) {
@@ -45,7 +45,7 @@ export function SetupScreen({ onContinue }: { onContinue: (formation: FormationI
           </fieldset>
 
           <fieldset>
-            <legend>Informação durante o draft</legend>
+            <legend>Overall na hora de escolher</legend>
             <div className="ratings-choice">
               {ratingsOptions.map((option) => (
                 <button type="button" key={option.id} className={ratingsMode === option.id ? "is-selected" : ""} onClick={() => setRatingsMode(option.id)} aria-pressed={ratingsMode === option.id}>

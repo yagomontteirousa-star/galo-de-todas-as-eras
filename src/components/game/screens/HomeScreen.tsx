@@ -1,6 +1,7 @@
 import { Pitch } from "@/components/game/Pitch";
 import { ArrowIcon } from "@/components/ui/Icons";
 import { roundLabels } from "@/lib/bracket";
+import { SiteFooter } from "@/components/ui/Brand";
 import type { CampaignOutcome, CampaignRecord } from "@/types/game";
 
 const shortDate = (value: string) => new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
@@ -59,6 +60,7 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
           <li><b>03</b><strong>Simule a campanha</strong><span>Das oitavas à final: quatro jogos até o título.</span></li>
         </ol>
       </section>
+      <SiteFooter/>
     </main>
   );
 }

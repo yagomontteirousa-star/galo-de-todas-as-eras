@@ -1,6 +1,7 @@
 import { getCurrentUserMatch, roundLabels } from "@/lib/bracket";
 import type { Campaign } from "@/types/game";
 import { ArrowIcon } from "@/components/ui/Icons";
+import { BrandMark, SiteFooter } from "@/components/ui/Brand";
 
 export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
   campaign: Campaign;
@@ -30,7 +31,7 @@ export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
       <main className="outcome-screen outcome-screen--champion" id="main">
         <div className="champion-scene" aria-hidden="true"/>
         <section className="champion-content">
-          <div className="outcome-monogram" aria-hidden="true">PB</div>
+          <div className="outcome-monogram"><BrandMark size={44}/></div>
           <span className="champion-eyebrow">Campeão</span>
           <h1>{copy.title}</h1>
           <p>{copy.text}</p>
@@ -57,6 +58,7 @@ export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
             <button type="button" className="button button--primary" onClick={onContinue}>Ver a campanha<ArrowIcon/></button>
             <button type="button" className="button button--quiet" onClick={onRestart}>Nova campanha</button>
           </div>
+          <SiteFooter/>
         </section>
       </main>
     );
@@ -65,7 +67,7 @@ export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
   return (
     <main className={`outcome-screen outcome-screen--${outcome}`} id="main">
       <section className="outcome-summary">
-        <div className="outcome-monogram" aria-hidden="true">PB</div>
+        <div className="outcome-monogram"><BrandMark size={44}/></div>
         <span>{outcome === "eliminated" ? "FIM DE CAMPANHA" : `${campaign.wins}ª VITÓRIA`}</span>
         <h1>{copy.title}</h1><p>{copy.text}</p>
         <div className="outcome-actions">
@@ -85,6 +87,7 @@ export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
         </div>
         <div className="result-goals"><span>Gols</span>{goals.length ? goals.map((goal) => <p key={goal.id}><time>{goal.minute}′</time><b>{goal.playerName}</b><small>{goalLine(goal.teamId)}</small></p>) : <p>Sem gols no tempo de jogo.</p>}</div>
       </aside>
+      <SiteFooter/>
     </main>
   );
 }

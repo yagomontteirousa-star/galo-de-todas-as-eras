@@ -14,6 +14,7 @@ import { appendHistory, archiveCampaign, buildUserTeam, CAMPAIGN_STORAGE_KEY, cl
 import { createBracket, getCurrentUserMatch, resolveCurrentRound } from "@/lib/bracket";
 import { seededRandom, simulateMatch } from "@/lib/simulation";
 import { TutorialCoach } from "@/components/game/TutorialCoach";
+import { BrandMark } from "@/components/ui/Brand";
 import { nextTip, readTutorial, restartTutorial, saveTutorial, tutorialTouched, type TutorialState } from "@/lib/tutorial";
 import type { Campaign, CampaignRecord, FormationId, LineupEntry, MatchInstructions, RatingsMode, TacticId } from "@/types/game";
 
@@ -51,7 +52,7 @@ export function Game() {
   }, [activeScreen, activeSquadId]);
 
   const team = useMemo(() => campaign?.lineup.length === 11 ? buildUserTeam(campaign) : undefined, [campaign]);
-  if (!campaign) return <main className="loading-screen"><div/><span>Preparando o arquivo histórico…</span></main>;
+  if (!campaign) return <main className="loading-screen"><BrandMark size={72}/><div/><span>Abrindo o arquivo do Galo</span></main>;
 
   const update = (next: Campaign) => setCampaign(touchCampaign(next));
   const restart = () => setCampaign(createCampaign());
