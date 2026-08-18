@@ -88,7 +88,7 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
               ))}
             </ul>
           ) : (
-            <p className="home-empty">Nenhuma campanha no arquivo ainda. A primeira súmula é sua.</p>
+            <p className="home-empty">{canResume ? "Nenhuma campanha concluída no arquivo ainda." : "Nenhuma campanha no arquivo ainda. A primeira súmula é sua."}</p>
           )}
         </div>
 

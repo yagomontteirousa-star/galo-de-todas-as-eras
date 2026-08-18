@@ -49,6 +49,23 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
     () => prefersReducedMotion() ? undefined : squadYears[Math.floor(Math.random() * squadYears.length)]);
   const toastSeq = useRef(0);
   const rosterRef = useRef<HTMLElement>(null);
+  /** Toque que virou rolagem não seleciona: guardamos a origem e comparamos o deslocamento. */
+  const gesture = useRef<{ id: number; x: number; y: number; dragged: boolean } | null>(null);
+  const DRAG_LIMIT = 10;
+
+  const startGesture = (event: React.PointerEvent) => {
+    gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, dragged: false };
+  };
+  const trackGesture = (event: React.PointerEvent) => {
+    const start = gesture.current;
+    if (!start || start.id !== event.pointerId || start.dragged) return;
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > DRAG_LIMIT) {
+      start.dragged = true;
+      setHoverId(undefined);
+    }
+  };
+  const endGesture = () => { gesture.current = null; };
+  const wasDrag = () => Boolean(gesture.current?.dragged);
   const fieldRef = useRef<HTMLElement>(null);
 
   /** No mobile o fluxo é lista, campo, posição e volta para a lista, sempre com rolagem suave. */
@@ -179,7 +196,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   };
 
   const handlePlayer = (player: Player) => {
-    if (advancing || revealing || alreadyChosen(player)) return;
+    if (wasDrag() || advancing || revealing || alreadyChosen(player)) return;
     if (selectedSlotId) {
       const slot = formation.slots.find((item) => item.id === selectedSlotId)!;
       return assignPlayer(player, slot);
@@ -245,7 +262,10 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
                     : !hasRoom ? "sem vaga" : undefined;
                   return <button type="button" key={player.id} disabled={isPicked || !hasRoom || advancing}
                     className={`player-row ${selectedId === player.id ? "is-selected" : ""} ${isPicked ? "is-picked" : ""} ${!hasRoom && !isPicked ? "is-blocked" : ""}`}
-                    onClick={() => handlePlayer(player)} onMouseEnter={() => setHoverId(player.id)} onMouseLeave={() => setHoverId(undefined)}
+                    onClick={() => handlePlayer(player)}
+                    onPointerDown={startGesture} onPointerMove={trackGesture} onPointerUp={endGesture} onPointerCancel={endGesture}
+                    onPointerEnter={(event) => { if (event.pointerType === "mouse") setHoverId(player.id); }}
+                    onPointerLeave={(event) => { if (event.pointerType === "mouse") setHoverId(undefined); }}
                     onFocus={() => setHoverId(player.id)} onBlur={() => setHoverId(undefined)} aria-pressed={selectedId === player.id}
                     aria-disabled={isPicked || !hasRoom || advancing}
                     title={isPicked && !inThisSquad ? "Jogador já utilizado nesta campanha" : undefined}>

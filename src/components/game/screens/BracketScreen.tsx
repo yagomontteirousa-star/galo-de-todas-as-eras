@@ -12,7 +12,13 @@ function TeamLine({ team, score, isWinner, decided }: { team: TeamSnapshot; scor
   );
 }
 
-export function BracketScreen({ bracket, ratingsMode, onPlay }: { bracket: BracketState; ratingsMode: RatingsMode; onPlay: () => void }) {
+export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult }: {
+  bracket: BracketState;
+  ratingsMode: RatingsMode;
+  onPlay: () => void;
+  /** Só chega preenchido quando a chave foi aberta a partir de uma campanha encerrada. */
+  onBackToResult?: () => void;
+}) {
   const currentMatch = getCurrentUserMatch(bracket);
   const current = currentMatch?.result ? undefined : currentMatch;
   const opponent = current && (current.home.isUser ? current.away : current.home);
@@ -28,7 +34,14 @@ export function BracketScreen({ bracket, ratingsMode, onPlay }: { bracket: Brack
             ? `Você enfrenta ${opponent.name} ${teamEra(opponent)} · ${ratingsMode === "visible" ? `overall ${opponent.overall.final}` : "força desconhecida"}`
             : bracket.champion ? `Campeão: ${bracket.champion.name}` : "A chave inteira evolui a cada confronto."}</p>
         </div>
-        {current && <button type="button" className="button button--primary" onClick={onPlay}>Jogar contra {opponent?.name}<ArrowIcon/></button>}
+        <div className="bracket-heading__actions">
+          {onBackToResult && (
+            <button type="button" className="button button--primary" onClick={onBackToResult}>
+              <ArrowIcon className="icon--back"/>Voltar ao resultado
+            </button>
+          )}
+          {current && <button type="button" className="button button--primary" onClick={onPlay}>Jogar contra {opponent?.name}<ArrowIcon/></button>}
+        </div>
       </div>
       <div className="bracket-scroll" tabIndex={0} aria-label="Chave do mata-mata">
         <div className="bracket-grid">

@@ -2,7 +2,7 @@ import Image from "next/image";
 
 /** Acima deste tamanho a arte com respingos ainda se lê; abaixo, vira mancha. */
 const GLYPH_LIMIT = 46;
-const MASTER_DIGITAL_URL = process.env.NEXT_PUBLIC_MASTER_DIGITAL_URL;
+const MASTER_DIGITAL_URL = "https://masterdigital.dev";
 
 /**
  * Redução vetorial da marca: prancheta, campo e o corte preto no branco. Sem os respingos,
@@ -44,11 +44,11 @@ export function SiteFooter() {
   const logo = <Image src="/assets/master-digital.svg" alt="Master Digital" width={126} height={36} unoptimized/>;
   return (
     <footer className="site-footer">
-      <span>Desenvolvido por</span>
-      {/* Só vira link quando o endereço estiver configurado; nunca chutamos um domínio. */}
-      {MASTER_DIGITAL_URL
-        ? <a href={MASTER_DIGITAL_URL} target="_blank" rel="noopener noreferrer" aria-label="Master Digital, abre em nova aba">{logo}</a>
-        : logo}
+      {/* A faixa inteira é o link: texto e marca, com área de toque confortável. */}
+      <a href={MASTER_DIGITAL_URL} target="_blank" rel="noopener noreferrer" aria-label="Desenvolvido por Master Digital, abre em nova aba">
+        <span>Desenvolvido por</span>
+        {logo}
+      </a>
     </footer>
   );
 }
