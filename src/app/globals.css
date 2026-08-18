@@ -540,6 +540,8 @@ button.pitch-slot__badge { cursor: pointer; }
 @media (min-width: 921px) {
   html, body { height: 100%; overflow: hidden; }
   .game-app { height: 100dvh; overflow: hidden; }
+  .campaign-report .share-panel .outcome-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .campaign-report .share-panel .button { min-width: 0; padding-inline: 10px; line-height: 1.15; text-align: center; }
 }
 
 @media (max-width: 1180px) and (min-width: 921px) {
