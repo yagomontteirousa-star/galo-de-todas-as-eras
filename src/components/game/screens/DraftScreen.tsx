@@ -242,7 +242,9 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
           <div className="roster-heading">
             <div><h2>{maxPicks === 1 ? "Escolha o jogador" : "Escolha 2 jogadores"}</h2><span>{picks.length} de {maxPicks} neste ano</span></div>
             <button type="button" className="reroll-action" disabled={!campaign.rerollsLeft || advancing} onClick={onReroll}>
-              <ShuffleIcon/>Outro ano<em>{campaign.rerollsLeft}</em>
+              <ShuffleIcon/>Outro ano
+              <em>{campaign.rerollsLeft}</em>
+              <small>{campaign.rerollsLeft === 1 ? "sorteio restante" : "sorteios restantes"}</small>
             </button>
           </div>
 

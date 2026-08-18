@@ -3,7 +3,7 @@ import type { Campaign } from "@/types/game";
 import { squadsById } from "@/data/atletico-squads";
 import { BrandMark } from "@/components/ui/Brand";
 
-export function GameHeader({ campaign, onHome, onRestart }: { campaign: Campaign; onHome: () => void; onRestart: () => void }) {
+export function GameHeader({ campaign, overall, onHome, onRestart }: { campaign: Campaign; overall?: number; onHome: () => void; onRestart: () => void }) {
   const isCampaign = campaign.screen !== "home" && campaign.screen !== "setup";
   const currentIndex = campaign.bracket ? roundOrder.indexOf(campaign.bracket.currentRound) : -1;
   const squad = campaign.currentSquadId ? squadsById.get(campaign.currentSquadId) : undefined;
@@ -15,11 +15,12 @@ export function GameHeader({ campaign, onHome, onRestart }: { campaign: Campaign
       </button>
       {isCampaign && (
         <div className="campaign-strip" aria-label="Estado da campanha">
-          <span><small>ANO</small><b>{squad ? squad.year : campaign.bracket ? "MATA-MATA" : "XI FECHADO"}</b></span>
+          {/* Prioridade no celular: fase, escalação e overall. O resto é secundário. */}
+          <span><small>FASE</small><b>{campaign.bracket ? roundLabels[campaign.bracket.currentRound] : squad ? squad.year : "XI FECHADO"}</b></span>
           <span><small>ESCALAÇÃO</small><b>{11 - remaining}/11</b></span>
-          <span><small>FORMAÇÃO</small><b>{campaign.formation}</b></span>
-          <span><small>REROLLS</small><b>{campaign.rerollsLeft}</b></span>
-          <span className="campaign-strip__mode"><small>OVERALL</small><b>{campaign.ratingsMode === "memory" ? "OCULTO" : "VISÍVEL"}</b></span>
+          <span><small>OVERALL</small><b>{overall ?? (campaign.ratingsMode === "memory" ? "OCULTO" : "·")}</b></span>
+          <span className="campaign-strip__extra"><small>FORMAÇÃO</small><b>{campaign.formation}</b></span>
+          <span className="campaign-strip__extra"><small>SORTEIOS</small><b>{campaign.rerollsLeft}</b></span>
         </div>
       )}
       {campaign.bracket && (

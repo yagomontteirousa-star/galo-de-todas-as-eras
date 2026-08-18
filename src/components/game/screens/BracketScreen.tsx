@@ -1,4 +1,5 @@
 import { getCurrentUserMatch, roundCounts, roundLabels, roundOrder, teamEra } from "@/lib/bracket";
+import { useState } from "react";
 import type { BracketMatch, BracketState, RatingsMode, TeamSnapshot } from "@/types/game";
 import { ArrowIcon } from "@/components/ui/Icons";
 
@@ -21,6 +22,8 @@ export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult }: 
 }) {
   const currentMatch = getCurrentUserMatch(bracket);
   const current = currentMatch?.result ? undefined : currentMatch;
+  /** No celular a chave vira uma fase por vez: quatro colunas não cabem sem virar letra miúda. */
+  const [phase, setPhase] = useState(bracket.currentRound);
   const opponent = current && (current.home.isUser ? current.away : current.home);
   const goalsOf = (match: BracketMatch) => match.result?.events.filter((item) => item.type === "goal") ?? [];
 
@@ -43,12 +46,20 @@ export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult }: 
           {current && <button type="button" className="button button--primary" onClick={onPlay}>Jogar contra {opponent?.name}<ArrowIcon/></button>}
         </div>
       </div>
+      <nav className="bracket-phases" aria-label="Fases do mata-mata">
+        {roundOrder.map((roundId) => (
+          <button type="button" key={roundId} aria-current={phase === roundId ? "page" : undefined}
+            className={phase === roundId ? "is-active" : ""} onClick={() => setPhase(roundId)}>
+            {roundLabels[roundId]}
+          </button>
+        ))}
+      </nav>
       <div className="bracket-scroll" tabIndex={0} aria-label="Chave do mata-mata">
         <div className="bracket-grid">
           {roundOrder.map((roundId) => {
             const round = bracket.rounds.find((item) => item.id === roundId);
             const isCurrentRound = roundId === bracket.currentRound;
-            return <section className={`bracket-round ${isCurrentRound ? "is-current-round" : ""}`} key={roundId}>
+            return <section className={`bracket-round ${isCurrentRound ? "is-current-round" : ""} ${phase === roundId ? "is-phase-active" : ""}`} key={roundId}>
               <h2>{roundLabels[roundId]}<span>{roundCounts[roundId]} {roundCounts[roundId] === 1 ? "jogo" : "jogos"}</span></h2>
               <div className="bracket-round__matches">
                 {Array.from({ length: roundCounts[roundId] }, (_, index) => {

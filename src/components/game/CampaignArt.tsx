@@ -39,11 +39,11 @@ export function CampaignArt({ data }: { data: SharedCampaign }) {
       </header>
 
       <dl className="report-facts">
-        <div><dt>Fase</dt><dd>{phase}</dd></div>
+        <div className="is-wide"><dt>Fase</dt><dd className="is-text">{phase}</dd></div>
         <div><dt>Vitórias</dt><dd>{data.wins}</dd></div>
         <div><dt>Overall</dt><dd>{data.overall}</dd></div>
         <div><dt>Formação</dt><dd>{data.formation}</dd></div>
-        <div><dt>Perfil</dt><dd>{tacticLabels[data.tactic].name}</dd></div>
+        <div className="is-wide"><dt>Perfil</dt><dd className="is-text">{tacticLabels[data.tactic].name}</dd></div>
       </dl>
 
       <div className="report-grid">

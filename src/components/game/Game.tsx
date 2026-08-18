@@ -147,7 +147,7 @@ export function Game() {
 
   return <div className="game-app">
     <a className="skip-link" href="#main">Pular para o conteúdo</a>
-    <GameHeader campaign={campaign} onHome={goHome} onRestart={restart}/>
+    <GameHeader campaign={campaign} overall={team?.overall.final} onHome={goHome} onRestart={restart}/>
     {storageWarning && <div className="storage-warning" role="status">O navegador bloqueou o salvamento. Você pode jogar, mas esta campanha pode não continuar após fechar a aba.</div>}
     {campaign.screen === "home" && <HomeScreen onStart={restart} onResume={resume} canResume={canResume} onReviewLast={reviewLast} lastOutcome={lastCampaign?.outcome} history={history} onReplayTutorial={tutorialTouched(tutorial) ? replayTutorial : undefined}/>}
     {campaign.screen === "setup" && <SetupScreen onContinue={setup}/>}
