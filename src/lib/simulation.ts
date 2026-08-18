@@ -3,6 +3,7 @@ import type {
   MatchEvent,
   MatchInstructions,
   MatchResult,
+  PenaltyKick,
   Player,
   TeamSnapshot,
   TacticId,
@@ -251,19 +252,43 @@ function penaltyQuality(team: TeamSnapshot): number {
   return takers.reduce((sum, player) => sum + player.attributes.finishing + player.attributes.positioning, 0) / (takers.length * 200);
 }
 
-function shootout(home: TeamSnapshot, away: TeamSnapshot, random: RandomSource): [number, number] {
+function penaltyOrder(team: TeamSnapshot): Player[] {
+  return [...team.lineup].sort((left, right) =>
+    right.attributes.finishing + right.attributes.positioning - left.attributes.finishing - left.attributes.positioning);
+}
+
+/** Alterna as cobranças e encerra assim que o placar fica matematicamente definido. */
+function shootout(home: TeamSnapshot, away: TeamSnapshot, random: RandomSource): { kicks: PenaltyKick[]; home: number; away: number } {
   const chance = (team: TeamSnapshot, opponent: TeamSnapshot) => clamp(0.65 + penaltyQuality(team) * 0.23 - pickKeeper(opponent).attributes.reflexes / 1250, 0.68, 0.88);
-  let homePens = 0;
-  let awayPens = 0;
-  for (let kick = 0; kick < 5; kick += 1) {
-    if (random() < chance(home, away)) homePens += 1;
-    if (random() < chance(away, home)) awayPens += 1;
+  const takers = { home: penaltyOrder(home), away: penaltyOrder(away) };
+  const taken = { home: 0, away: 0 };
+  const score = { home: 0, away: 0 };
+  const kicks: PenaltyKick[] = [];
+  const decided = () => {
+    const left = { home: Math.max(0, 5 - taken.home), away: Math.max(0, 5 - taken.away) };
+    return score.home > score.away + left.away || score.away > score.home + left.home;
+  };
+
+  const kick = (side: "home" | "away", suddenDeath: boolean) => {
+    const team = side === "home" ? home : away;
+    const rival = side === "home" ? away : home;
+    const taker = takers[side][taken[side] % takers[side].length];
+    const scored = random() < chance(team, rival);
+    taken[side] += 1;
+    if (scored) score[side] += 1;
+    kicks.push({ order: kicks.length + 1, side, taker: taker.name, scored, homeScore: score.home, awayScore: score.away, suddenDeath });
+  };
+
+  for (let round = 0; round < 5 && !decided(); round += 1) {
+    kick("home", false);
+    if (decided()) break;
+    kick("away", false);
   }
-  while (homePens === awayPens) {
-    if (random() < chance(home, away)) homePens += 1;
-    if (random() < chance(away, home)) awayPens += 1;
+  while (score.home === score.away) {
+    kick("home", true);
+    kick("away", true);
   }
-  return [homePens, awayPens];
+  return { kicks, home: score.home, away: score.away };
 }
 
 function scoreAt(events: MatchEvent[], homeId: string, endMinute: number) {
@@ -339,6 +364,7 @@ export function simulateMatch(
   let awayExtra = 0;
   let homePenalties: number | undefined;
   let awayPenalties: number | undefined;
+  let penaltyKicks: PenaltyKick[] | undefined;
   const wentToExtraTime = regular.home === regular.away;
   let wentToPenalties = false;
 
@@ -350,8 +376,11 @@ export function simulateMatch(
     awayExtra = totals.away - regular.away;
     if (totals.home === totals.away) {
       wentToPenalties = true;
-      [homePenalties, awayPenalties] = shootout(home, away, random);
-      events.push(matchEvent("shootout", 121, `Pênaltis: ${home.name} ${homePenalties} × ${awayPenalties} ${away.name}.`, "shootout", undefined, undefined, true));
+      const disputa = shootout(home, away, random);
+      homePenalties = disputa.home;
+      awayPenalties = disputa.away;
+      penaltyKicks = disputa.kicks;
+      events.push(matchEvent("shootout", 121, `Pênaltis: ${home.name} ${homePenalties} a ${awayPenalties} ${away.name}.`, "shootout", undefined, undefined, true));
     }
   }
 
@@ -371,6 +400,7 @@ export function simulateMatch(
     awayExtra,
     homePenalties,
     awayPenalties,
+    penaltyKicks,
     wentToExtraTime,
     wentToPenalties,
     winnerId,

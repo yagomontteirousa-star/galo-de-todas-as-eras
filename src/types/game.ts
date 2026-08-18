@@ -61,9 +61,16 @@ export interface MatchEvent {
   homeScore?: number; awayScore?: number; highlight?: boolean;
 }
 
+/** Uma cobrança da disputa, na ordem em que foi batida. */
+export interface PenaltyKick {
+  order: number; side: "home" | "away"; taker: string; scored: boolean;
+  homeScore: number; awayScore: number; suddenDeath: boolean;
+}
+
 export interface MatchResult {
   homeScore: number; awayScore: number; homeExtra: number; awayExtra: number;
-  homePenalties?: number; awayPenalties?: number; wentToExtraTime: boolean; wentToPenalties: boolean;
+  homePenalties?: number; awayPenalties?: number; penaltyKicks?: PenaltyKick[];
+  wentToExtraTime: boolean; wentToPenalties: boolean;
   winnerId: string; events: MatchEvent[]; playerOfMatch: string; summary: string;
   instructions: MatchInstructions; instructionImpact?: string;
 }

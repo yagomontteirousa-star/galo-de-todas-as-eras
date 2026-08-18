@@ -25,6 +25,35 @@ describe("simulation", () => {
     expect(changed.events.filter((event) => event.minute <= 45)).toEqual(base.events.filter((event) => event.minute <= 45));
   });
 
+  it("bate os pênaltis alternando e para quando o placar já está definido", () => {
+    let disputas = 0;
+    for (let seed = 1; seed <= 400 && disputas < 12; seed += 1) {
+      const result = simulateMatch(opponents[0], opponents[1], seeded(seed));
+      if (!result.wentToPenalties) continue;
+      disputas += 1;
+      const kicks = result.penaltyKicks!;
+      expect(kicks.length).toBeGreaterThan(0);
+      // alterna os lados dentro de cada rodada
+      kicks.forEach((kick, index) => expect(kick.side).toBe(index % 2 === 0 ? "home" : "away"));
+      // o placar de cada cobrança bate com o acumulado
+      let home = 0;
+      let away = 0;
+      kicks.forEach((kick) => {
+        if (kick.scored) { if (kick.side === "home") home += 1; else away += 1; }
+        expect(kick.homeScore).toBe(home);
+        expect(kick.awayScore).toBe(away);
+      });
+      expect(result.homePenalties).toBe(home);
+      expect(result.awayPenalties).toBe(away);
+      expect(home).not.toBe(away);
+      // ninguém bate mais de 5 antes da morte súbita
+      const regulares = kicks.filter((kick) => !kick.suddenDeath);
+      expect(regulares.filter((kick) => kick.side === "home").length).toBeLessThanOrEqual(5);
+      expect(regulares.filter((kick) => kick.side === "away").length).toBeLessThanOrEqual(5);
+    }
+    expect(disputas).toBeGreaterThan(0);
+  });
+
   it("mantém chance de zebra contra um time superior", () => {
     let underdogWins = 0;
     for (let seed = 1; seed <= 120; seed += 1) {
