@@ -92,11 +92,12 @@ function CampaignReport({ campaign, outcome, userTeam, onContinue, onRestart }: 
     <main className={`outcome-screen campaign-report campaign-report--${outcome}`} id="main">
       <div className={champion ? "champion-scene" : "farewell-scene"} aria-hidden="true"/>
       <section className="report-card">
-        <CampaignArt data={shared}/>
-        <ShareActions data={shared}>
-          <button type="button" className="button button--quiet" onClick={onContinue}>Ver a chave</button>
-          <button type="button" className="button button--quiet" onClick={onRestart}>Nova campanha</button>
-        </ShareActions>
+        <CampaignArt data={shared}>
+          <ShareActions data={shared}>
+            <button type="button" className="button button--quiet" onClick={onContinue}>Ver a chave</button>
+            <button type="button" className="button button--quiet" onClick={onRestart}>Começar nova campanha</button>
+          </ShareActions>
+        </CampaignArt>
         <SiteFooter/>
       </section>
     </main>

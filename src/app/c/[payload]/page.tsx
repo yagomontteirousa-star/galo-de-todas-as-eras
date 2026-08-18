@@ -59,11 +59,12 @@ export default async function SharedCampaignPage({ params }: Params) {
     <main className={`outcome-screen campaign-report campaign-report--${champion ? "champion" : "eliminated"} is-shared`} id="main">
       <div className={champion ? "champion-scene" : "farewell-scene"} aria-hidden="true"/>
       <section className="report-card">
-        <CampaignArt data={data}/>
-        <ShareActions data={data}>
-          {/* Campanha nova começa do zero no aparelho de quem abriu, sem tocar neste link. */}
-          <Link className="button button--primary" href="/?nova=1">Começar nova campanha</Link>
-        </ShareActions>
+        <CampaignArt data={data}>
+          <ShareActions data={data}>
+            {/* Campanha nova começa do zero no aparelho de quem abriu, sem tocar neste link. */}
+            <Link className="button button--primary" href="/?nova=1">Começar nova campanha</Link>
+          </ShareActions>
+        </CampaignArt>
         <SiteFooter/>
       </section>
     </main>

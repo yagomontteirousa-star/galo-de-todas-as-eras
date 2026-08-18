@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { formations } from "@/data/formations";
-import { campaignUrl, decodeCampaign, encodeCampaign, shareMessage, shareText, type SharedCampaign } from "@/lib/share";
+import { campaignUrl, decodeCampaign, encodeCampaign, isSharedCampaign, shareMessage, shareText, shortCampaignUrl, type SharedCampaign } from "@/lib/share";
 
 /** Onze completo, na ordem da formação: é assim que a campanha real monta o retrato. */
 const eleven = [
@@ -32,6 +32,18 @@ const base: SharedCampaign = {
 const LEGACY = "WzEsMCwxLCJmaW5hbCIsMyw5MCwiNC0yLTMtMSIsIkVxdWlsaWJyYWRvIixbWyJHT0wiLCJWaWN0b3IiLDIwMTMsOTQsMV0sWyJaQUciLCJSw6l2ZXIiLDIwMTMsOTEsMV0sWyJBVEEiLCJIdWxrIiwyMDIxLDk0LDFdLFsiUEUiLCLDiWRlciBBbGVpeG8iLDE5OTUsODMsMF1dLFtbImZpbmFsIiwwLDIsIiIsIkZsYW1lbmdvIiwyMDE5LDAsW1siR2FiaWdvbCIsNTUsMF1dXV1d";
 
 describe("compartilhamento", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("aceita o retrato válido e recusa listas ou placares abusivos", () => {
+    expect(isSharedCampaign(base)).toBe(true);
+    expect(isSharedCampaign({ ...base, matches: Array.from({ length: 5 }, () => base.matches[0]) })).toBe(false);
+    expect(isSharedCampaign({ ...base, matches: [{ ...base.matches[0], user: 999 }] })).toBe(false);
+  });
+
+  it("não cria link longo quando o store está desligado", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "store-off" }), { status: 501 })));
+    await expect(shortCampaignUrl(base)).rejects.toThrow("store-off");
+  });
   it("volta igual depois de codificar e decodificar", async () => {
     expect(await decodeCampaign(await encodeCampaign(base))).toEqual(base);
   });

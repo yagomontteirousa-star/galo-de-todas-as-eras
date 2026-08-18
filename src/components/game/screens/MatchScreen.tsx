@@ -9,7 +9,7 @@ import type {
   RatingsMode,
   TeamSnapshot,
 } from "@/types/game";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowIcon } from "@/components/ui/Icons";
 import { formations } from "@/data/formations";
 import { roundLabels, teamEra } from "@/lib/bracket";
@@ -68,6 +68,7 @@ export function MatchScreen({
   /** Passo da disputa: 0 antes da primeira, `kicks.length` na conclusão, acima disso liberou. */
   const [kickStep, setKickStep] = useState(0);
   const [goalFlash, setGoalFlash] = useState(false);
+  const boxRef = useRef<HTMLDetailsElement>(null);
   const userTeam = match.home.isUser ? match.home : match.away;
   const opponent = match.home.isUser ? match.away : match.home;
   const needsHalftime = minute >= 45 && !result.instructions.halftime;
@@ -85,6 +86,12 @@ export function MatchScreen({
     const timer = window.setInterval(() => setMinute((value) => Math.min(maxMinute, value + step)), speeds[speedIndex].ms);
     return () => window.clearInterval(timer);
   }, [maxMinute, running, speedIndex]);
+
+  // No desktop o box score completa a coluna lateral; no celular começa recolhido para
+  // placar, controles e lances terem prioridade, mas continua disponível num toque.
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 920px)").matches) boxRef.current?.removeAttribute("open");
+  }, []);
 
   // O painel do intervalo tem que nascer à vista, mesmo se a página estava rolada.
   useEffect(() => {
@@ -226,10 +233,12 @@ export function MatchScreen({
               </>
             )}
           </div>
-          <details className="boxscore-collapse" open>
-            <summary>Box score do seu time</summary>
-            <BoxScore team={userTeam} opponent={opponent} reveal={revealOpponent}/>
-          </details>
+          {!finished && !needsHalftime && (
+            <details ref={boxRef} className="boxscore-collapse" open>
+              <summary>Box score do seu time</summary>
+              <BoxScore team={userTeam} opponent={opponent} reveal={revealOpponent}/>
+            </details>
+          )}
         </aside>
       </div>
     </main>
@@ -357,9 +366,10 @@ function GoalSheet({ goals, match }: { goals: MatchEvent[]; match: BracketMatch 
 function BoxScore({ team, opponent, reveal }: { team: TeamSnapshot; opponent: TeamSnapshot; reveal: boolean }) {
   const overall = team.overall;
   const order = formations[team.formation].slots;
-  const rows = [...overall.evaluations].sort(
-    (left, right) => order.findIndex((slot) => slot.id === left.slot.id) - order.findIndex((slot) => slot.id === right.slot.id),
-  );
+  const rows = [...overall.evaluations]
+    .sort((left, right) => right.adjustedOverall - left.adjustedOverall
+      || order.findIndex((slot) => slot.id === left.slot.id) - order.findIndex((slot) => slot.id === right.slot.id))
+    .slice(0, 4);
   const tactical = Math.max(0, Math.min(99, 80 + overall.cohesion * 4 + overall.tacticBonus * 3));
   return (
     <section className="boxscore-card" aria-label="Box score do seu time">
@@ -375,11 +385,13 @@ function BoxScore({ team, opponent, reveal }: { team: TeamSnapshot; opponent: Te
         <ScoreBar label="Tática" value={tactical}/>
       </div>
       <div className="lineup-sheet">
+        <span className="lineup-sheet__title">Destaques do onze</span>
         {rows.map((entry) => (
           <div key={entry.slot.id} className={entry.fit === "improvised" ? "is-improvised" : ""}>
             <span>{entry.slot.label}</span><b>{entry.player.name}</b><strong>{entry.adjustedOverall}</strong>
           </div>
         ))}
+        <small className="lineup-sheet__more">Mais {overall.evaluations.length - rows.length} titulares em campo</small>
       </div>
       {overall.improvisationPenalty > 0 && <p className="improvisation-note">Improvisos custam {overall.improvisationPenalty} ponto(s) no cálculo.</p>}
     </section>

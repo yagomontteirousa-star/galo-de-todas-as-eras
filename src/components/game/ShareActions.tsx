@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { shareMessage, shareText, shortCampaignUrl, type SharedCampaign } from "@/lib/share";
 
-type Feedback = "idle" | "copied" | "linked" | "failed";
+type Feedback = "idle" | "copied" | "linked" | "image" | "link-failed" | "image-failed";
 
 /**
  * Cópia que ainda funciona onde a Clipboard API não existe (http, WebView antiga). Sem
@@ -28,18 +28,18 @@ async function copyText(text: string): Promise<boolean> {
 
 export function ShareActions({ data, children }: { data: SharedCampaign; children?: React.ReactNode }) {
   const [feedback, setFeedback] = useState<Feedback>("idle");
-  const [link, setLink] = useState<string>();
+  const [busy, setBusy] = useState<"link" | "image">();
 
-  // O link é comprimido, então nasce assíncrono. Só os cliques precisam dele, e a origem
-  // real do navegador faz o compartilhamento funcionar também fora de produção.
   const buildUrl = async () => {
-    const { url } = await shortCampaignUrl(data, typeof window === "undefined" ? undefined : window.location.origin);
-    setLink(url);
-    return url;
+    setBusy("link");
+    try { return await shortCampaignUrl(data, window.location.origin); }
+    finally { setBusy(undefined); }
   };
 
   const share = async () => {
-    const url = await buildUrl();
+    let url: string;
+    try { url = await buildUrl(); }
+    catch { setFeedback("link-failed"); return; }
     const text = shareText(data, url);
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
@@ -50,32 +50,54 @@ export function ShareActions({ data, children }: { data: SharedCampaign; childre
         if (error instanceof DOMException && error.name === "AbortError") return;
       }
     }
-    setFeedback(await copyText(text) ? "copied" : "failed");
+    setFeedback(await copyText(text) ? "copied" : "link-failed");
   };
 
   const copyLink = async () => {
-    const url = await buildUrl();
-    setFeedback(await copyText(url) ? "linked" : "failed");
+    try {
+      const url = await buildUrl();
+      setFeedback(await copyText(url) ? "linked" : "link-failed");
+    } catch { setFeedback("link-failed"); }
   };
 
-  const saveImage = () => {
-    // A capa é a arte oficial do site: abrir em aba própria deixa salvar ou compartilhar.
-    window.open(`${window.location.origin}/opengraph-image`, "_blank", "noopener,noreferrer");
+  const saveImage = async () => {
+    setBusy("image");
+    try {
+      const response = await fetch("/api/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("image-failed");
+      const blob = await response.blob();
+      const href = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.download = `preto-no-branco-${data.outcome === "champion" ? "campeao" : data.runnerUp ? "vice" : "campanha"}.png`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+      setFeedback("image");
+    } catch { setFeedback("image-failed"); }
+    finally { setBusy(undefined); }
   };
 
   return (
-    <>
+    <div className="share-panel">
       <div className="outcome-actions">
-        <button type="button" className="button button--primary" onClick={share}>Compartilhar resultado</button>
-        <button type="button" className="button button--quiet" onClick={copyLink}>Copiar link</button>
-        <button type="button" className="button button--quiet" onClick={saveImage}>Baixar imagem</button>
+        <button type="button" className="button button--primary" disabled={Boolean(busy)} onClick={share}>{busy === "link" ? "Criando link curto" : "Compartilhar resultado"}</button>
+        <button type="button" className="button button--quiet" disabled={Boolean(busy)} onClick={copyLink}>Copiar link</button>
+        <button type="button" className="button button--quiet" disabled={Boolean(busy)} onClick={saveImage}>{busy === "image" ? "Gerando PNG" : "Baixar imagem"}</button>
         {children}
       </div>
       <p className="share-feedback" role="status" aria-live="polite">
         {feedback === "copied" && "Resultado copiado. É só colar."}
         {feedback === "linked" && "Link copiado. Quem abrir vê esta campanha."}
-        {feedback === "failed" && <>Não deu para copiar aqui. O link é <code>{link}</code></>}
+        {feedback === "image" && "Imagem pronta em PNG, 1080 × 1350."}
+        {feedback === "link-failed" && "O link curto está indisponível. Nenhum endereço longo foi criado."}
+        {feedback === "image-failed" && "A imagem não foi gerada. Tente novamente."}
       </p>
-    </>
+    </div>
   );
 }

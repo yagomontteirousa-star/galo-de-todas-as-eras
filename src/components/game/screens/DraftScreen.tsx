@@ -51,9 +51,11 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   const rosterRef = useRef<HTMLElement>(null);
   /** Toque que virou rolagem não seleciona: guardamos a origem e comparamos o deslocamento. */
   const gesture = useRef<{ id: number; x: number; y: number; dragged: boolean } | null>(null);
+  const cancelClick = useRef(false);
   const DRAG_LIMIT = 10;
 
   const startGesture = (event: React.PointerEvent) => {
+    cancelClick.current = false;
     gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, dragged: false };
   };
   const trackGesture = (event: React.PointerEvent) => {
@@ -61,11 +63,16 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
     if (!start || start.id !== event.pointerId || start.dragged) return;
     if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > DRAG_LIMIT) {
       start.dragged = true;
+      cancelClick.current = true;
       setHoverId(undefined);
     }
   };
   const endGesture = () => { gesture.current = null; };
-  const wasDrag = () => Boolean(gesture.current?.dragged);
+  const wasDrag = () => {
+    const dragged = cancelClick.current;
+    cancelClick.current = false;
+    return dragged;
+  };
   const fieldRef = useRef<HTMLElement>(null);
 
   /** No mobile o fluxo é lista, campo, posição e volta para a lista, sempre com rolagem suave. */

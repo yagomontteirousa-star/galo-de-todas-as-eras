@@ -28,6 +28,37 @@ export interface SharedCampaign {
   matches: SharedMatch[];
 }
 
+const isShortText = (value: unknown, max = 80): value is string =>
+  typeof value === "string" && value.trim().length > 0 && value.length <= max;
+
+/**
+ * A rota de compartilhamento é pública. Validar o retrato inteiro evita gravar objetos
+ * incompletos, listas enormes ou texto arbitrário no store e na geração da imagem.
+ */
+export function isSharedCampaign(value: unknown): value is SharedCampaign {
+  if (!value || typeof value !== "object") return false;
+  const data = value as Partial<SharedCampaign>;
+  if (!data.outcome || !["champion", "eliminated"].includes(data.outcome)) return false;
+  if (typeof data.runnerUp !== "boolean" || !data.round || !ROUNDS.includes(data.round)) return false;
+  if (!Number.isInteger(data.wins) || data.wins! < 0 || data.wins! > 4) return false;
+  if (!Number.isInteger(data.overall) || data.overall! < 40 || data.overall! > 99) return false;
+  if (!data.formation || !FORMATIONS.includes(data.formation) || !data.tactic || !TACTICS.includes(data.tactic)) return false;
+  if (!Array.isArray(data.squad) || data.squad.length > 11 || !Array.isArray(data.matches) || data.matches.length > 4) return false;
+  if (!data.squad.every((player) => player && isShortText(player.slot, 12) && isShortText(player.name)
+    && Number.isInteger(player.season) && player.season >= 1900 && player.season <= 2100
+    && Number.isInteger(player.overall) && player.overall >= 40 && player.overall <= 99
+    && typeof player.special === "boolean")) return false;
+  return data.matches.every((match) => match && ROUNDS.includes(match.round)
+    && Number.isInteger(match.user) && match.user >= 0 && match.user <= 20
+    && Number.isInteger(match.rival) && match.rival >= 0 && match.rival <= 20
+    && isShortText(match.rivalName) && Number.isInteger(match.rivalYear)
+    && match.rivalYear >= 1900 && match.rivalYear <= 2100 && typeof match.won === "boolean"
+    && (!match.pens || (Number.isInteger(match.pens.user) && Number.isInteger(match.pens.rival)))
+    && Array.isArray(match.goals) && match.goals.length <= 30
+    && match.goals.every((goal) => goal && isShortText(goal.name) && Number.isInteger(goal.minute)
+      && goal.minute >= 0 && goal.minute <= 130 && typeof goal.forUser === "boolean"));
+}
+
 const ROUNDS: TournamentRound[] = ["round16", "quarterfinal", "semifinal", "final"];
 const FORMATIONS: FormationId[] = ["4-3-3", "4-4-2", "4-2-3-1", "3-5-2"];
 const TACTICS: TacticId[] = ["balanced", "attacking", "defensive", "pressing"];
@@ -242,23 +273,20 @@ export const campaignUrl = async (data: SharedCampaign, origin = SITE_URL) =>
   `${origin}/c/${await encodeCampaign(data)}`;
 
 /**
- * Tenta o link curto: o servidor guarda o snapshot e devolve um id de dez caracteres.
- * Se o store não estiver ligado ou a gravação falhar, devolve o link longo, que abre do
- * mesmo jeito. Quem chama nunca recebe um endereço quebrado.
+ * O servidor guarda o snapshot e devolve um id de dez caracteres. Link novo nunca cai
+ * para payload longo: se o store estiver indisponível, a ação falha de forma explícita.
+ * `campaignUrl` continua existindo apenas para decodificar e testar os links antigos.
  */
-export async function shortCampaignUrl(data: SharedCampaign, origin = SITE_URL): Promise<{ url: string; short: boolean }> {
-  try {
-    const response = await fetch("/api/c", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (response.ok) {
-      const { id } = await response.json() as { id?: string };
-      if (id) return { url: `${origin}/c/${id}`, short: true };
-    }
-  } catch { /* offline ou store fora do ar: cai no formato longo */ }
-  return { url: await campaignUrl(data, origin), short: false };
+export async function shortCampaignUrl(data: SharedCampaign, origin = SITE_URL): Promise<string> {
+  const response = await fetch("/api/c", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error(response.status === 501 ? "store-off" : "store-failed");
+  const { id } = await response.json() as { id?: string };
+  if (!id) throw new Error("store-failed");
+  return `${origin}/c/${id}`;
 }
 
 /** Quem tirou a campanha do caminho: o adversário da última partida perdida. */

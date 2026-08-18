@@ -12,9 +12,10 @@ import { BrandMark } from "@/components/ui/Brand";
 const pensLabel = (match: SharedMatch) =>
   match.pens ? ` (${match.pens.user} a ${match.pens.rival} nos pênaltis)` : "";
 
-export function CampaignArt({ data }: { data: SharedCampaign }) {
+export function CampaignArt({ data, children }: { data: SharedCampaign; children?: React.ReactNode }) {
   const champion = data.outcome === "champion";
-  const phase = champion ? "Campeão" : data.runnerUp ? "Vice-campeão" : roundLabels[data.round];
+  const phase = champion ? "Campeão" : data.runnerUp ? "Vice-campeão"
+    : data.round === "semifinal" ? "Semifinalista" : roundLabels[data.round];
   const last = eliminator(data) ?? data.matches.at(-1);
   const best = [...data.squad].sort((left, right) => right.overall - left.overall).slice(0, 4);
   const topRating = best[0]?.overall ?? 99;
@@ -46,8 +47,8 @@ export function CampaignArt({ data }: { data: SharedCampaign }) {
         <div className="is-wide"><dt>Perfil</dt><dd className="is-text">{tacticLabels[data.tactic].name}</dd></div>
       </dl>
 
-      <div className="report-grid">
-        <section className="report-block">
+      <div className="report-primary">
+        <section className="report-block report-block--stars">
           <h2>Destaques da campanha</h2>
           <ul className="report-stars">
             {best.map((player) => (
@@ -61,47 +62,53 @@ export function CampaignArt({ data }: { data: SharedCampaign }) {
             {!best.length && <li><b>Elenco não registrado.</b></li>}
           </ul>
         </section>
-
-        <section className="report-block">
-          <h2>O onze completo</h2>
-          <ul className="report-squad">
-            {data.squad.map((player) => (
-              <li key={`${player.slot}-${player.name}`}
-                className={`${highlighted.has(`${player.slot}-${player.name}`) ? "is-top" : ""} ${player.special ? "is-special" : ""}`}>
-                <em>{player.slot}</em>
-                <b>{player.name}</b>
-                <small>{player.season}</small>
-                <strong>{player.overall}</strong>
-              </li>
-            ))}
-            {!data.squad.length && <li><b>Escalação não registrada.</b></li>}
-          </ul>
-        </section>
-
-        <section className="report-block">
-          <h2>A campanha</h2>
-          <ul className="report-runs">
-            {data.matches.map((match) => (
-              <li key={`${match.round}-${match.rivalName}`} className={match.won ? "is-win" : "is-loss"}>
-                <em>{roundLabels[match.round]}</em>
-                <b>{match.user} a {match.rival}</b>
-                <span>{match.rivalName} {match.rivalYear}{pensLabel(match)}</span>
-                {match.goals.length > 0 && (
-                  <ul className="report-scorers">
-                    {match.goals.map((goal, index) => (
-                      <li key={`${goal.name}-${goal.minute}-${index}`} className={goal.forUser ? "is-user" : ""}>
-                        <time>{goal.minute}′</time>{goal.name}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-            {!data.matches.length && <li><span>Nenhum jogo disputado.</span></li>}
-          </ul>
-          {years.length > 0 && <p className="report-years">Anos enfrentados: {years.join(", ")}.</p>}
-        </section>
+        {children}
       </div>
+
+      <details className="report-details">
+        <summary>Jogos e elenco</summary>
+        <div className="report-grid">
+          <section className="report-block">
+            <h2>O onze completo</h2>
+            <ul className="report-squad">
+              {data.squad.map((player) => (
+                <li key={`${player.slot}-${player.name}`}
+                  className={`${highlighted.has(`${player.slot}-${player.name}`) ? "is-top" : ""} ${player.special ? "is-special" : ""}`}>
+                  <em>{player.slot}</em>
+                  <b>{player.name}</b>
+                  <small>{player.season}</small>
+                  <strong>{player.overall}</strong>
+                </li>
+              ))}
+              {!data.squad.length && <li><b>Escalação não registrada.</b></li>}
+            </ul>
+          </section>
+
+          <section className="report-block">
+            <h2>A campanha</h2>
+            <ul className="report-runs">
+              {data.matches.map((match) => (
+                <li key={`${match.round}-${match.rivalName}`} className={match.won ? "is-win" : "is-loss"}>
+                  <em>{roundLabels[match.round]}</em>
+                  <b>{match.user} a {match.rival}</b>
+                  <span>{match.rivalName} {match.rivalYear}{pensLabel(match)}</span>
+                  {match.goals.length > 0 && (
+                    <ul className="report-scorers">
+                      {match.goals.map((goal, index) => (
+                        <li key={`${goal.name}-${goal.minute}-${index}`} className={goal.forUser ? "is-user" : ""}>
+                          <time>{goal.minute}′</time>{goal.name}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+              {!data.matches.length && <li><span>Nenhum jogo disputado.</span></li>}
+            </ul>
+            {years.length > 0 && <p className="report-years">Anos enfrentados: {years.join(", ")}.</p>}
+          </section>
+        </div>
+      </details>
     </>
   );
 }

@@ -36,19 +36,19 @@ function pairTeams(teams: TeamSnapshot[], round: TournamentRound): BracketRound 
  * metade, onde só podem ser encontrados na final. As faixas seguem o pareamento de
  * `pairTeams`, que junta os índices dois a dois e mantém a ordem nas fases seguintes.
  */
-const PATH_BANDS: [start: number, end: number][] = [
-  [0, 1],   // oitavas: adversário direto
-  [1, 3],   // quartas: vem do jogo vizinho
-  [3, 7],   // semifinal: vem do quarto vizinho
-  [7, 15],  // final: a metade forte da chave
-];
-
 export function createBracket(userTeam: TeamSnapshot, random: RandomSource = Math.random): BracketState {
   const field = shuffle<TeamSnapshot>(opponents, random)
     .slice(0, BRACKET_SIZE - 1)
     .sort((left, right) => left.overall.final - right.overall.final);
-  // Sorteia dentro de cada faixa: a dificuldade sobe, o adversário exato não se repete.
-  const ordered = PATH_BANDS.flatMap(([start, end]) => shuffle(field.slice(start, end), random));
+  // O jogo de abertura não pega mais sempre o pior time da amostra. A segunda força mais
+  // baixa abre a campanha; as subchaves seguintes sobem de média sem colocar um gigante
+  // logo nas oitavas nem reservar um adversário fraco para a final.
+  const ordered = [
+    field[1],
+    ...shuffle([field[0], field[4]], random),
+    ...shuffle([field[2], field[3], field[5], field[6]], random),
+    ...shuffle(field.slice(7), random),
+  ];
   const userIsHome = random() < 0.5;
   const teams = userIsHome ? [userTeam, ...ordered] : [ordered[0], userTeam, ...ordered.slice(1)];
   return { rounds: [pairTeams(teams, "round16")], currentRound: "round16" };

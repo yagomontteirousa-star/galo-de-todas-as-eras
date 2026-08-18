@@ -3,6 +3,20 @@
 Relatório das mudanças de força aplicadas ao jogo. Os números de "antes" foram medidos
 no próprio motor (`calculateTeamOverall`), não nas sementes soltas do arquivo de dados.
 
+## Ajuste final de 18/08/2026
+
+Uma segunda calibragem elevou de forma pontual as notas-base dos adversários históricos
+mais fortes, incluindo Santos 1962, São Paulo 1992, Cruzeiro 2003, Flamengo 2019 e
+Palmeiras 2021. Os testes agora exigem que esses elencos terminem com overall de pelo menos
+91 e que nenhum adversário ultrapasse 94.
+
+O peso da diferença de força passou de 55 para 48 no cálculo de expectativa de gols. Isso
+reforça o favoritismo sem eliminar a variância do Poisson, os ajustes por setor, as decisões
+de intervalo, a prorrogação e os pênaltis. A montagem da chave também deixou de entregar
+sempre o adversário mais fraco na estreia.
+
+As seções abaixo preservam o histórico da calibragem anterior.
+
 ## O problema
 
 | medida | antes | depois |
