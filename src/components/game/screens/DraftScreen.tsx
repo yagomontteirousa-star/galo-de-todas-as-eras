@@ -27,6 +27,7 @@ const compatibleSlots = (player: Player, slots: FormationSlot[], exceptSlotId?: 
 
 const prefersReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const isHandheld = () => typeof window !== "undefined" && window.matchMedia("(max-width: 920px)").matches;
 
 export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLineupEntry }: {
   campaign: Campaign;
@@ -46,6 +47,15 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   const [spinYear, setSpinYear] = useState<number | undefined>(
     () => prefersReducedMotion() ? undefined : squadYears[Math.floor(Math.random() * squadYears.length)]);
   const toastSeq = useRef(0);
+  const rosterRef = useRef<HTMLElement>(null);
+  const fieldRef = useRef<HTMLElement>(null);
+
+  /** No mobile o fluxo é lista, campo, posição e volta para a lista, sempre com rolagem suave. */
+  const focusSection = (ref: React.RefObject<HTMLElement | null>) => {
+    if (!isHandheld()) return;
+    window.requestAnimationFrame(() =>
+      ref.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" }));
+  };
   const formation = formations[campaign.formation!];
   const showRatings = campaign.ratingsMode !== "memory";
   const selectedPlayer = squad.players.find((player) => player.id === selectedId);
@@ -126,6 +136,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
     setSelectedId(undefined);
     setSelectedSlotId(undefined);
     setMobileTab("roster");
+    focusSection(rosterRef);
     announce("ok", "Jogador confirmado", `${player.name} · ${slot.label}`);
   };
 
@@ -140,6 +151,8 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
     if (picks.some((entry) => entry.slotId === fromSlotId || entry.slotId === toSlotId)) setPicks((current) => current.map(swap));
     if (campaign.lineup.some((entry) => entry.slotId === fromSlotId || entry.slotId === toSlotId)) onRelocateLineupEntry(fromSlotId, toSlotId);
     setEditingSlotId(undefined);
+    setMobileTab("roster");
+    focusSection(rosterRef);
     announce("ok", "Posição atualizada", `${player.name} · ${target.label}`);
   };
 
@@ -164,6 +177,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
     }
     setSelectedId((current) => current === player.id ? undefined : player.id);
     setMobileTab("pitch");
+    focusSection(fieldRef);
   };
 
   const targetSlotIds = activePlayer
@@ -179,12 +193,12 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   return (
     <main className="draft-screen" id="main">
       <nav className="draft-mobile-tabs" aria-label="Etapas da escalação">
-        <button type="button" aria-current={mobileTab === "roster" ? "page" : undefined} className={mobileTab === "roster" ? "is-active" : ""} onClick={() => setMobileTab("roster")}>Elenco</button>
-        <button type="button" aria-current={mobileTab === "pitch" ? "page" : undefined} className={mobileTab === "pitch" ? "is-active" : ""} onClick={() => setMobileTab("pitch")}>Campo · {totalFilled}/11</button>
+        <button type="button" aria-current={mobileTab === "roster" ? "page" : undefined} className={mobileTab === "roster" ? "is-active" : ""} onClick={() => { setMobileTab("roster"); focusSection(rosterRef); }}>Elenco</button>
+        <button type="button" aria-current={mobileTab === "pitch" ? "page" : undefined} className={mobileTab === "pitch" ? "is-active" : ""} onClick={() => { setMobileTab("pitch"); focusSection(fieldRef); }}>Campo · {totalFilled}/11</button>
       </nav>
 
       <div className={`draft-workspace ${advancing ? "is-advancing" : ""}`}>
-        <section className={`draft-column era-column ${mobileTab === "roster" ? "is-mobile-active" : ""}`} aria-label={`Elenco de ${squad.year}`}>
+        <section ref={rosterRef} className={`draft-column era-column ${mobileTab === "roster" ? "is-mobile-active" : ""}`} aria-label={`Elenco de ${squad.year}`}>
           <header className="era-header">
             <span>ANO SORTEADO</span>
             <div className={revealing ? "is-spinning" : ""}>
@@ -232,7 +246,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
           </>)}
         </section>
 
-        <section className={`draft-column field-column ${mobileTab === "pitch" ? "is-mobile-active" : ""}`} aria-label="Campo e escalação">
+        <section ref={fieldRef} className={`draft-column field-column ${mobileTab === "pitch" ? "is-mobile-active" : ""}`} aria-label="Campo e escalação">
           <header className="field-heading">
             <div><span>FORMAÇÃO {campaign.formation}</span><b>{selectedPlayer ? `Onde ${selectedPlayer.name} joga` : selectedSlotId ? "Agora escolha um jogador" : "Monte o seu onze"}</b></div>
             <strong>{totalFilled}<small>/11</small></strong>
