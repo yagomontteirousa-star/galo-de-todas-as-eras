@@ -179,7 +179,7 @@ export function MatchScreen({
           )}
         </>
       )}
-      <div className="match-content">
+      <div className={`match-content ${needsHalftime ? "is-break" : ""}`}>
         {/* Na disputa, a marca da cal substitui os últimos lances: mesma região, sem
             empilhar um painel embaixo do outro. */}
         {inShootout ? (
@@ -218,15 +218,18 @@ export function MatchScreen({
             ) : (
               <>
                 <span>EM CAMPO</span>
-                <dl>
+                <dl className="post-match__live">
                   <div><dt>Adversário</dt><dd>{opponent.name} {teamEra(opponent)}</dd></div>
-                  <div><dt>Orientação</dt><dd>{chosen ? chosen.label : "Definida no intervalo"}</dd></div>
+                  <div><dt>Orientação</dt><dd>{chosen ? chosen.label : "No intervalo"}</dd></div>
                   <div><dt>Ritmo</dt><dd>{paused ? "Pausado" : speeds[speedIndex].label}</dd></div>
                 </dl>
               </>
             )}
           </div>
-          <BoxScore team={userTeam} opponent={opponent} reveal={revealOpponent}/>
+          <details className="boxscore-collapse" open>
+            <summary>Box score do seu time</summary>
+            <BoxScore team={userTeam} opponent={opponent} reveal={revealOpponent}/>
+          </details>
         </aside>
       </div>
     </main>
