@@ -251,7 +251,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
             <div><span>FORMAÇÃO {campaign.formation}</span><b>{selectedPlayer ? `Onde ${selectedPlayer.name} joga` : selectedSlotId ? "Agora escolha um jogador" : "Monte o seu onze"}</b></div>
             <strong>{totalFilled}<small>/11</small></strong>
           </header>
-          <Pitch formationId={campaign.formation!} lineup={campaign.lineup} previewPlayers={previewPlayers} selectedPlayer={activePlayer}
+          <Pitch formationId={campaign.formation!} tactic={campaign.tactic} lineup={campaign.lineup} previewPlayers={previewPlayers} selectedPlayer={activePlayer}
             selectedSlotId={selectedSlotId} targetSlotIds={targetSlotIds} rejectedSlotId={rejectedSlotId} onSlotClick={handleSlot} showRatings={showRatings}/>
           <p className="field-hint">{activePlayer ? "As vagas acesas aceitam este atleta." : "Toque no atleta e depois na vaga. Tocar numa peça escalada muda a posição."}</p>
         </section>

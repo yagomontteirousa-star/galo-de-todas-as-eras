@@ -1,10 +1,12 @@
 import { playersById } from "@/data/atletico-squads";
-import { formations } from "@/data/formations";
+import { tacticalSlots } from "@/data/formations";
 import { evaluatePosition } from "@/lib/overall";
-import type { FormationId, LineupEntry, Player } from "@/types/game";
+import type { FormationId, LineupEntry, Player, TacticId } from "@/types/game";
 
 interface PitchProps {
   formationId: FormationId;
+  /** Perfil tático: recua ou adianta as linhas sem mudar a formação. */
+  tactic?: TacticId;
   lineup?: LineupEntry[];
   previewPlayers?: Map<string, Player>;
   selectedPlayer?: Player;
@@ -18,8 +20,8 @@ interface PitchProps {
   showRatings?: boolean;
 }
 
-export function Pitch({ formationId, lineup = [], previewPlayers = new Map(), selectedPlayer, selectedSlotId, targetSlotIds, rejectedSlotId, onSlotClick, compact = false, showRatings = true }: PitchProps) {
-  const formation = formations[formationId];
+export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new Map(), selectedPlayer, selectedSlotId, targetSlotIds, rejectedSlotId, onSlotClick, compact = false, showRatings = true }: PitchProps) {
+  const slots = tacticalSlots(formationId, tactic);
   const targets = targetSlotIds ? new Set(targetSlotIds) : undefined;
   return (
     <div className={`pitch-frame ${compact ? "pitch-frame--compact" : ""}`}>
@@ -28,7 +30,7 @@ export function Pitch({ formationId, lineup = [], previewPlayers = new Map(), se
           <span className="pitch__half"/><span className="pitch__circle"/>
           <span className="pitch__box pitch__box--top"/><span className="pitch__box pitch__box--bottom"/>
         </div>
-        {formation.slots.map((slot) => {
+        {slots.map((slot) => {
           const entry = lineup.find((item) => item.slotId === slot.id);
           const player = previewPlayers.get(slot.id) ?? (entry ? playersById.get(entry.playerId) : undefined);
           const isTarget = Boolean(targets?.has(slot.id));

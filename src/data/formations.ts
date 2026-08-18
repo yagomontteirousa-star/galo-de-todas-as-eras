@@ -42,6 +42,33 @@ export const formations: Record<FormationId, Formation> = {
   },
 };
 
+/**
+ * Cada perfil desloca as linhas sem mexer na estrutura da formação: o eixo y cresce
+ * na direção do próprio gol, então valor positivo recua e negativo adianta.
+ */
+type Shape = { defense: number; midfield: number; attack: number; width: number };
+
+const tacticShape: Record<TacticId, Shape> = {
+  balanced: { defense: 0, midfield: 0, attack: 0, width: 0 },
+  defensive: { defense: 4, midfield: 7, attack: 5, width: -4 },
+  attacking: { defense: -5, midfield: -6, attack: -4, width: 4 },
+  pressing: { defense: -8, midfield: -5, attack: -2, width: 1 },
+};
+
+const clampAxis = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+/** Mesmos onze jogadores e as mesmas funções, só que mais recuados ou mais adiantados. */
+export function tacticalSlots(formationId: FormationId, tactic?: TacticId): FormationSlot[] {
+  const slots = formations[formationId].slots;
+  if (!tactic || tactic === "balanced") return slots;
+  const shape = tacticShape[tactic];
+  return slots.map((slot) => {
+    if (slot.sector === "goalkeeper") return slot;
+    const dx = slot.x < 40 ? -shape.width : slot.x > 60 ? shape.width : 0;
+    return { ...slot, x: clampAxis(slot.x + dx, 9, 91), y: clampAxis(slot.y + shape[slot.sector], 9, 84) };
+  });
+}
+
 export const tacticLabels: Record<TacticId, { name: string; description: string; risk: string }> = {
   balanced: { name: "Equilibrado", description: "Distribui força entre os setores.", risk: "Poucos extremos, poucas brechas." },
   attacking: { name: "Ofensivo", description: "Mais presença e criação no ataque.", risk: "Concede espaço às transições." },

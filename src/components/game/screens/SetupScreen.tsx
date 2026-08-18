@@ -17,7 +17,7 @@ export function SetupScreen({ onContinue }: { onContinue: (formation: FormationI
     <main className="screen screen--setup" id="main">
       <div className="setup-layout">
         <div className="setup-pitch">
-          <Pitch formationId={formation}/>
+          <Pitch formationId={formation} tactic={tactic}/>
         </div>
         <div className="setup-controls">
           <div className="setup-title"><h1>Defina o seu jogo.</h1></div>

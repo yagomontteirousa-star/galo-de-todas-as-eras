@@ -18,7 +18,7 @@ export function SiteFooter() {
   return (
     <footer className="site-footer">
       <span>Desenvolvido por</span>
-      <Image src="/assets/master-digital.png" alt="Master Digital" width={104} height={49}/>
+      <Image src="/assets/master-digital.svg" alt="Master Digital" width={118} height={34} unoptimized/>
     </footer>
   );
 }

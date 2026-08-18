@@ -10,7 +10,7 @@ export function AnalysisScreen({ campaign, team, onStart }: { campaign: Campaign
     <main className="screen analysis-screen" id="main">
       <div className="analysis-hero"><div><span>ESCALAÇÃO CONFIRMADA</span><h1>Agora é<br/>preto no branco.</h1><p>{campaign.formation} · {tacticLabels[campaign.tactic!].name}</p></div><div className="overall-seal"><span>OVERALL</span><strong>{o.final}</strong><small>{o.final >= 90 ? "Lendário" : o.final >= 86 ? "Candidato ao título" : "Pronto para competir"}</small></div></div>
       <div className="analysis-layout">
-        <section className="analysis-pitch"><Pitch formationId={campaign.formation!} lineup={campaign.lineup}/></section>
+        <section className="analysis-pitch"><Pitch formationId={campaign.formation!} tactic={campaign.tactic} lineup={campaign.lineup}/></section>
         <aside className="analysis-report">
           <div className="sector-scores"><div><span>Defesa</span><b>{o.defense}</b></div><div><span>Meio</span><b>{o.midfield}</b></div><div><span>Ataque</span><b>{o.attack}</b></div></div>
           <div className="overall-breakdown"><h2>Leitura do overall</h2><dl><div><dt>Base ponderada</dt><dd>{o.base}</dd></div><div><dt>Coesão tática</dt><dd className={o.cohesion >= 0 ? "is-positive" : "is-negative"}>{o.cohesion >= 0 ? "+" : ""}{o.cohesion}</dd></div><div><dt>Encaixe do perfil</dt><dd className={o.tacticBonus >= 0 ? "is-positive" : "is-negative"}>{o.tacticBonus >= 0 ? "+" : ""}{o.tacticBonus}</dd></div><div><dt>Improvisações</dt><dd className="is-negative">−{o.improvisationPenalty}</dd></div><div><dt>Desequilíbrio</dt><dd className="is-negative">−{o.balancePenalty}</dd></div></dl></div>
