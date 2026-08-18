@@ -285,7 +285,9 @@ export async function shortCampaignUrl(data: SharedCampaign, origin = SITE_URL):
   });
   if (!response.ok) throw new Error(response.status === 501 ? "store-off" : "store-failed");
   const { id } = await response.json() as { id?: string };
-  if (!id) throw new Error("store-failed");
+  if (!id || !/^[abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8,12}$/.test(id)) {
+    throw new Error("store-failed");
+  }
   return `${origin}/c/${id}`;
 }
 

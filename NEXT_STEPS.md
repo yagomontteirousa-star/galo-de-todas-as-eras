@@ -26,26 +26,19 @@ Rodada de 18/08/2026. Tudo abaixo está commitado, validado e publicado.
 - **Balanceamento**: grandes adversários históricos voltaram ao topo da curva e o peso da
   diferença de força foi ajustado sem retirar volatilidade, prorrogação ou pênaltis.
 
-## Links curtos: falta provisionar o store
+## Links curtos: store ativo
 
-O código está pronto e ligado. `src/lib/share-store.ts` fala com qualquer store compatível
-com a API REST do Upstash, que é o que a Vercel injeta ao conectar um KV, lendo
+`src/lib/share-store.ts` fala com o Redis compatível com a API REST do Upstash conectado à
+Vercel, lendo apenas no servidor:
 `KV_REST_API_URL` e `KV_REST_API_TOKEN`. A rota `POST /api/c` grava o snapshot imutável e
 devolve um id de dez caracteres; `/c/[id]` lê do servidor sem depender de `localStorage`,
 e ainda abre os links longos já enviados.
 
-Enquanto o store não existir, `/api/c` responde 501 e o botão informa que o link curto está
-indisponível. Ele não cria um endereço longo como fallback. Links longos antigos continuam
-abrindo normalmente.
+O store foi conectado em produção em 18/08/2026. A gravação e a leitura foram verificadas
+sem cookies com campanhas de campeão, vice-campeão e eliminado; resultado, elenco,
+destaques, jogos e metadados OG permaneceram íntegros. Links novos usam somente
+`https://pretonobranco.app/c/[id]`.
 
-Para ligar, no painel da Vercel:
-
-> Storage → criar KV (ou Upstash Redis) → conectar ao projeto `galo-de-todas-as-eras`
-
-Nada mais precisa ser mexido no código. Depois de conectar, rode `npx vercel deploy --prod`
-e todo link novo já sai no formato `https://pretonobranco.app/c/Ab3xK9mQ`.
-
-## Dependência externa pendente
-
-1. **Store do KV** acima. É a única configuração externa necessária para habilitar novos
-   links curtos em produção.
+Se o armazenamento ficar indisponível, `/api/c` responde com erro e o botão mostra uma
+mensagem clara. Nenhum endereço com payload longo é criado como fallback. Links longos
+antigos continuam abrindo normalmente.

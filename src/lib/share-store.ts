@@ -4,7 +4,7 @@ import type { SharedCampaign } from "@/lib/share";
  * Guarda o snapshot da campanha no servidor e devolve um id curto. Funciona com qualquer
  * store compatível com a API REST do Upstash, que é o que a Vercel injeta ao conectar
  * um KV: `KV_REST_API_URL` e `KV_REST_API_TOKEN`. Sem essas variáveis o recurso fica
- * desligado e quem chama cai no link longo, em vez de copiar um endereço quebrado.
+ * desligado e a API informa a indisponibilidade, sem gerar um link longo.
  */
 const STORE_URL = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
 const STORE_TOKEN = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;

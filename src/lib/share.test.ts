@@ -44,6 +44,16 @@ describe("compartilhamento", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "store-off" }), { status: 501 })));
     await expect(shortCampaignUrl(base)).rejects.toThrow("store-off");
   });
+
+  it("aceita somente o id curto devolvido pelo servidor", async () => {
+    const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "Ab3xK9mQ" }), { status: 200 }));
+    vi.stubGlobal("fetch", request);
+    await expect(shortCampaignUrl(base)).resolves.toBe("https://pretonobranco.app/c/Ab3xK9mQ");
+    expect(request).toHaveBeenCalledWith("/api/c", expect.objectContaining({ method: "POST" }));
+
+    request.mockResolvedValueOnce(new Response(JSON.stringify({ id: "payload-muito-longo-e-invalido" }), { status: 200 }));
+    await expect(shortCampaignUrl(base)).rejects.toThrow("store-failed");
+  });
   it("volta igual depois de codificar e decodificar", async () => {
     expect(await decodeCampaign(await encodeCampaign(base))).toEqual(base);
   });
