@@ -7,11 +7,9 @@ import type {
   MatchResult,
   PenaltyKick,
   RatingsMode,
-  TeamSnapshot,
 } from "@/types/game";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowIcon } from "@/components/ui/Icons";
-import { formations } from "@/data/formations";
 import { roundLabels, teamEra } from "@/lib/bracket";
 import { RivalSquadDisclosure } from "@/components/game/RivalSquadDisclosure";
 import { rivalRosterFromTeam } from "@/lib/rival-roster";
@@ -129,6 +127,12 @@ export function MatchScreen({
   const visibleGoals = visibleEvents.filter((item) => item.type === "goal");
   const homeVisible = visibleGoals.filter((item) => item.teamId === match.home.id).length;
   const awayVisible = visibleGoals.filter((item) => item.teamId === match.away.id).length;
+  const userVisible = visibleGoals.filter((item) => item.teamId === userTeam.id).length;
+  const rivalVisible = visibleGoals.filter((item) => item.teamId === opponent.id).length;
+  const matchStats = useMemo(
+    () => matchSummary(visibleEvents, userTeam.id, opponent.id),
+    [opponent.id, userTeam.id, visibleEvents],
+  );
   const finalHome = result.homeScore + result.homeExtra;
   const finalAway = result.awayScore + result.awayExtra;
   const shownKicks = kicks.slice(0, Math.min(kickStep, kicks.length));
@@ -251,8 +255,16 @@ export function MatchScreen({
         </aside>
         {!finished && !needsHalftime && (
           <details className="boxscore-collapse" open={boxOpen} onToggle={(event) => setBoxOpen(event.currentTarget.open)}>
-            <summary>Box score do seu time</summary>
-            <BoxScore team={userTeam} opponent={opponent} reveal={revealOpponent}/>
+            <summary>Resumo da partida</summary>
+            <BoxScore
+              minute={minute}
+              status={status}
+              userScore={userVisible}
+              rivalScore={rivalVisible}
+              goals={visibleGoals}
+              userTeamId={userTeam.id}
+              stats={matchStats}
+            />
           </details>
         )}
       </div>
@@ -378,42 +390,96 @@ function GoalSheet({ goals, match }: { goals: MatchEvent[]; match: BracketMatch 
   );
 }
 
-function BoxScore({ team, opponent, reveal }: { team: TeamSnapshot; opponent: TeamSnapshot; reveal: boolean }) {
-  const overall = team.overall;
-  const order = formations[team.formation].slots;
-  const rows = [...overall.evaluations]
-    .sort((left, right) => right.adjustedOverall - left.adjustedOverall
-      || order.findIndex((slot) => slot.id === left.slot.id) - order.findIndex((slot) => slot.id === right.slot.id))
-    .slice(0, 4);
-  const tactical = Math.max(0, Math.min(99, 80 + overall.cohesion * 4 + overall.tacticBonus * 3));
+type MatchSummary = {
+  possession: [number | null, number | null];
+  shots: [number, number];
+  onTarget: [number, number];
+  momentum: [number, number];
+};
+
+/**
+ * O motor não guarda uma planilha paralela de estatísticas. O resumo usa somente os
+ * lances já gerados: ações de posse para controle, finalizações para chutes e os seis
+ * ataques mais recentes para o momento. Assim não há números decorativos na interface.
+ */
+function matchSummary(events: MatchEvent[], userTeamId: string, rivalTeamId: string): MatchSummary {
+  const values = { user: 0, rival: 0 };
+  const add = (teamId: string | undefined) => {
+    if (teamId === userTeamId) values.user += 1;
+    if (teamId === rivalTeamId) values.rival += 1;
+  };
+  const attackingTeam = (event: MatchEvent) => event.type === "big_save"
+    ? event.teamId === userTeamId ? rivalTeamId : userTeamId
+    : event.teamId;
+  const possessionEvents = events.filter((event) => event.type === "possession");
+  for (const event of possessionEvents) add(event.teamId);
+  const possessionTotal = values.user + values.rival;
+  const possession: [number | null, number | null] = possessionTotal >= 3
+    ? [Math.round(values.user / possessionTotal * 100), Math.round(values.rival / possessionTotal * 100)]
+    : [null, null];
+
+  const shots = { user: 0, rival: 0 };
+  const onTarget = { user: 0, rival: 0 };
+  const attacks = events.filter((event) => ["pressure", "corner", "offside", "shot_off", "shot_saved", "big_save", "penalty", "goal"].includes(event.type));
+  for (const event of attacks) {
+    const side = attackingTeam(event) === userTeamId ? "user" : attackingTeam(event) === rivalTeamId ? "rival" : undefined;
+    if (!side) continue;
+    if (["shot_off", "shot_saved", "big_save", "goal"].includes(event.type)) shots[side] += 1;
+    if (["shot_saved", "big_save", "goal"].includes(event.type)) onTarget[side] += 1;
+  }
+  const lastAttacks = attacks.slice(-6);
+  const momentum: [number, number] = [
+    lastAttacks.filter((event) => attackingTeam(event) === userTeamId).length,
+    lastAttacks.filter((event) => attackingTeam(event) === rivalTeamId).length,
+  ];
+  return { possession, shots: [shots.user, shots.rival], onTarget: [onTarget.user, onTarget.rival], momentum };
+}
+
+function BoxScore({ minute, status, userScore, rivalScore, goals, userTeamId, stats }: {
+  minute: number;
+  status: string;
+  userScore: number;
+  rivalScore: number;
+  goals: MatchEvent[];
+  userTeamId: string;
+  stats: MatchSummary;
+}) {
   return (
-    <section className="boxscore-card" aria-label="Box score do seu time">
-      <header><span>BOX SCORE</span><strong>{overall.final}</strong><small>overall geral</small></header>
-      <div className="opponent-read">
-        <span>Adversário <b>{opponent.name}</b></span>
-        <span>Força rival <b>{reveal ? opponent.overall.final : "?"}</b></span>
+    <section className="boxscore-card" aria-label="Resumo da partida">
+      <header className="match-boxscore__score">
+        <span>Placar</span>
+        <strong>{userScore}<i>×</i>{rivalScore}</strong>
+        <small>{minute}′ · {status}</small>
+      </header>
+      <div className="match-boxscore__goals">
+        <span>Gols</span>
+        {goals.length ? (
+          <ul>
+            {goals.map((goal) => (
+              <li key={goal.id} className={goal.teamId === userTeamId ? "is-user" : "is-rival"}>
+                <i aria-hidden="true"/><b>{goal.playerName}</b><time>{goal.minute}′</time>
+              </li>
+            ))}
+          </ul>
+        ) : <p>Sem gols até agora.</p>}
       </div>
-      <div className="sector-bars">
-        <ScoreBar label="Defesa" value={overall.defense}/>
-        <ScoreBar label="Meio" value={overall.midfield}/>
-        <ScoreBar label="Ataque" value={overall.attack}/>
-        <ScoreBar label="Tática" value={tactical}/>
+      <div className="match-boxscore__stats">
+        <span>Você <i>×</i> rival</span>
+        <dl>
+          <Stat label="Posse" values={stats.possession} suffix="%" hint="A posse é calculada a partir dos lances de posse já gerados."/>
+          <Stat label="Finalizações" values={stats.shots}/>
+          <Stat label="No alvo" values={stats.onTarget}/>
+          <Stat label="Momento" values={stats.momentum} hint="Ataques nos seis últimos lances relevantes."/>
+        </dl>
       </div>
-      <div className="lineup-sheet">
-        <span className="lineup-sheet__title">Destaques do onze</span>
-        {rows.map((entry) => (
-          <div key={entry.slot.id} className={entry.fit === "improvised" ? "is-improvised" : ""}>
-            <span>{entry.slot.label}</span><b>{entry.player.name}</b><strong>{entry.adjustedOverall}</strong>
-          </div>
-        ))}
-        <small className="lineup-sheet__more">Mais {overall.evaluations.length - rows.length} titulares em campo</small>
-      </div>
-      {overall.improvisationPenalty > 0 && <p className="improvisation-note">Improvisos custam {overall.improvisationPenalty} ponto(s) no cálculo.</p>}
     </section>
   );
 }
 
-function ScoreBar({ label, value }: { label: string; value?: number }) {
-  return <div><span>{label}</span><i><b style={{ width: `${value ?? 0}%` }}/></i><strong>{value || "·"}</strong></div>;
+function Stat({ label, values, suffix = "", hint }: { label: string; values: [number | null, number | null]; suffix?: string; hint?: string }) {
+  return <div title={hint}>
+    <dt>{label}</dt>
+    <dd><b>{values[0] ?? "—"}{values[0] === null ? "" : suffix}</b><i>×</i><b>{values[1] ?? "—"}{values[1] === null ? "" : suffix}</b></dd>
+  </div>;
 }
 
