@@ -46,7 +46,7 @@ export function SiteFooter() {
     <footer className="site-footer">
       {/* A faixa inteira é o link: texto e marca, com área de toque confortável. */}
       <a href={MASTER_DIGITAL_URL} target="_blank" rel="noopener noreferrer" aria-label="Desenvolvido por Master Digital, abre em nova aba">
-        <span>Desenvolvido por</span>
+        <span>Site desenvolvido por</span>
         {logo}
       </a>
     </footer>
