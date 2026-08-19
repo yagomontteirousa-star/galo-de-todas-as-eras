@@ -1,6 +1,7 @@
 import type {
   BracketMatch,
   HalftimeInstruction,
+  MatchMomentInstruction,
   MatchEvent,
   MatchEventType,
   MatchInstructions,
@@ -13,17 +14,18 @@ import { ArrowIcon } from "@/components/ui/Icons";
 import { roundLabels, teamEra } from "@/lib/bracket";
 import { RivalSquadDisclosure } from "@/components/game/RivalSquadDisclosure";
 import { rivalRosterFromTeam } from "@/lib/rival-roster";
+import { matchMoments } from "@/data/match-moments";
 
 const eventCodes: Record<MatchEventType, string> = {
   kickoff: "INI", pressure: "PRE", possession: "POS", shot_off: "FOR", shot_saved: "DEF", big_save: "DEF",
   corner: "ESC", dangerous_foul: "FAL", offside: "IMP", yellow_card: "AMA", red_card: "VER", penalty: "PEN",
-  goal: "GOL", halftime: "INT", second_half: "2T", extra_time: "PRO", shootout: "PEN", full_time: "FIM",
+  goal: "GOL", decision: "DEC", halftime: "INT", second_half: "2T", extra_time: "PRO", shootout: "PEN", full_time: "FIM",
 };
 
 /** Cada família de lance tem a sua cor, para a leitura ser instantânea. */
 const eventTone: Partial<Record<MatchEventType, string>> = {
   penalty: "is-penalty", yellow_card: "is-card", red_card: "is-card",
-  halftime: "is-break", second_half: "is-break", extra_time: "is-break", full_time: "is-break", shootout: "is-break",
+  decision: "is-break", halftime: "is-break", second_half: "is-break", extra_time: "is-break", full_time: "is-break", shootout: "is-break",
   kickoff: "is-break", big_save: "is-save",
 };
 
@@ -65,6 +67,7 @@ export function MatchScreen({
   const [paused, setPaused] = useState(false);
   /** Postura escolhida no intervalo, ainda não confirmada. */
   const [halftimePick, setHalftimePick] = useState<HalftimeInstruction>();
+  const [momentPick, setMomentPick] = useState<MatchMomentInstruction>();
   /** Passo da disputa: 0 antes da primeira, `kicks.length` na conclusão, acima disso liberou. */
   const [kickStep, setKickStep] = useState(0);
   const [goalFlash, setGoalFlash] = useState(false);
@@ -72,12 +75,14 @@ export function MatchScreen({
   const userTeam = match.home.isUser ? match.home : match.away;
   const opponent = match.home.isUser ? match.away : match.home;
   const needsHalftime = minute >= 45 && !result.instructions.halftime;
+  const moment = result.matchMoment ? matchMoments[result.matchMoment] : undefined;
+  const needsMoment = minute >= 65 && !result.instructions.moment && Boolean(moment);
   const clockDone = minute >= maxMinute;
   /** A disputa segue no ar até um passo além da última cobrança, para a conclusão ser lida. */
   const inShootout = clockDone && result.wentToPenalties && kickStep <= kicks.length;
   const concluded = inShootout && kickStep >= kicks.length;
   const finished = clockDone && !inShootout;
-  const running = !needsHalftime && !paused && !clockDone;
+  const running = !needsHalftime && !needsMoment && !paused && !clockDone;
 
   useEffect(() => {
     if (!running) return;
@@ -101,6 +106,10 @@ export function MatchScreen({
   useEffect(() => {
     if (needsHalftime) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [needsHalftime]);
+
+  useEffect(() => {
+    if (needsMoment) window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [needsMoment]);
 
   // Disputa: uma cobrança por vez e, no fim, uma pausa maior mostrando a conclusão.
   useEffect(() => {
@@ -148,7 +157,8 @@ export function MatchScreen({
 
   // O segundo tempo só começa depois da confirmação, e o intervalo não volta a abrir.
   const confirmHalftime = () => halftimePick && onInstruction({ ...result.instructions, halftime: halftimePick });
-  const skip = () => { setPaused(false); setMinute(result.instructions.halftime ? maxMinute : 45); };
+  const confirmMoment = () => momentPick && onInstruction({ ...result.instructions, moment: momentPick });
+  const skip = () => { setPaused(false); setMinute(!result.instructions.halftime ? 45 : !result.instructions.moment ? 65 : maxMinute); };
 
   return (
     <main className="screen match-screen" id="main">
@@ -158,7 +168,7 @@ export function MatchScreen({
         <HalftimePanel round={roundLabels[match.round]} picked={halftimePick} onPick={setHalftimePick} onConfirm={confirmHalftime}/>
       ) : (
         <>
-          <div className="match-stage"><span>{roundLabels[match.round]} · {status}</span><b>{clockDone ? "ENCERRADO" : `${minute}′`}</b></div>
+          <div className="match-stage"><span>{roundLabels[match.round]} · {status}</span><b>{clockDone ? "ENCERRADO" : `${minute}′`}</b><small>{match.home.stadium ?? "Casa do mandante"}</small></div>
           <section className={`scoreboard ${goalFlash ? "is-goal-flash" : ""}`} aria-live="polite">
             <div className="score-team">
               <span>{teamEra(match.home)}</span><h1>{match.home.name}</h1>
@@ -177,6 +187,15 @@ export function MatchScreen({
             <span style={{ transform: `scaleX(${Math.min(1, minute / maxMinute)})` }}/>
             <i style={{ left: `${Math.min(100, (minute / maxMinute) * 100)}%` }}/>
           </div>
+          {needsMoment && moment && (
+            <MatchMomentPanel
+              moment={moment}
+              score={`${userVisible} × ${rivalVisible}`}
+              picked={momentPick}
+              onPick={setMomentPick}
+              onConfirm={confirmMoment}
+            />
+          )}
           {finished && (
             <section className="match-finish-action" aria-label="Partida encerrada">
               <div>
@@ -186,7 +205,7 @@ export function MatchScreen({
               <button type="button" className="button button--primary" onClick={onFinish}>Ver resultado<ArrowIcon/></button>
             </section>
           )}
-          {!clockDone && (
+          {!clockDone && !needsMoment && (
             <div className="match-controls">
               <button type="button" className="match-control" onClick={() => setPaused((value) => !value)} aria-pressed={paused}>
                 {paused ? "▶ Retomar" : "❚❚ Pausar"}
@@ -299,6 +318,36 @@ function HalftimePanel({ round, picked, onPick, onConfirm }: {
       </div>
       <button type="button" className="button button--primary button--wide" disabled={!picked} onClick={onConfirm}>
         {picked ? "Começar o segundo tempo" : "Escolha uma postura"}<ArrowIcon/>
+      </button>
+    </section>
+  );
+}
+
+/** Decisão única da reta final: mantém placar e contexto na tela, sem modal ou camada. */
+function MatchMomentPanel({ moment, score, picked, onPick, onConfirm }: {
+  moment: (typeof matchMoments)[keyof typeof matchMoments];
+  score: string;
+  picked?: MatchMomentInstruction;
+  onPick: (choice: MatchMomentInstruction) => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <section className="match-moment" aria-label="Decisão aos 65 minutos">
+      <header>
+        <span>65′ · decisão de jogo</span>
+        <h2>{moment.question}</h2>
+        <p><b>Placar: {score}.</b> {moment.detail}</p>
+      </header>
+      <div className="match-moment__options" role="group" aria-label={moment.question}>
+        {moment.choices.map((choice) => (
+          <button type="button" key={choice.id} className={picked === choice.id ? "is-picked" : ""}
+            aria-pressed={picked === choice.id} onClick={() => onPick(choice.id)}>
+            <b>{choice.label}</b><small>{choice.detail}</small>
+          </button>
+        ))}
+      </div>
+      <button type="button" className="button button--primary" disabled={!picked} onClick={onConfirm}>
+        {picked ? "Confirmar decisão" : "Escolha uma resposta"}<ArrowIcon/>
       </button>
     </section>
   );

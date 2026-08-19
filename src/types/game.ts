@@ -4,7 +4,9 @@ export type FormationId = "4-3-3" | "4-4-2" | "4-2-3-1" | "3-5-2";
 export type TacticId = "balanced" | "attacking" | "defensive" | "pressing";
 export type RatingsMode = "visible" | "memory";
 export type HalftimeInstruction = "keep" | "press" | "attack" | "defend";
-export type MatchEventType = "kickoff" | "pressure" | "possession" | "shot_off" | "shot_saved" | "big_save" | "corner" | "dangerous_foul" | "offside" | "yellow_card" | "red_card" | "penalty" | "goal" | "halftime" | "second_half" | "extra_time" | "shootout" | "full_time";
+export type MatchMomentInstruction = "wide" | "inside" | "direct" | "calm" | "press" | "protect" | "counter" | "set_pieces" | "shots" | "hold" | "restart_fast" | "restart_safe";
+export type MatchMomentId = "trailing-control" | "trailing-break" | "draw-open" | "draw-keeper" | "lead-pressure" | "lead-control" | "rival-tired-right" | "rival-tired-left" | "rain" | "heavy-pitch" | "floodlights" | "wind";
+export type MatchEventType = "kickoff" | "pressure" | "possession" | "shot_off" | "shot_saved" | "big_save" | "corner" | "dangerous_foul" | "offside" | "yellow_card" | "red_card" | "penalty" | "goal" | "decision" | "halftime" | "second_half" | "extra_time" | "shootout" | "full_time";
 
 export interface Attributes {
   finishing: number; creation: number; pace: number; physical: number;
@@ -61,6 +63,8 @@ export interface TeamOverall {
 export interface TeamSnapshot {
   id: string; name: string; year: number; formation: FormationId; tactic: TacticId;
   lineup: Player[]; overall: TeamOverall; isUser?: boolean;
+  /** Casa do mandante no recorte histórico daquele elenco. */
+  stadium?: string;
   /** Substitui o ano na interface quando o elenco não pertence a uma única temporada. */
   eraLabel?: string;
 }
@@ -70,6 +74,7 @@ export type TournamentRound = "round16" | "quarterfinal" | "semifinal" | "final"
 
 export interface MatchInstructions {
   halftime?: HalftimeInstruction;
+  moment?: MatchMomentInstruction;
 }
 
 export interface MatchEvent {
@@ -89,7 +94,7 @@ export interface MatchResult {
   homePenalties?: number; awayPenalties?: number; penaltyKicks?: PenaltyKick[];
   wentToExtraTime: boolean; wentToPenalties: boolean;
   winnerId: string; events: MatchEvent[]; playerOfMatch: string; summary: string;
-  instructions: MatchInstructions; instructionImpact?: string;
+  instructions: MatchInstructions; instructionImpact?: string; matchMoment?: MatchMomentId;
 }
 
 export interface BracketMatch {

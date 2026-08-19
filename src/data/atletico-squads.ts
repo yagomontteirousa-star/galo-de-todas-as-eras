@@ -112,6 +112,11 @@ export const atleticoSquads: HistoricalSquad[] = [
     s("Wellington Paulo", "CB", 77), s("Zé Antônio", "DM", 80), s("Rodrigo Fabri", "AM", 84), s("Ataliba", "CM", 79), s("Tchô", "AM", 78), s("Xaves", "DM", 77),
     s("Marques", "ST", 87, ["RW"]), s("Euller", "RW", 84, ["ST"]), s("Uéslei", "ST", 82), s("Fábio Júnior", "ST", 81), s("Danilinho", "LW", 80), s("Catanha", "ST", 78),
   ]),
+  createSquad(2008, "Campanha irregular de 2008", "Um Galo de altos e baixos, com talento pontual e pouca margem para erro no Brasileirão.", [
+    s("Edson", "GK", 81), s("Juninho", "GK", 78), s("Leandro Almeida", "CB", 83), s("Marcos", "CB", 80), s("Werley", "CB", 77), s("Sheslon", "RB", 78), s("Thiago Feltri", "LB", 80), s("César Prates", "LB", 79, ["RB"]),
+    s("Márcio Araújo", "DM", 82, ["CM"], ["combativo"]), s("Rafael Miranda", "DM", 81, ["CM"]), s("Petkovic", "AM", 84, ["CM"], ["criação"]), s("Renan Oliveira", "AM", 80, ["CM"]), s("Danilinho", "RW", 86, ["LW"], ["drible"]),
+    s("Marques", "ST", 85, ["RW"]), s("Eduardo", "ST", 84), s("Castillo", "ST", 80), s("Jael", "ST", 78), s("Gedeon", "CM", 78, ["DM"]),
+  ]),
   createSquad(2012, "O prenúncio da América", "A campanha de recuperação que reuniu a base do time campeão continental.", [
     s("Victor", "GK", 90, [], ["decisivo"]), s("Giovanni", "GK", 77), s("Réver", "CB", 89, [], ["liderança"]), s("Leonardo Silva", "CB", 87), s("Marcos Rocha", "RB", 86, ["RWB"]), s("Júnior César", "LB", 82),
     s("Rafael Marques", "CB", 79), s("Pierre", "DM", 86, [], ["combativo"]), s("Leandro Donizete", "DM", 85, ["CM"]), s("Ronaldinho", "AM", 93, ["LW"], ["gênio", "criação"]), s("Bernard", "LW", 89, ["AM"]), s("Danilinho", "RW", 84),
@@ -132,6 +137,11 @@ export const atleticoSquads: HistoricalSquad[] = [
     s("Felipe Santana", "CB", 81), s("Rafael Carioca", "CM", 87, ["DM"], ["passe"]), s("Adilson", "DM", 84), s("Cazares", "AM", 88), s("Elias", "CM", 86), s("Otero", "AM", 85, ["LW"], ["bola parada"]),
     s("Fred", "ST", 88, [], ["artilheiro"]), s("Robinho", "LW", 89, ["ST"]), s("Luan", "RW", 86, ["ST"]), s("Rafael Moura", "ST", 82), s("Clayton", "LW", 80), s("Valdívia", "AM", 80),
   ]),
+  createSquad(2018, "Competitivo em 2018", "Um elenco intenso, com boas peças em todos os setores, mas sem a constância das gerações campeãs.", [
+    s("Victor", "GK", 88, [], ["decisivo"]), s("Cleiton", "GK", 80), s("Leonardo Silva", "CB", 85, [], ["liderança"]), s("Gabriel", "CB", 84), s("Bremer", "CB", 88), s("Patric", "RB", 86, ["RWB"]), s("Iago", "LB", 82, ["LWB"]),
+    s("Adilson", "DM", 83), s("Elias", "CM", 84, ["DM"]), s("Cazares", "AM", 88, ["CM"], ["criação"]), s("Otero", "AM", 87, ["LW"], ["bola parada"]), s("Luan", "RW", 86, ["ST"], ["intensidade"]), s("Chará", "LW", 85, ["RW"]),
+    s("Ricardo Oliveira", "ST", 88, [], ["finalizador"]), s("Alerrandro", "ST", 79), s("Tomás Andrade", "AM", 81, ["CM"]), s("Nathan", "AM", 82, ["RW"]), s("Guga", "RB", 79, ["RWB"]),
+  ]),
   createSquad(2020, "A arrancada nacional", "Um time agressivo que abriu caminho para a temporada dominante seguinte.", [
     s("Éverson", "GK", 87, [], ["jogo com os pés"]), s("Rafael", "GK", 82), s("Junior Alonso", "CB", 88, ["LB"]), s("Réver", "CB", 86), s("Guga", "RB", 82), s("Guilherme Arana", "LB", 89, ["LWB"]),
     s("Igor Rabello", "CB", 82), s("Allan", "DM", 86), s("Jair", "CM", 85, ["DM"]), s("Nacho Fernández", "AM", 88, ["CM"]), s("Alan Franco", "CM", 83), s("Hyoran", "AM", 82),
@@ -146,6 +156,16 @@ export const atleticoSquads: HistoricalSquad[] = [
     s("Éverson", "GK", 90, [], ["jogo com os pés"]), s("Matheus Mendes", "GK", 81), s("Junior Alonso", "CB", 89, ["LB"]), s("Battaglia", "CB", 88, ["DM"]), s("Saravia", "RB", 85, ["RWB"]), s("Guilherme Arana", "LB", 91, ["LWB"]),
     s("Bruno Fuchs", "CB", 83), s("Otávio", "DM", 87), s("Alan Franco", "CM", 86, ["DM"]), s("Gustavo Scarpa", "AM", 89, ["RW"], ["criação", "bola parada"]), s("Zaracho", "CM", 87, ["AM"]), s("Igor Gomes", "AM", 83, ["CM"]),
     s("Hulk", "ST", 93, ["RW"], ["decisivo", "artilheiro"]), s("Paulinho", "ST", 90, ["LW"], ["mobilidade"]), s("Deyverson", "ST", 86), s("Bernard", "LW", 86, ["AM"]), s("Alisson", "RW", 81), s("Cadu", "ST", 79, ["RW"]),
+  ]),
+  createSquad(2025, "Entre taças e oscilações", "Campeão mineiro e finalista continental, mas irregular no Brasileiro: uma campanha de contrastes.", [
+    s("Everson", "GK", 89, [], ["jogo com os pés"]), s("Gabriel Delfim", "GK", 77), s("Lyanco", "CB", 86), s("Junior Alonso", "CB", 88, ["LB"], ["liderança"]), s("Vitor Hugo", "CB", 83), s("Ruan", "CB", 81), s("Natanael", "RB", 85, ["RWB"]), s("Saravia", "RB", 83, ["RWB"]), s("Guilherme Arana", "LB", 88, ["LWB"]),
+    s("Alan Franco", "DM", 87, ["CM"]), s("Gustavo Scarpa", "AM", 89, ["RW"], ["criação", "bola parada"]), s("Bernard", "AM", 86, ["LW"]), s("Igor Gomes", "CM", 82, ["AM"]), s("Alexsander", "CM", 82, ["DM"]), s("Patrick", "CM", 80, ["DM"]),
+    s("Hulk", "ST", 92, ["RW"], ["artilheiro"]), s("Rony", "ST", 86, ["RW"]), s("Tomás Cuello", "RW", 85, ["LW"]), s("Dudu", "LW", 84, ["RW"]), s("Júnior Santos", "ST", 84, ["RW"]),
+  ]),
+  createSquad(2026, "Elenco em construção", "Uma equipe de força competitiva, construída com as notas editoriais aprovadas para a temporada em curso.", [
+    s("Everson", "GK", 89, [], ["jogo com os pés"]), s("Gabriel Delfim", "GK", 79), s("Vitão", "CB", 83), s("Lyanco", "CB", 88), s("Ruan", "CB", 87), s("Léo Duarte", "CB", 85), s("Vitor Hugo", "CB", 82), s("Natanael", "RB", 87, ["RWB"]), s("Ângelo Preciado", "RB", 87, ["RWB"]), s("Renan Lodi", "LB", 89, ["LWB"]),
+    s("Maycon", "DM", 88, ["CM"]), s("Alan Franco", "DM", 85, ["CM"]), s("Kevin Castaño", "DM", 86, ["CM"]), s("Fred", "CM", 89, ["DM", "AM"], ["controle"]), s("Mamady Cissé", "CM", 83, ["DM"]), s("Gustavo Scarpa", "AM", 86, ["RW"], ["criação"]), s("Bernard", "AM", 87, ["LW"]), s("Victor Hugo (meia)", "AM", 86, ["CM"]), s("Reinier", "AM", 84, ["LW"]),
+    s("Mateo Cassierra", "ST", 87), s("Tomás Cuello", "RW", 88, ["LW"]), s("Alan Minda", "LW", 86, ["RW"]), s("Dudu", "LW", 84, ["RW"]), s("Thiago Borbas", "ST", 84),
   ]),
 ];
 

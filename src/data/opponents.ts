@@ -1,6 +1,7 @@
 import { formations } from "@/data/formations";
 import { calculateTeamOverall } from "@/lib/overall";
 import { attributesForOverall, styleFitFor } from "@/lib/player-rating";
+import { stadiumFor } from "@/data/stadiums";
 import type { FormationId, Opponent, Player, TacticId } from "@/types/game";
 
 type OpponentPlayerSeed = [name: string, overall: number];
@@ -22,6 +23,7 @@ function makeOpponent([name, year, formationId, tactic, playerSeeds]: OpponentSe
   });
   return {
     id: `opponent-${teamIndex}`, name, year, formation: formationId, tactic, lineup,
+    stadium: stadiumFor(name, year),
     overall: calculateTeamOverall(lineup.map((player, index) => ({ player, slotId: formation.slots[index].id })), formationId, tactic),
   };
 }
@@ -64,6 +66,24 @@ const opponentSeeds: OpponentSeed[] = [
   ["Flamengo", 2019, "4-2-3-1", "attacking", [["Diego Alves", 87], ["Filipe Luís", 91], ["Pablo Marí", 84], ["Rodrigo Caio", 87], ["Rafinha", 88], ["Willian Arão", 85], ["Gerson", 88], ["Bruno Henrique", 94], ["Arrascaeta", 93], ["Éverton Ribeiro", 91], ["Gabigol", 94]]],
   ["Palmeiras", 2021, "4-2-3-1", "defensive", [["Weverton", 92], ["Piquerez", 86], ["Gustavo Gómez", 93], ["Luan", 85], ["Marcos Rocha", 88], ["Danilo", 90], ["Zé Rafael", 87], ["Dudu", 91], ["Raphael Veiga", 93], ["Rony", 88], ["Luiz Adriano", 84]]],
   ["Fluminense", 2023, "4-2-3-1", "pressing", [["Fábio", 89], ["Marcelo", 87], ["Felipe Melo", 83], ["Nino", 89], ["Samuel Xavier", 85], ["André", 92], ["Martinelli", 86], ["Keno", 87], ["Ganso", 88], ["Jhon Arias", 92], ["Cano", 93]]],
+  ["Cruzeiro", 1966, "4-3-3", "attacking", [["Raul Plassmann", 90], ["Neco", 84], ["Procópio", 88], ["William", 86], ["Piazza", 92], ["Zé Carlos", 84], ["Dirceu Lopes", 94], ["Natal", 87], ["Tostão", 96], ["Evaldo", 88], ["Hilton Oliveira", 84]]],
+  ["Palmeiras", 1967, "4-3-3", "balanced", [["Valdir de Moraes", 88], ["Djalma Santos", 91], ["Baldocchi", 88], ["Minuca", 83], ["Dé", 86], ["Dudu", 90], ["Ademir da Guia", 94], ["Rinaldo", 86], ["César Maluco", 89], ["Servílio", 86], ["Eduardo", 85]]],
+  ["Flamengo", 1987, "4-4-2", "attacking", [["Zé Carlos", 85], ["Jorginho", 91], ["Aldair", 90], ["Leandro", 91], ["Leonardo", 89], ["Andrade", 87], ["Aílton", 83], ["Zico", 95], ["Zinho", 88], ["Bebeto", 93], ["Renato Gaúcho", 91]]],
+  ["Grêmio", 1996, "4-4-2", "pressing", [["Danrlei", 90], ["Arce", 91], ["Rivarola", 88], ["Adílson", 88], ["Roger", 85], ["Dinho", 88], ["Goiano", 85], ["Carlos Miguel", 89], ["Aílton", 85], ["Paulo Nunes", 91], ["Jardel", 94]]],
+  ["Vasco", 1997, "4-3-3", "attacking", [["Carlos Germano", 90], ["Felipe", 90], ["Mauro Galvão", 90], ["Odvan", 85], ["Vágner", 84], ["Nasa", 83], ["Ramon", 89], ["Pedrinho", 90], ["Edmundo", 96], ["Evair", 90], ["Luisinho", 84]]],
+  ["Corinthians", 2000, "4-4-2", "balanced", [["Dida", 91], ["Kléber", 85], ["Gamarra", 92], ["Adílson", 84], ["Índio", 82], ["Rincón", 90], ["Vampeta", 89], ["Ricardinho", 89], ["Marcelinho", 92], ["Edílson", 89], ["Luizão", 89]]],
+  ["São Paulo", 2006, "3-5-2", "balanced", [["Rogério Ceni", 94], ["Fabão", 86], ["Lugano", 91], ["Edcarlos", 84], ["Júnior", 87], ["Mineiro", 90], ["Josué", 88], ["Ilsinho", 87], ["Danilo", 89], ["Aloísio", 88], ["Leandro", 86]]],
+  ["Santos", 2011, "4-4-2", "attacking", [["Rafael", 89], ["Léo", 87], ["Edu Dracena", 88], ["Durval", 85], ["Danilo", 91], ["Arouca", 89], ["Henrique", 86], ["Elano", 90], ["Ganso", 93], ["Neymar", 96], ["Borges", 89]]],
+  ["Flamengo", 2022, "4-2-3-1", "attacking", [["Santos", 86], ["Filipe Luís", 89], ["Léo Pereira", 88], ["David Luiz", 88], ["Rodinei", 87], ["João Gomes", 89], ["Thiago Maia", 85], ["Éverton Ribeiro", 90], ["Arrascaeta", 94], ["Gabigol", 92], ["Pedro", 92]]],
+  ["Palmeiras", 2022, "4-2-3-1", "defensive", [["Weverton", 92], ["Piquerez", 88], ["Gustavo Gómez", 93], ["Murilo", 88], ["Marcos Rocha", 87], ["Danilo", 91], ["Zé Rafael", 89], ["Dudu", 92], ["Raphael Veiga", 94], ["Rony", 89], ["Endrick", 86]]],
+  ["Botafogo", 2024, "4-2-3-1", "pressing", [["John", 89], ["Cuiabano", 85], ["Bastos", 89], ["Adryelson", 88], ["Vitinho", 84], ["Marlon Freitas", 88], ["Gregore", 89], ["Luiz Henrique", 92], ["Savarino", 90], ["Thiago Almada", 93], ["Igor Jesus", 88]]],
+  ["Botafogo", 2002, "4-4-2", "defensive", [["Diego", 79], ["Alessandro", 78], ["Sandro", 80], ["André Luís", 79], ["Luciano Almeida", 77], ["Galeano", 81], ["Ramon", 80], ["Rodrigo Beckham", 79], ["Serginho", 80], ["Túlio", 83], ["Dodô", 86]]],
+  ["Grêmio", 2004, "4-4-2", "defensive", [["Galatto", 81], ["Cláudio", 77], ["Baloy", 82], ["Marinho", 78], ["Fábio Pinto", 78], ["Tinga", 84], ["Jeovânio", 79], ["Ricardinho", 81], ["Cláudio Pitbull", 82], ["Christian", 83], ["Anderson", 80]]],
+  ["Corinthians", 2007, "4-4-2", "defensive", [["Felipe", 85], ["Betão", 80], ["Zelão", 77], ["Fábio Ferreira", 78], ["Gustavo Nery", 81], ["Magrão", 82], ["Rosinei", 81], ["Carlos Alberto", 84], ["Lulinha", 80], ["Everton Santos", 81], ["Finazzi", 82]]],
+  ["Vasco", 2008, "4-4-2", "balanced", [["Tiago", 80], ["Wagner Diniz", 80], ["Eduardo Luiz", 78], ["Luizão", 79], ["Calisto", 78], ["Jonílson", 81], ["Madson", 84], ["Morais", 82], ["Alex Teixeira", 84], ["Leandro Amaral", 84], ["Edmundo", 82]]],
+  ["Internacional", 2016, "4-2-3-1", "balanced", [["Danilo Fernandes", 86], ["Artur", 80], ["Ernando", 81], ["Paulão", 79], ["William", 84], ["Rodrigo Dourado", 85], ["Anselmo", 80], ["Valdívia", 83], ["Anderson", 81], ["Vitinho", 85], ["Aylon", 78]]],
+  ["Cruzeiro", 2019, "4-2-3-1", "balanced", [["Fábio", 88], ["Egídio", 80], ["Dedé", 86], ["Léo", 82], ["Orejuela", 82], ["Henrique", 83], ["Lucas Silva", 84], ["Thiago Neves", 84], ["Robinho", 80], ["Pedro Rocha", 81], ["Fred", 85]]],
+  ["Santos", 2023, "4-2-3-1", "attacking", [["João Paulo", 87], ["Dodô", 80], ["Joaquim", 82], ["Messias", 79], ["Lucas Braga", 78], ["Dodi", 81], ["Rodrigo Fernández", 81], ["Lucas Lima", 83], ["Soteldo", 86], ["Marcos Leonardo", 87], ["Mendoza", 82]]],
 ];
 
 export const opponents: Opponent[] = opponentSeeds.map(makeOpponent);

@@ -1,5 +1,7 @@
 import type {
   HalftimeInstruction,
+  MatchMomentId,
+  MatchMomentInstruction,
   MatchEvent,
   MatchInstructions,
   MatchResult,
@@ -8,6 +10,7 @@ import type {
   TeamSnapshot,
   TacticId,
 } from "@/types/game";
+import { matchMoments } from "@/data/match-moments";
 
 export type RandomSource = () => number;
 type Modifier = { attack: number; defense: number; midfield: number; volatility: number };
@@ -26,6 +29,22 @@ const halftimeModifiers: Record<HalftimeInstruction, Modifier> = {
   press: { attack: 2, defense: -2, midfield: 3, volatility: 0.12 },
   attack: { attack: 4, defense: -3, midfield: 0, volatility: 0.18 },
   defend: { attack: -3, defense: 4, midfield: -1, volatility: -0.12 },
+};
+
+/** Escolhas aos 65': pequenas inclinações, nunca uma garantia de gol ou resultado. */
+const momentModifiers: Record<MatchMomentInstruction, Modifier> = {
+  wide: { attack: 2, defense: -1, midfield: 1, volatility: 0.08 },
+  inside: { attack: 2, defense: 0, midfield: 2, volatility: 0.05 },
+  direct: { attack: 1, defense: -1, midfield: -1, volatility: 0.14 },
+  calm: { attack: -1, defense: 1, midfield: 2, volatility: -0.04 },
+  press: { attack: 2, defense: -2, midfield: 3, volatility: 0.13 },
+  protect: { attack: -2, defense: 3, midfield: -1, volatility: -0.1 },
+  counter: { attack: 1, defense: 1, midfield: 0, volatility: 0.09 },
+  set_pieces: { attack: 1, defense: 0, midfield: 0, volatility: 0.08 },
+  shots: { attack: 2, defense: -1, midfield: 0, volatility: 0.12 },
+  hold: { attack: -1, defense: 1, midfield: 2, volatility: -0.06 },
+  restart_fast: { attack: 2, defense: -1, midfield: 1, volatility: 0.1 },
+  restart_safe: { attack: -1, defense: 2, midfield: 1, volatility: -0.05 },
 };
 
 export function seededRandom(seed: number): RandomSource {
@@ -251,6 +270,40 @@ function instructionModifier(instruction?: HalftimeInstruction): Modifier {
   return instruction ? halftimeModifiers[instruction] : { attack: 0, defense: 0, midfield: 0, volatility: 0 };
 }
 
+function momentModifier(instruction?: MatchMomentInstruction): Modifier {
+  return instruction ? momentModifiers[instruction] : { attack: 0, defense: 0, midfield: 0, volatility: 0 };
+}
+
+function mergeModifiers(...modifiers: Modifier[]): Modifier {
+  return modifiers.reduce((merged, item) => ({
+    attack: merged.attack + item.attack, defense: merged.defense + item.defense,
+    midfield: merged.midfield + item.midfield, volatility: merged.volatility + item.volatility,
+  }), { attack: 0, defense: 0, midfield: 0, volatility: 0 });
+}
+
+/**
+ * A ocorrência é determinada por placar e lances que já existiam antes de 65'. O hash
+ * só alterna entre leituras compatíveis; ele não inventa posse, pressão ou reclamação.
+ */
+function matchMomentFor(home: TeamSnapshot, away: TeamSnapshot, events: MatchEvent[]): MatchMomentId | undefined {
+  const user = home.isUser ? home : away.isUser ? away : undefined;
+  if (!user) return undefined;
+  const rival = user.id === home.id ? away : home;
+  const score = scoreAt(events, home.id, 65);
+  const userScore = user.id === home.id ? score.home : score.away;
+  const rivalScore = user.id === home.id ? score.away : score.home;
+  const attacks = events.filter((event) => event.minute >= 47 && event.minute <= 64 && ["pressure", "corner", "shot_off", "shot_saved", "big_save", "goal", "penalty"].includes(event.type));
+  const rivalPressure = attacks.filter((event) => event.teamId === rival.id).length;
+  const userAttempts = attacks.filter((event) => event.teamId === user.id && ["shot_saved", "big_save", "goal"].includes(event.type)).length;
+  const hash = Array.from(`${home.id}-${away.id}-${score.home}-${score.away}`).reduce((total, char) => total + char.charCodeAt(0), 0);
+
+  if (userScore < rivalScore) return rivalPressure > 1 ? "trailing-control" : "trailing-break";
+  if (userScore > rivalScore) return rivalPressure > 1 ? "lead-pressure" : "lead-control";
+  if (userAttempts >= 2) return "draw-keeper";
+  const tied: MatchMomentId[] = ["draw-open", "rival-tired-right", "rival-tired-left", "rain", "heavy-pitch", "floodlights", "wind"];
+  return tied[hash % tied.length];
+}
+
 function segmentLambdas(
   home: TeamSnapshot,
   away: TeamSnapshot,
@@ -415,7 +468,21 @@ function instructionImpact(instructions: MatchInstructions): string | undefined 
     attack: "Postura ofensiva: mais volume, linha defensiva exposta.",
     defend: "Bloco baixo: área protegida, saída para o ataque reduzida.",
   };
-  return instructions.halftime && half[instructions.halftime];
+  const moment: Record<MatchMomentInstruction, string> = {
+    wide: "Corredor explorado: o time ganhou amplitude na reta final.",
+    inside: "Jogo por dentro: mais aproximação entre meia e ataque.",
+    direct: "Bola mais longa: transições ficaram mais rápidas e instáveis.",
+    calm: "Ritmo controlado: o time diminuiu perdas e encontrou melhores passes.",
+    press: "Pressão acionada: mais recuperação no campo rival, com risco nas costas.",
+    protect: "Resultado protegido: linhas mais compactas na frente da área.",
+    counter: "Transição preparada: o rival passou a encontrar menos campo livre.",
+    set_pieces: "Bola parada valorizada na reta final.",
+    shots: "Mais tentativas de média distância na busca pelo gol.",
+    hold: "Posse administrada para tirar o ritmo do adversário.",
+    restart_fast: "Retomada intensa depois da pausa.",
+    restart_safe: "Reinício seguro para reorganizar o time.",
+  };
+  return [instructions.halftime && half[instructions.halftime], instructions.moment && moment[instructions.moment]].filter(Boolean).join(" ") || undefined;
 }
 
 function summary(home: TeamSnapshot, away: TeamSnapshot, winnerId: string): string {
@@ -444,8 +511,15 @@ export function simulateMatch(
   events.push(matchEvent("second_half", 46, "Começa o segundo tempo.", "regular"));
 
   const halftime = instructionModifier(instructions.halftime);
-  events.push(...playSegment(home, away, 47, 69, 0.25, "regular", random, halftime, red));
-  events.push(...playSegment(home, away, 70, 89, 0.29, "regular", random, halftime, red));
+  events.push(...playSegment(home, away, 47, 64, 0.2, "regular", random, halftime, red));
+  const matchMoment = matchMomentFor(home, away, events);
+  if (matchMoment && instructions.moment) {
+    const choice = matchMoments[matchMoment].choices.find(({ id }) => id === instructions.moment);
+    events.push(matchEvent("decision", 65, `Decisão aos 65': ${choice?.label ?? "ajuste confirmado"}.`, "regular", undefined, undefined, true));
+  }
+  const lateGame = mergeModifiers(halftime, momentModifier(instructions.moment));
+  events.push(...playSegment(home, away, 66, 69, 0.05, "regular", random, lateGame, red));
+  events.push(...playSegment(home, away, 70, 89, 0.29, "regular", random, lateGame, red));
 
   const regular = scoreAt(events, home.id, 90);
   let homeExtra = 0;
@@ -497,5 +571,6 @@ export function simulateMatch(
     summary: summary(home, away, winnerId),
     instructions,
     instructionImpact: instructionImpact(instructions),
+    matchMoment,
   };
 }

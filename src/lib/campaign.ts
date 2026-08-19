@@ -173,7 +173,7 @@ export function buildUserTeam(campaign: Campaign): TeamSnapshot {
   });
   return {
     id: "user-team", name: "Preto no Branco", year: 2026, eraLabel: USER_TEAM_ERA, formation: campaign.formation, tactic: campaign.tactic,
-    lineup: positioned.map((entry) => entry.player), overall: calculateTeamOverall(positioned, campaign.formation, campaign.tactic), isUser: true,
+    lineup: positioned.map((entry) => entry.player), overall: calculateTeamOverall(positioned, campaign.formation, campaign.tactic), isUser: true, stadium: "Arena Alvinegra",
   };
 }
 

@@ -1,6 +1,7 @@
 import { Pitch } from "@/components/game/Pitch";
 import { tacticLabels } from "@/data/formations";
 import { squadsById } from "@/data/atletico-squads";
+import { opponents } from "@/data/opponents";
 import type { Campaign, TeamSnapshot } from "@/types/game";
 import { ArrowIcon, CheckIcon } from "@/components/ui/Icons";
 
@@ -22,7 +23,7 @@ export function AnalysisScreen({ campaign, team, onStart }: { campaign: Campaign
         const squad = squadsById.get(entry.squadId)!;
         return <article key={entry.slotId}><span>{squad.year}</span><div><b>{evaluation.player.name}</b><small>{squad.name} · {evaluation.slot.label}</small></div><strong>{evaluation.adjustedOverall}</strong></article>;
       })}</div></section>
-      <div className="analysis-cta"><p>Oitavas de final: 15 adversários sorteados entre 31 grandes times. Quatro jogos até o título.</p><button type="button" className="button button--primary" onClick={onStart}>Iniciar mata-mata<ArrowIcon/></button></div>
+      <div className="analysis-cta"><p>Oitavas de final: 15 adversários sorteados entre {opponents.length} elencos históricos. Quatro jogos até o título.</p><button type="button" className="button button--primary" onClick={onStart}>Iniciar mata-mata<ArrowIcon/></button></div>
     </main>
   );
 }

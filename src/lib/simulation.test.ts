@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { opponents } from "@/data/opponents";
+import { matchMoments } from "@/data/match-moments";
 import { seededRandom, simulateMatch } from "@/lib/simulation";
 
 function seeded(seed: number) {
@@ -47,6 +48,17 @@ describe("simulation", () => {
     const defender = simulateMatch(opponents[0], opponents[1], seededRandom(7), { halftime: "defend" });
     expect(atacar.instructionImpact).toBeTruthy();
     expect(atacar.instructionImpact).not.toBe(defender.instructionImpact);
+  });
+
+  it("pausa aos 65 com um contexto coerente e só reescreve a reta final", () => {
+    const home = { ...opponents[0], id: "user-team", isUser: true, name: "Preto no Branco" };
+    const base = simulateMatch(home, opponents[1], seededRandom(17), { halftime: "keep" });
+    expect(base.matchMoment).toBeTruthy();
+    const choice = matchMoments[base.matchMoment!].choices[0].id;
+    const changed = simulateMatch(home, opponents[1], seededRandom(17), { halftime: "keep", moment: choice });
+    expect(changed.events.filter((event) => event.minute < 65)).toEqual(base.events.filter((event) => event.minute < 65));
+    expect(changed.events.some((event) => event.type === "decision" && event.minute === 65)).toBe(true);
+    expect(changed.instructionImpact).toContain("Plano mantido");
   });
 
   it("empurra o time para frente ao atacar e o segura ao defender", () => {

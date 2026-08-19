@@ -341,8 +341,9 @@ button.pitch-slot__badge { cursor: pointer; }
 
 /* Match */
 .match-screen { display: flex; flex-direction: column; max-width: 1220px; }
-.match-stage { display: flex; justify-content: center; gap: 10px; color: var(--paper-dim); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
+.match-stage { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 10px; color: var(--paper-dim); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
 .match-stage b { color: var(--gold-pale); font-variant-numeric: tabular-nums; }
+.match-stage small { color: var(--muted); font-size: 10px; letter-spacing: .09em; }
 .scoreboard { min-height: 130px; display: grid; grid-template-columns: 1fr 240px 1fr; align-items: center; gap: 28px; padding: 8px 0; }
 .score-team span { color: var(--gold-pale); font-size: 13px; }.score-team h1 { margin: 2px 0; font: 400 clamp(24px,3vw,43px)/.9 "Archive", Georgia, serif; }.score-team small { color: var(--muted); font-size: 12px; }.score-team--away { text-align: right; }
 .score-numbers { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; text-align: center; }.score-numbers strong { font: 400 clamp(62px,7vw,94px)/.75 "Archive", Georgia, serif; }.score-numbers i { color: var(--muted); font-style: normal; }.score-numbers span { grid-column: 1/-1; color: var(--gold-pale); font-size: 12px; }
@@ -491,6 +492,20 @@ button.pitch-slot__badge { cursor: pointer; }
 .halftime__options b { font-size: 15px; }
 .halftime__options small { color: var(--muted); font-size: 12px; line-height: 1.25; }
 .halftime > .button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Aos 65', a decisão entra no próprio fluxo entre placar e controles: nada cobre a partida. */
+.match-moment { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 12px 18px; margin-top: 12px; padding: 15px 18px; border: 1px solid var(--gold); border-radius: 10px; background: linear-gradient(110deg, rgba(48,40,20,.62), var(--panel) 58%); animation: halftime-in 220ms ease-out; }
+.match-moment header { min-width: 0; }
+.match-moment header > span { color: var(--gold-pale); font-family: var(--font-label); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.match-moment h2 { margin: 4px 0; font: 400 clamp(23px,2.3vw,31px)/1.05 var(--font-display); }
+.match-moment p { margin: 0; color: var(--paper-dim); font-size: 14px; overflow-wrap: anywhere; }
+.match-moment p b { color: var(--paper); }
+.match-moment__options { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 7px; grid-column: 1/-1; }
+.match-moment__options button { min-height: 60px; display: grid; align-content: center; gap: 3px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--graphite); color: var(--paper); text-align: left; cursor: pointer; transition: border-color 160ms ease, background-color 160ms ease; }
+.match-moment__options button:hover { border-color: var(--paper-dim); }
+.match-moment__options button.is-picked { border-color: var(--star); background: #2f2b1d; }
+.match-moment__options b { font-size: 14px; }.match-moment__options small { color: var(--muted); font-size: 12px; line-height: 1.25; }
+.match-moment > .button { min-height: 44px; white-space: nowrap; }.match-moment > .button:disabled { opacity: .45; cursor: not-allowed; }
 
 /* Result */
 .outcome-screen { height: calc(100dvh - var(--header-h)); max-width: 1320px; margin: auto; display: grid; grid-template-columns: minmax(0,1.15fr) minmax(380px,.85fr); grid-template-rows: minmax(0,1fr) auto; align-items: center; gap: 4vw; padding: 22px 5vw 0; overflow-x: clip; overflow-y: auto; }
@@ -732,7 +747,7 @@ button.pitch-slot__badge { cursor: pointer; }
   .report-facts dd { font-size: 22px; }.report-facts dd.is-text { font-size: 16px; }.report-facts div.is-wide { min-width: 146px; flex-basis: 146px; }.report-head h1 { font-size: clamp(34px,10vw,50px); }.report-runs > li { grid-template-columns: 66px auto; }.report-runs > li > span { grid-column: 1/-1; }.rival-roster__players { grid-template-columns: 1fr; }
   .slot-dialog__options { grid-template-columns: 1fr 1fr; }
   .timeline article { grid-template-columns: 42px 38px 1fr; gap: 8px; }.timeline article small { grid-column: 3; text-align: left; }.outcome-actions .button { width: 100%; }
-  .match-controls { align-items: stretch; flex-direction: column; }.match-speeds > span { display: none; }.match-finish-action { align-items: stretch; flex-direction: column; }.match-finish-action .button { width: 100%; min-width: 0; }
+  .match-controls { align-items: stretch; flex-direction: column; }.match-speeds > span { display: none; }.match-finish-action { align-items: stretch; flex-direction: column; }.match-finish-action .button { width: 100%; min-width: 0; }.match-moment { grid-template-columns: 1fr; align-items: stretch; padding: 14px; }.match-moment__options { grid-template-columns: 1fr; }.match-moment__options button { min-height: 58px; }.match-moment > .button { width: 100%; white-space: normal; }
 }
 
 @media (prefers-reduced-motion: reduce) {
