@@ -1,7 +1,11 @@
+"use client";
+
+import { useState, useSyncExternalStore } from "react";
 import { Pitch } from "@/components/game/Pitch";
-import { ArrowIcon } from "@/components/ui/Icons";
+import { ArrowIcon, CloseIcon } from "@/components/ui/Icons";
 import { SiteFooter } from "@/components/ui/Brand";
 import { CampaignHistoryPopover } from "@/components/game/CampaignHistoryPopover";
+import { LivePlayers } from "@/components/game/LivePlayers";
 import Image from "next/image";
 import { atleticoSquads } from "@/data/atletico-squads";
 import { formations } from "@/data/formations";
@@ -27,7 +31,9 @@ const showcase: LineupEntry[] = (() => {
   });
 })();
 
-export function HomeScreen({ onStart, onResume, canResume, onReviewLast, onReviewHistory, lastOutcome, history, onReplayTutorial }: {
+const RELEASE_KEY = "preto-no-branco:release-squad-v1";
+
+export function HomeScreen({ onStart, onResume, canResume, onReviewLast, onReviewHistory, lastOutcome, history, livePlayers, onReplayTutorial }: {
   onStart: () => void;
   onResume: () => void;
   canResume: boolean;
@@ -35,8 +41,20 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, onRevie
   onReviewHistory: (record: CampaignRecord) => void;
   lastOutcome?: CampaignOutcome;
   history: CampaignRecord[];
+  livePlayers?: number;
   onReplayTutorial?: () => void;
 }) {
+  const releaseSeen = useSyncExternalStore(
+    () => () => {},
+    () => { try { return window.localStorage.getItem(RELEASE_KEY) === "seen"; } catch { return false; } },
+    () => false,
+  );
+  const [dismissedRelease, setDismissedRelease] = useState(false);
+  const showRelease = !releaseSeen && !dismissedRelease;
+  const dismissRelease = () => {
+    setDismissedRelease(true);
+    try { window.localStorage.setItem(RELEASE_KEY, "seen"); } catch { /* o aviso não bloqueia quem navega sem armazenamento */ }
+  };
   const finished = !canResume && Boolean(lastOutcome);
   const lead = canResume
     ? "Sua campanha está aberta. Volte para o ponto onde parou."
@@ -64,10 +82,25 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, onRevie
             {canResume && <button className="button button--quiet" type="button" onClick={onStart}>Nova campanha</button>}
           </div>
 
+          {showRelease && <aside className="release-note" aria-labelledby="release-note-title">
+            <div className="release-note__head">
+              <h2 id="release-note-title">Novidades em campo</h2>
+              <button type="button" onClick={dismissRelease} aria-label="Fechar novidades"><CloseIcon/></button>
+            </div>
+            <p>Agora sua campanha tem banco de reservas e uma escalação antes de cada jogo.</p>
+            <ul>
+              <li>Escolha 11 titulares e 7 reservas.</li>
+              <li>Faça até cinco substituições no intervalo.</li>
+              <li>Expulsão deixa o atleta fora da rodada seguinte.</li>
+              <li>Gols agora registram quem deu a assistência.</li>
+            </ul>
+          </aside>}
+
           <div className="home-links">
             {canResume && lastOutcome && <button type="button" className="new-run-link" onClick={onReviewLast}>Ver a última campanha</button>}
             {onReplayTutorial && <button type="button" className="new-run-link" onClick={onReplayTutorial}>Ver o tutorial</button>}
           </div>
+          <LivePlayers count={livePlayers}/>
 
           {history.length > 0 ? (
             <CampaignHistoryPopover history={history} onReview={onReviewHistory} onStart={onStart}/>

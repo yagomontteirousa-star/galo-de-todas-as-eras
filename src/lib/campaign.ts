@@ -4,7 +4,7 @@ import type { SharedCampaign } from "@/lib/share";
 import { rivalOf, roundOrder, scoreOf, userMatches, USER_TEAM_ERA } from "@/lib/bracket";
 import { calculateTeamOverall, evaluatePosition } from "@/lib/overall";
 import { rivalRosterFromTeam } from "@/lib/rival-roster";
-import type { Campaign, CampaignRecord, FormationId, HistoricalSquad, LineupEntry, MatchEvent, MatchResult, RatingsMode, TacticId, TeamSnapshot } from "@/types/game";
+import type { Campaign, CampaignRecord, FormationId, HistoricalSquad, LineupEntry, MatchEvent, MatchResult, RatingsMode, SquadPlayerEntry, TacticId, TeamSnapshot } from "@/types/game";
 
 /** Campanha em andamento. Some assim que a campanha termina. */
 export const CAMPAIGN_STORAGE_KEY = "preto-no-branco:campaign:v2";
@@ -17,7 +17,7 @@ const LEGACY_STORAGE_KEYS = ["preto-no-branco:campaign:v1", "galo-todas-eras:cam
 
 export function createCampaign(): Campaign {
   const now = new Date().toISOString();
-  return { version: 2, id: `camp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: now, updatedAt: now, screen: "setup", lineup: [], usedSquadIds: [], rerollsLeft: 2, ratingsMode: "visible", wins: 0 };
+  return { version: 2, id: `camp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: now, updatedAt: now, screen: "setup", lineup: [], bench: [], suspendedPlayerIds: [], usedSquadIds: [], rerollsLeft: 2, ratingsMode: "visible", wins: 0 };
 }
 
 export function toRecord(campaign: Campaign): CampaignRecord {
@@ -55,6 +55,10 @@ export function buildSharedCampaign(campaign: Campaign, userTeam: TeamSnapshot):
       slot: entry.slot.label, name: entry.player.name, season: entry.player.season,
       overall: entry.adjustedOverall, special: entry.player.tags.some((tag) => !GENERIC_TAGS.has(tag)),
     }));
+  const bench = (userTeam.bench ?? []).map((player) => ({
+    slot: "Banco", name: player.name, season: player.season, overall: player.overall,
+    special: player.tags.some((tag) => !GENERIC_TAGS.has(tag)),
+  }));
 
   const matches = played.map((match) => {
     const score = scoreOf(match);
@@ -72,7 +76,7 @@ export function buildSharedCampaign(campaign: Campaign, userTeam: TeamSnapshot):
       rivalSquad: rivalRoster.squad,
       goals: (match.result?.events ?? [])
         .filter((event) => event.type === "goal" && event.playerName)
-        .map((event) => ({ name: event.playerName!, minute: event.minute, forUser: event.teamId === userTeamId })),
+        .map((event) => ({ name: event.playerName!, minute: event.minute, forUser: event.teamId === userTeamId, ...(event.assistName ? { assist: event.assistName } : {}) })),
     };
   });
 
@@ -84,7 +88,7 @@ export function buildSharedCampaign(campaign: Campaign, userTeam: TeamSnapshot):
     runnerUp: !champion && round === "final",
     round, wins: campaign.wins, overall: userTeam.overall.final,
     formation: campaign.formation, tactic: campaign.tactic,
-    squad, matches,
+    squad, ...(bench.length ? { bench } : {}), matches,
   };
 }
 
@@ -128,8 +132,8 @@ export function touchCampaign(campaign: Campaign): Campaign {
  * já é persistida: uma lista paralela só criaria uma segunda verdade para dessincronizar.
  * Campanha nova nasce com a escalação vazia, então a lista se limpa sozinha.
  */
-export function usedPersonIds(lineup: LineupEntry[]): Set<string> {
-  return new Set(lineup.map((entry) => playersById.get(entry.playerId)?.personId).filter((id): id is string => Boolean(id)));
+export function usedPersonIds(entries: Array<Pick<LineupEntry | SquadPlayerEntry, "playerId">>): Set<string> {
+  return new Set(entries.map((entry) => playersById.get(entry.playerId)?.personId).filter((id): id is string => Boolean(id)));
 }
 
 /** Vagas ainda abertas na formação escolhida. */
@@ -152,7 +156,7 @@ function contributes(squad: HistoricalSquad, campaign: Campaign, used: Set<strin
 
 export function nextAvailableSquad(campaign: Campaign, random = Math.random): HistoricalSquad | undefined {
   const available = atleticoSquads.filter((squad) => !campaign.usedSquadIds.includes(squad.id) && squad.id !== campaign.currentSquadId);
-  const used = usedPersonIds(campaign.lineup);
+  const used = usedPersonIds([...campaign.lineup, ...campaign.bench]);
   const usable = available.filter((squad) => contributes(squad, campaign, used));
   const pool = usable.length ? usable : available;
   return pool[Math.floor(random() * pool.length)];
@@ -171,9 +175,14 @@ export function buildUserTeam(campaign: Campaign): TeamSnapshot {
     if (!player) throw new Error(`Jogador não encontrado: ${entry.playerId}`);
     return { player, slotId: entry.slotId };
   });
+  const bench = campaign.bench.map((entry) => {
+    const player = playersById.get(entry.playerId);
+    if (!player) throw new Error(`Reserva não encontrado: ${entry.playerId}`);
+    return player;
+  });
   return {
     id: "user-team", name: "Preto no Branco", year: 2026, eraLabel: USER_TEAM_ERA, formation: campaign.formation, tactic: campaign.tactic,
-    lineup: positioned.map((entry) => entry.player), overall: calculateTeamOverall(positioned, campaign.formation, campaign.tactic), isUser: true, stadium: "Arena Alvinegra",
+    lineup: positioned.map((entry) => entry.player), bench, lineupEntries: campaign.lineup, overall: calculateTeamOverall(positioned, campaign.formation, campaign.tactic), isUser: true, stadium: "Arena Alvinegra",
   };
 }
 
@@ -185,12 +194,16 @@ export function hydrateCampaign(raw: string | null): Campaign | null {
     if (value.formation && !formations[value.formation]) return null;
     if (value.bracket && !roundOrder.includes(value.bracket.currentRound)) return null;
     value.ratingsMode ??= "visible";
+    value.bench ??= [];
+    value.suspendedPlayerIds ??= [];
     if (value.pendingResult) value.pendingResult = migrateResult(value.pendingResult);
     value.bracket?.rounds.forEach((round) => round.matches.forEach((match) => {
       if (match.result) match.result = migrateResult(match.result);
     }));
     if (value.currentSquadId && !squadsById.has(value.currentSquadId)) value.currentSquadId = undefined;
     value.lineup = value.lineup.filter((entry) => playersById.has(entry.playerId));
+    value.bench = value.bench.filter((entry) => playersById.has(entry.playerId));
+    value.suspendedPlayerIds = value.suspendedPlayerIds.filter((id) => playersById.has(id));
     return value;
   } catch { return null; }
 }
@@ -205,6 +218,9 @@ function migrateResult(result: MatchResult): MatchResult {
       id: item.id ?? `legacy-${item.minute}-${index}`,
       description: item.description ?? (playerName ? `Gol de ${playerName}.` : "Evento de partida."),
       playerName,
+      playerId: item.playerId,
+      assistPlayerId: item.assistPlayerId,
+      assistName: item.assistName,
       highlight: item.highlight ?? item.type === "goal",
     };
   });

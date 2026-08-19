@@ -33,8 +33,12 @@ export function isSharedCampaign(value: unknown): value is SharedCampaign {
   if (!Number.isInteger(data.wins) || data.wins! < 0 || data.wins! > 4) return false;
   if (!Number.isInteger(data.overall) || data.overall! < 40 || data.overall! > 99) return false;
   if (!data.formation || !FORMATIONS.includes(data.formation) || !data.tactic || !TACTICS.includes(data.tactic)) return false;
-  if (!Array.isArray(data.squad) || data.squad.length > 11 || !Array.isArray(data.matches) || data.matches.length > 4) return false;
+  if (!Array.isArray(data.squad) || data.squad.length > 11 || (data.bench !== undefined && (!Array.isArray(data.bench) || data.bench.length > 7)) || !Array.isArray(data.matches) || data.matches.length > 4) return false;
   if (!data.squad.every((player) => player && isShortText(player.slot, 12) && isShortText(player.name)
+    && Number.isInteger(player.season) && player.season >= 1900 && player.season <= 2100
+    && Number.isInteger(player.overall) && player.overall >= 40 && player.overall <= 99
+    && typeof player.special === "boolean")) return false;
+  if (data.bench && !data.bench.every((player) => player && isShortText(player.slot, 12) && isShortText(player.name)
     && Number.isInteger(player.season) && player.season >= 1900 && player.season <= 2100
     && Number.isInteger(player.overall) && player.overall >= 40 && player.overall <= 99
     && typeof player.special === "boolean")) return false;
@@ -46,7 +50,7 @@ export function isSharedCampaign(value: unknown): value is SharedCampaign {
     && (!match.pens || (Number.isInteger(match.pens.user) && Number.isInteger(match.pens.rival)))
     && Array.isArray(match.goals) && match.goals.length <= 30
     && match.goals.every((goal) => goal && isShortText(goal.name) && Number.isInteger(goal.minute)
-      && goal.minute >= 0 && goal.minute <= 130 && typeof goal.forUser === "boolean")
+      && goal.minute >= 0 && goal.minute <= 130 && typeof goal.forUser === "boolean" && (goal.assist === undefined || isShortText(goal.assist)))
     && validRivalSquad(match));
 }
 

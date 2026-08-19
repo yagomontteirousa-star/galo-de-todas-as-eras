@@ -50,6 +50,17 @@ export function CampaignDetailsDialog({ data }: { data: SharedCampaign }) {
             </ul>
           </section>
 
+          {data.bench?.length ? <section className="report-block">
+            <h2>Banco da campanha</h2>
+            <ul className="report-squad">
+              {data.bench.map((player) => (
+                <li key={`${player.name}-${player.season}`}>
+                  <em>RES</em><b>{player.name}</b><small>{player.season}</small><strong>{player.overall}</strong>
+                </li>
+              ))}
+            </ul>
+          </section> : null}
+
           <section className="report-block">
             <h2>Jogos da campanha</h2>
             <ul className="report-runs">
@@ -64,7 +75,7 @@ export function CampaignDetailsDialog({ data }: { data: SharedCampaign }) {
                       <ul className="report-scorers">
                         {match.goals.map((goal, index) => (
                           <li key={`${goal.name}-${goal.minute}-${index}`} className={goal.forUser ? "is-user" : ""}>
-                            <time>{goal.minute}′</time>{goal.name}
+                            <time>{goal.minute}′</time>{goal.name}{goal.assist ? <small>Assistência: {goal.assist}</small> : null}
                           </li>
                         ))}
                       </ul>

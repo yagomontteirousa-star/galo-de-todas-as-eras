@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { opponents } from "@/data/opponents";
+import { formations } from "@/data/formations";
 import { matchMoments } from "@/data/match-moments";
 import { seededRandom, simulateMatch } from "@/lib/simulation";
 
@@ -128,5 +129,21 @@ describe("simulation", () => {
     }
     expect(underdogWins).toBeGreaterThan(0);
     expect(underdogWins).toBeLessThan(100);
+  });
+
+  it("registra substituição no intervalo sem reescrever o primeiro tempo", () => {
+    const base = opponents[0];
+    const user = {
+      ...base,
+      id: "user-team",
+      isUser: true,
+      bench: opponents[1].lineup.slice(0, 3),
+      lineupEntries: formations[base.formation].slots.map((slot, index) => ({ slotId: slot.id, playerId: base.lineup[index].id, squadId: base.lineup[index].squadId })),
+    };
+    const change = { at: 45 as const, outPlayerId: user.lineup[1].id, inPlayerId: user.bench[0].id };
+    const plain = simulateMatch(user, opponents[2], seededRandom(81), { halftime: "keep" });
+    const switched = simulateMatch(user, opponents[2], seededRandom(81), { halftime: "keep", substitutions: [change] });
+    expect(switched.events.filter((event) => event.minute <= 45)).toEqual(plain.events.filter((event) => event.minute <= 45));
+    expect(switched.events.some((event) => event.type === "substitution" && event.playerId === change.inPlayerId)).toBe(true);
   });
 });

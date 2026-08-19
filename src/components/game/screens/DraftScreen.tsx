@@ -3,7 +3,7 @@ import { atleticoSquads, playersById } from "@/data/atletico-squads";
 import { formations } from "@/data/formations";
 import { evaluatePosition } from "@/lib/overall";
 import { usedPersonIds } from "@/lib/campaign";
-import type { Campaign, FormationSlot, HistoricalSquad, LineupEntry, Player, Position } from "@/types/game";
+import type { Campaign, FormationSlot, HistoricalSquad, LineupEntry, Player, Position, SquadPlayerEntry } from "@/types/game";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckIcon, ShuffleIcon } from "@/components/ui/Icons";
 
@@ -33,7 +33,7 @@ const isHandheld = () => typeof window !== "undefined" && window.matchMedia("(ma
 export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLineupEntry }: {
   campaign: Campaign;
   squad: HistoricalSquad;
-  onConfirm: (picks: LineupEntry[]) => void;
+  onConfirm: (picks: LineupEntry[], benchPicks: SquadPlayerEntry[]) => void;
   onReroll: () => void;
   onRelocateLineupEntry: (fromSlotId: string, toSlotId: string) => void;
 }) {
@@ -43,6 +43,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   const [editingSlotId, setEditingSlotId] = useState<string>();
   const [rejectedSlotId, setRejectedSlotId] = useState<string>();
   const [picks, setPicks] = useState<LineupEntry[]>([]);
+  const [benchPicks, setBenchPicks] = useState<SquadPlayerEntry[]>([]);
   const [mobileTab, setMobileTab] = useState<MobileTab>("roster");
   const [toast, setToast] = useState<PickToast>();
   const [spinYear, setSpinYear] = useState<number | undefined>(
@@ -85,16 +86,19 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   const showRatings = campaign.ratingsMode !== "memory";
   const selectedPlayer = squad.players.find((player) => player.id === selectedId);
   const activePlayer = squad.players.find((player) => player.id === (hoverId ?? selectedId));
-  const combined = [...campaign.lineup, ...picks];
-  const occupied = new Set(combined.map((entry) => entry.slotId));
+  const choosingBench = campaign.lineup.length === 11;
+  const combined = [...campaign.lineup, ...campaign.bench, ...picks, ...benchPicks];
+  const occupied = new Set(campaign.lineup.concat(picks).map((entry) => entry.slotId));
   // Bloqueio pela identidade histórica: o Hulk de 2021 tranca o Hulk de 2024.
   const usedPeople = usedPersonIds(combined);
   const alreadyChosen = (player: Player) => usedPeople.has(player.personId);
   const openSlots = formation.slots.filter((slot) => !occupied.has(slot.id));
-  const maxPicks = Math.min(2, 11 - campaign.lineup.length);
-  const totalFilled = combined.length;
-  const closesLineup = campaign.lineup.length + maxPicks === 11;
-  const advancing = picks.length >= maxPicks;
+  const maxPicks = choosingBench ? Math.min(2, 7 - campaign.bench.length) : Math.min(2, 11 - campaign.lineup.length);
+  const activePicks = choosingBench ? benchPicks : picks;
+  const totalFilled = campaign.lineup.length + picks.length;
+  const totalBench = campaign.bench.length + benchPicks.length;
+  const closesLineup = !choosingBench && campaign.lineup.length + maxPicks === 11;
+  const advancing = activePicks.length >= maxPicks;
   const revealing = spinYear !== undefined;
 
   // Revelação do ano: um giro curto entre as eras antes de parar no elenco sorteado.
@@ -113,9 +117,9 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   // Cota do ano preenchida: confirma sozinho, com uma pausa curta para a transição ser legível.
   useEffect(() => {
     if (!advancing) return;
-    const timer = window.setTimeout(() => onConfirm(picks), 900);
+    const timer = window.setTimeout(() => onConfirm(picks, benchPicks), 900);
     return () => window.clearTimeout(timer);
-  }, [advancing, onConfirm, picks]);
+  }, [advancing, benchPicks, onConfirm, picks]);
 
   useEffect(() => {
     if (!toast) return;
@@ -134,7 +138,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
     [picks, squad.players],
   );
   const playerAt = (slotId: string) => {
-    const entry = combined.find((item) => item.slotId === slotId);
+    const entry = [...campaign.lineup, ...picks].find((item) => item.slotId === slotId);
     return entry ? previewPlayers.get(slotId) ?? playersById.get(entry.playerId) : undefined;
   };
 
@@ -173,6 +177,13 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
     announce("ok", "Jogador confirmado", `${player.name} · ${slot.label}`);
   };
 
+  const assignBenchPlayer = (player: Player) => {
+    if (advancing || alreadyChosen(player) || benchPicks.length >= maxPicks) return;
+    setBenchPicks((current) => current.length >= maxPicks ? current : [...current, { playerId: player.id, squadId: squad.id }]);
+    setSelectedId(undefined);
+    announce("ok", "Reserva confirmado", `${player.name} entra no banco.`);
+  };
+
   /** Troca duas vagas de uma vez nas duas coleções: o onze já fechado e as escolhas deste ano. */
   const relocate = (fromSlotId: string, toSlotId: string) => {
     const player = playerAt(fromSlotId);
@@ -195,7 +206,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   };
 
   const handleSlot = (slotId: string) => {
-    if (advancing || revealing) return;
+    if (advancing || revealing || choosingBench) return;
     const slot = formation.slots.find((item) => item.id === slotId)!;
     if (occupied.has(slotId)) { setSelectedSlotId(undefined); setEditingSlotId(slotId); return; }
     if (selectedPlayer) return assignPlayer(selectedPlayer, slot);
@@ -204,6 +215,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
 
   const handlePlayer = (player: Player) => {
     if (wasDrag() || advancing || revealing || alreadyChosen(player)) return;
+    if (choosingBench) return assignBenchPlayer(player);
     if (selectedSlotId) {
       const slot = formation.slots.find((item) => item.id === selectedSlotId)!;
       return assignPlayer(player, slot);
@@ -219,15 +231,17 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   const editingPlayer = editingSlotId ? playerAt(editingSlotId) : undefined;
   const editingSlot = editingSlotId ? formation.slots.find((slot) => slot.id === editingSlotId) : undefined;
   const editingTargets = editingPlayer && editingSlot ? compatibleSlots(editingPlayer, formation.slots, editingSlot.id) : [];
-  const advanceLabel = closesLineup
-    ? "Escalação completa · abrindo a análise tática"
+  const advanceLabel = choosingBench
+    ? totalBench >= 7 ? "Banco completo · abrindo a análise tática" : "Reserva confirmada · sorteando o próximo ano"
+    : closesLineup
+    ? "Titulares completos · agora escolha o banco"
     : maxPicks === 1 ? "Escolha confirmada · sorteando o próximo ano" : "Dupla confirmada · sorteando o próximo ano";
 
   return (
     <main className="draft-screen" id="main">
       <nav className="draft-mobile-tabs" aria-label="Etapas da escalação">
         <button type="button" aria-current={mobileTab === "roster" ? "page" : undefined} className={mobileTab === "roster" ? "is-active" : ""} onClick={() => { setMobileTab("roster"); focusSection(rosterRef); }}>Elenco</button>
-        <button type="button" aria-current={mobileTab === "pitch" ? "page" : undefined} className={mobileTab === "pitch" ? "is-active" : ""} onClick={() => { setMobileTab("pitch"); focusSection(fieldRef); }}>Campo · {totalFilled}/11</button>
+        <button type="button" aria-current={mobileTab === "pitch" ? "page" : undefined} className={mobileTab === "pitch" ? "is-active" : ""} onClick={() => { setMobileTab("pitch"); focusSection(fieldRef); }}>{choosingBench ? `Banco · ${totalBench}/7` : `Campo · ${totalFilled}/11`}</button>
       </nav>
 
       <div className={`draft-workspace ${advancing ? "is-advancing" : ""}`}>
@@ -247,7 +261,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
             </div>
           ) : (<>
           <div className="roster-heading">
-            <div><h2>{maxPicks === 1 ? "Escolha o jogador" : "Escolha 2 jogadores"}</h2><span>{picks.length} de {maxPicks} neste ano</span></div>
+            <div><h2>{choosingBench ? maxPicks === 1 ? "Escolha 1 reserva" : "Escolha 2 reservas" : maxPicks === 1 ? "Escolha o jogador" : "Escolha 2 jogadores"}</h2><span>{activePicks.length} de {maxPicks} neste ano</span></div>
             <button type="button" className="reroll-action" disabled={!campaign.rerollsLeft || advancing} onClick={onReroll}>
               <ShuffleIcon/>Outro ano
               <em>{campaign.rerollsLeft}</em>
@@ -265,7 +279,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
                   const isPicked = alreadyChosen(player);
                   // Escalado neste ano é diferente de já usado num ano anterior.
                   const inThisSquad = combined.some((entry) => entry.playerId === player.id);
-                  const hasRoom = openSlots.some((slot) => canPlay(player, slot));
+                  const hasRoom = choosingBench || openSlots.some((slot) => canPlay(player, slot));
                   const blockedLabel = isPicked
                     ? inThisSquad ? "escalado" : "já utilizado"
                     : !hasRoom ? "sem vaga" : undefined;
@@ -293,12 +307,19 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
 
         <section ref={fieldRef} className={`draft-column field-column ${mobileTab === "pitch" ? "is-mobile-active" : ""}`} aria-label="Campo e escalação">
           <header className="field-heading">
-            <div><span>FORMAÇÃO {campaign.formation}</span><b>{selectedPlayer ? `Onde ${selectedPlayer.name} joga` : selectedSlotId ? "Agora escolha um jogador" : "Monte o seu onze"}</b></div>
-            <strong>{totalFilled}<small>/11</small></strong>
+            <div><span>{choosingBench ? "BANCO DA CAMPANHA" : `FORMAÇÃO ${campaign.formation}`}</span><b>{choosingBench ? "Os sete nomes que podem entrar durante os jogos" : selectedPlayer ? `Onde ${selectedPlayer.name} joga` : selectedSlotId ? "Agora escolha um jogador" : "Monte o seu onze"}</b></div>
+            <strong>{choosingBench ? totalBench : totalFilled}<small>/{choosingBench ? 7 : 11}</small></strong>
           </header>
           <Pitch formationId={campaign.formation!} tactic={campaign.tactic} lineup={campaign.lineup} previewPlayers={previewPlayers} selectedPlayer={activePlayer}
-            selectedSlotId={selectedSlotId} targetSlotIds={targetSlotIds} rejectedSlotId={rejectedSlotId} onSlotClick={handleSlot} showRatings={showRatings}/>
-          <p className="field-hint">{activePlayer ? "As vagas acesas aceitam este atleta." : "Toque no atleta e depois na vaga. Tocar numa peça escalada muda a posição."}</p>
+            selectedSlotId={selectedSlotId} targetSlotIds={targetSlotIds} rejectedSlotId={rejectedSlotId} onSlotClick={choosingBench ? undefined : handleSlot} showRatings={showRatings}/>
+          {choosingBench && <div className="draft-bench" aria-label="Reservas escolhidos">
+            {[...campaign.bench, ...benchPicks].map((entry) => {
+              const player = playersById.get(entry.playerId);
+              return player ? <span key={player.id}><b>{player.name}</b>{showRatings && <small>{player.overall}</small>}</span> : null;
+            })}
+            {Array.from({ length: Math.max(0, 7 - totalBench) }, (_, index) => <i key={`empty-${index}`}>Reserva</i>)}
+          </div>}
+          <p className="field-hint">{choosingBench ? "Escolha nomes diferentes para ter respostas táticas durante a campanha." : activePlayer ? "As vagas acesas aceitam este atleta." : "Toque no atleta e depois na vaga. Tocar numa peça escalada muda a posição."}</p>
         </section>
       </div>
 

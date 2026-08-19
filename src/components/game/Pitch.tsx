@@ -15,6 +15,8 @@ interface PitchProps {
   targetSlotIds?: string[];
   /** Vaga recusada no último toque, para o feedback curto de bloqueio. */
   rejectedSlotId?: string;
+  /** Suspenso fica visível, mas não pode ser selecionado para começar a partida. */
+  disabledPlayerIds?: string[];
   onSlotClick?: (slotId: string) => void;
   compact?: boolean;
   showRatings?: boolean;
@@ -26,7 +28,7 @@ interface PitchProps {
  */
 const displayName = (name: string) => (name.length <= 13 ? name : name.split(" ").at(-1)!);
 
-export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new Map(), selectedPlayer, selectedSlotId, targetSlotIds, rejectedSlotId, onSlotClick, compact = false, showRatings = true }: PitchProps) {
+export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new Map(), selectedPlayer, selectedSlotId, targetSlotIds, rejectedSlotId, disabledPlayerIds = [], onSlotClick, compact = false, showRatings = true }: PitchProps) {
   const slots = tacticalSlots(formationId, tactic);
   const targets = targetSlotIds ? new Set(targetSlotIds) : undefined;
   return (
@@ -40,12 +42,14 @@ export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new M
           const entry = lineup.find((item) => item.slotId === slot.id);
           const player = previewPlayers.get(slot.id) ?? (entry ? playersById.get(entry.playerId) : undefined);
           const isTarget = Boolean(targets?.has(slot.id));
+          const isSuspended = Boolean(player && disabledPlayerIds.includes(player.id));
           const fit = selectedPlayer && isTarget ? evaluatePosition(selectedPlayer, slot).fit : undefined;
           const interactive = Boolean(onSlotClick);
           const name = player ? displayName(player.name) : undefined;
           const className = [
             "pitch-slot",
             player ? "is-filled" : "is-empty",
+            isSuspended ? "is-suspended" : "",
             selectedSlotId === slot.id ? "is-slot-selected" : "",
             targets ? (isTarget ? "is-slot-target" : "is-slot-dimmed") : "",
             rejectedSlotId === slot.id ? "is-slot-rejected" : "",
@@ -55,7 +59,7 @@ export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new M
             : `Vaga ${slot.label}${selectedPlayer ? isTarget ? ", disponível para o atleta selecionado" : ", incompatível com o atleta selecionado" : ""}`;
           // A sigla mora sozinha no botão; nome e overall ficam na etiqueta logo abaixo.
           const badge = interactive
-            ? <button type="button" className="pitch-slot__badge" onClick={() => onSlotClick?.(slot.id)} aria-label={label}>{slot.label}</button>
+            ? <button type="button" className="pitch-slot__badge" onClick={() => onSlotClick?.(slot.id)} aria-label={label} aria-disabled={isSuspended}>{slot.label}</button>
             : <span className="pitch-slot__badge">{slot.label}</span>;
           return (
             <div key={slot.id} className={className} style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>

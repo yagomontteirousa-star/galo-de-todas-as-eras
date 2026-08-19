@@ -8,16 +8,18 @@ import { SetupScreen } from "@/components/game/screens/SetupScreen";
 import { DraftScreen } from "@/components/game/screens/DraftScreen";
 import { AnalysisScreen } from "@/components/game/screens/AnalysisScreen";
 import { BracketScreen } from "@/components/game/screens/BracketScreen";
+import { TacticsScreen } from "@/components/game/screens/TacticsScreen";
 import { MatchScreen } from "@/components/game/screens/MatchScreen";
 import { OutcomeScreen } from "@/components/game/screens/OutcomeScreen";
 import { CampaignSnapshotScreen } from "@/components/game/screens/CampaignSnapshotScreen";
 import { appendHistory, archiveCampaign, buildUserTeam, CAMPAIGN_STORAGE_KEY, clearLegacyStorage, createCampaign, LAST_CAMPAIGN_STORAGE_KEY, nextAvailableSquad, readHistory, readStoredCampaign, startDraft, toRecord, touchCampaign } from "@/lib/campaign";
-import { createBracket, getCurrentUserMatch, resolveCurrentRound } from "@/lib/bracket";
+import { createBracket, getCurrentUserMatch, resolveCurrentRound, withCurrentUserTeam } from "@/lib/bracket";
 import { seededRandom, simulateMatch } from "@/lib/simulation";
 import { TutorialCoach } from "@/components/game/TutorialCoach";
 import { BrandMark } from "@/components/ui/Brand";
+import { useLivePlayers } from "@/components/game/LivePlayers";
 import { nextTip, readTutorial, restartTutorial, saveTutorial, tutorialTouched, type TutorialState } from "@/lib/tutorial";
-import type { Campaign, CampaignRecord, FormationId, LineupEntry, MatchInstructions, RatingsMode, SharedCampaign, TacticId } from "@/types/game";
+import type { Campaign, CampaignRecord, FormationId, LineupEntry, MatchInstructions, RatingsMode, SharedCampaign, SquadPlayerEntry, TacticId } from "@/types/game";
 
 function homeCampaign(): Campaign { return { ...createCampaign(), screen: "home" }; }
 
@@ -28,6 +30,7 @@ export function Game() {
   const [reviewedSnapshot, setReviewedSnapshot] = useState<SharedCampaign>();
   const [tutorial, setTutorial] = useState<TutorialState>({ dismissed: true, seen: [] });
   const [storageWarning, setStorageWarning] = useState(false);
+  const livePlayers = useLivePlayers();
   const activeScreen = campaign?.screen;
   const activeSquadId = campaign?.currentSquadId;
 
@@ -75,7 +78,7 @@ export function Game() {
   // Campanha encerrada só navega; nada é reescrito no armazenamento ativo.
   const show = (screen: Campaign["screen"]) => campaign.finishedAt ? setCampaign({ ...campaign, screen }) : update({ ...campaign, screen });
   const goHome = () => { setReviewedSnapshot(undefined); show("home"); };
-  const canResume = !campaign.finishedAt && Boolean(campaign.formation || campaign.lineup.length || campaign.bracket);
+  const canResume = !campaign.finishedAt && Boolean(campaign.formation || campaign.lineup.length || campaign.bench.length || campaign.bracket);
   const reviewLast = () => {
     if (!lastCampaign) return;
     setReviewedSnapshot(undefined);
@@ -85,15 +88,16 @@ export function Game() {
     if (record.snapshot) setReviewedSnapshot(record.snapshot);
   };
   const resume = () => {
-    const screen = campaign.pendingResult ? "match" : campaign.bracket ? "bracket" : campaign.lineup.length === 11 ? "analysis" : campaign.formation ? "draft" : "setup";
+    const screen = campaign.pendingResult ? "match" : campaign.bracket ? "bracket" : campaign.lineup.length === 11 && campaign.bench.length === 7 ? "analysis" : campaign.formation ? "draft" : "setup";
     update({ ...campaign, screen });
   };
   const setup = (formation: FormationId, tactic: TacticId, ratingsMode: RatingsMode) => update(startDraft(campaign, formation, tactic, ratingsMode));
-  const confirmPicks = (picks: LineupEntry[]) => {
+  const confirmPicks = (picks: LineupEntry[], benchPicks: SquadPlayerEntry[]) => {
     const usedSquadIds = campaign.currentSquadId && !campaign.usedSquadIds.includes(campaign.currentSquadId) ? [...campaign.usedSquadIds, campaign.currentSquadId] : campaign.usedSquadIds;
     const lineup = [...campaign.lineup, ...picks];
-    const base: Campaign = { ...campaign, lineup, usedSquadIds, currentSquadId: undefined };
-    if (lineup.length === 11) { update({ ...base, screen: "analysis" }); return; }
+    const bench = [...campaign.bench, ...benchPicks];
+    const base: Campaign = { ...campaign, lineup, bench, usedSquadIds, currentSquadId: undefined };
+    if (lineup.length === 11 && bench.length === 7) { update({ ...base, screen: "analysis" }); return; }
     const next = nextAvailableSquad(base);
     update({ ...base, currentSquadId: next?.id, screen: "draft" });
   };
@@ -122,13 +126,22 @@ export function Game() {
     if (!campaign.bracket) return;
     const match = getCurrentUserMatch(campaign.bracket);
     if (!match) return;
+    update({ ...campaign, screen: "tactics" });
+  };
+  const startPreparedMatch = (lineup: LineupEntry[], bench: SquadPlayerEntry[]) => {
+    if (!campaign.bracket) return;
+    const preparedCampaign = { ...campaign, lineup, bench };
+    const preparedTeam = buildUserTeam(preparedCampaign);
+    const bracket = withCurrentUserTeam(campaign.bracket, preparedTeam);
+    const match = getCurrentUserMatch(bracket);
+    if (!match) return;
     const sameMatch = campaign.lastMatchId === match.id;
     const pendingMatchSeed = sameMatch && campaign.pendingMatchSeed !== undefined ? campaign.pendingMatchSeed : Math.floor(Math.random() * 4294967296);
     const matchInstructions = sameMatch ? campaign.matchInstructions ?? {} : {};
     const pendingResult = sameMatch && campaign.pendingResult
       ? campaign.pendingResult
       : simulateMatch(match.home, match.away, seededRandom(pendingMatchSeed), matchInstructions);
-    update({ ...campaign, screen: "match", lastMatchId: match.id, pendingMatchSeed, matchInstructions, pendingResult });
+    update({ ...preparedCampaign, bracket, suspendedPlayerIds: [], screen: "match", lastMatchId: match.id, pendingMatchSeed, matchInstructions, pendingResult });
   };
   const applyInstruction = (instructions: MatchInstructions) => {
     if (!campaign.bracket || campaign.pendingMatchSeed === undefined) return;
@@ -147,7 +160,10 @@ export function Game() {
     const wins = campaign.wins + (userWon ? 1 : 0);
     const isChampion = Boolean(bracket.champion?.isUser);
     const screen = !userWon ? "eliminated" : isChampion ? "champion" : "victory";
-    const next: Campaign = { ...campaign, bracket, wins, screen, pendingResult: undefined, pendingMatchSeed: undefined, matchInstructions: undefined };
+    const suspendedPlayerIds = campaign.pendingResult.events
+      .filter((event) => event.type === "red_card" && event.teamId === "user-team" && event.playerId)
+      .map((event) => event.playerId!);
+    const next: Campaign = { ...campaign, bracket, wins, screen, pendingResult: undefined, pendingMatchSeed: undefined, matchInstructions: undefined, suspendedPlayerIds };
     if (userWon && !isChampion) { update(next); return; }
     const finished = touchCampaign({ ...next, finishedAt: new Date().toISOString(), outcome: isChampion ? "champion" : "eliminated" });
     const nextHistory = appendHistory(toRecord(finished), history);
@@ -166,7 +182,7 @@ export function Game() {
     <GameHeader campaign={campaign} overall={team?.overall.final} onHome={goHome} onRestart={restart}/>
     {storageWarning && <div className="storage-warning" role="status">O navegador bloqueou o salvamento. Você pode jogar, mas esta campanha pode não continuar após fechar a aba.</div>}
     {campaign.screen === "home" && reviewedSnapshot && <CampaignSnapshotScreen data={reviewedSnapshot} onBack={() => setReviewedSnapshot(undefined)} onRestart={restart}/>}
-    {campaign.screen === "home" && !reviewedSnapshot && <HomeScreen onStart={restart} onResume={resume} canResume={canResume} onReviewLast={reviewLast} onReviewHistory={reviewHistory} lastOutcome={lastCampaign?.outcome} history={history} onReplayTutorial={tutorialTouched(tutorial) ? replayTutorial : undefined}/>}
+    {campaign.screen === "home" && !reviewedSnapshot && <HomeScreen onStart={restart} onResume={resume} canResume={canResume} onReviewLast={reviewLast} onReviewHistory={reviewHistory} lastOutcome={lastCampaign?.outcome} history={history} livePlayers={livePlayers} onReplayTutorial={tutorialTouched(tutorial) ? replayTutorial : undefined}/>}
     {campaign.screen === "setup" && <SetupScreen onContinue={setup}/>}
     {campaign.screen === "draft" && currentSquad && (
       <DraftScreen key={currentSquad.id} campaign={campaign} squad={currentSquad} onConfirm={confirmPicks} onReroll={reroll} onRelocateLineupEntry={relocateLineupEntry}/>
@@ -177,6 +193,9 @@ export function Game() {
       <BracketScreen bracket={campaign.bracket} ratingsMode={campaign.ratingsMode ?? "visible"} onPlay={beginMatch}
         onBackToResult={campaign.finishedAt && campaign.outcome ? () => show(campaign.outcome!) : undefined}/>
     )} 
+    {campaign.screen === "tactics" && currentMatch && campaign.bracket && (
+      <TacticsScreen campaign={campaign} match={currentMatch} onBack={() => show("bracket")} onStart={startPreparedMatch}/>
+    )}
     {campaign.screen === "match" && currentMatch && campaign.pendingResult && <MatchScreen key={currentMatch.id} match={currentMatch} result={campaign.pendingResult} ratingsMode={campaign.ratingsMode ?? "visible"} onInstruction={applyInstruction} onFinish={finishMatch}/>} 
     {campaign.screen === "victory" && <OutcomeScreen campaign={campaign} outcome="victory" onContinue={() => show("bracket")} onRestart={restart}/>}
     {campaign.screen === "eliminated" && (

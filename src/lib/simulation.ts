@@ -11,6 +11,7 @@ import type {
   TacticId,
 } from "@/types/game";
 import { matchMoments } from "@/data/match-moments";
+import { calculateTeamOverall } from "@/lib/overall";
 
 export type RandomSource = () => number;
 type Modifier = { attack: number; defense: number; midfield: number; volatility: number };
@@ -199,6 +200,7 @@ function matchEvent(
     description,
     period,
     teamId: team?.id,
+    playerId: player?.id,
     playerName: player?.name,
     highlight,
   };
@@ -281,6 +283,41 @@ function mergeModifiers(...modifiers: Modifier[]): Modifier {
   }), { attack: 0, defense: 0, midfield: 0, volatility: 0 });
 }
 
+function substitutionsAt(instructions: MatchInstructions, at: 45 | 65) {
+  return (instructions.substitutions ?? []).filter((item) => item.at === at);
+}
+
+/** Só o elenco do jogador traz banco e vagas persistentes. O rival segue com seu onze histórico. */
+function teamAfterSubstitutions(team: TeamSnapshot, substitutions: ReturnType<typeof substitutionsAt>): TeamSnapshot {
+  if (!team.isUser || !team.bench?.length || !team.lineupEntries?.length || !substitutions.length) return team;
+  const lineup = [...team.lineup];
+  const bench = [...team.bench];
+  let entries = [...team.lineupEntries];
+  for (const change of substitutions) {
+    const outIndex = lineup.findIndex((player) => player.id === change.outPlayerId);
+    const inIndex = bench.findIndex((player) => player.id === change.inPlayerId);
+    if (outIndex < 0 || inIndex < 0) continue;
+    const outgoing = lineup[outIndex];
+    const incoming = bench[inIndex];
+    lineup[outIndex] = incoming;
+    bench[inIndex] = outgoing;
+    entries = entries.map((entry) => entry.playerId === outgoing.id ? { ...entry, playerId: incoming.id, squadId: incoming.squadId } : entry);
+  }
+  const positioned = entries.map((entry) => ({ player: lineup.find((player) => player.id === entry.playerId)!, slotId: entry.slotId }));
+  return { ...team, lineup, bench, lineupEntries: entries, overall: calculateTeamOverall(positioned, team.formation, team.tactic) };
+}
+
+function substitutionEvents(team: TeamSnapshot, next: TeamSnapshot, substitutions: ReturnType<typeof substitutionsAt>, minute: number, period: MatchEvent["period"]): MatchEvent[] {
+  if (!team.isUser || !substitutions.length) return [];
+  return substitutions.flatMap((change) => {
+    const outgoing = team.lineup.find((player) => player.id === change.outPlayerId);
+    const incoming = next.lineup.find((player) => player.id === change.inPlayerId);
+    return outgoing && incoming
+      ? [matchEvent("substitution", minute, `${outgoing.name} sai, ${incoming.name} entra.`, period, team, incoming, true)]
+      : [];
+  });
+}
+
 /**
  * A ocorrência é determinada por placar e lances que já existiam antes de 65'. O hash
  * só alterna entre leituras compatíveis; ele não inventa posse, pressão ou reclamação.
@@ -328,7 +365,9 @@ function segmentLambdas(
 function goalEvents(team: TeamSnapshot, count: number, start: number, end: number, period: MatchEvent["period"], random: RandomSource): MatchEvent[] {
   return Array.from({ length: count }, () => {
     const scorer = pickScorer(team, random);
-    return matchEvent("goal", randomMinute(start, end, random), "", period, team, scorer, true);
+    const creator = random() < 0.78 ? pickCreator(team, random) : undefined;
+    const assist = creator && creator.id !== scorer.id ? creator : undefined;
+    return { ...matchEvent("goal", randomMinute(start, end, random), "", period, team, scorer, true), assistPlayerId: assist?.id, assistName: assist?.name };
   });
 }
 
@@ -511,15 +550,23 @@ export function simulateMatch(
   events.push(matchEvent("second_half", 46, "Começa o segundo tempo.", "regular"));
 
   const halftime = instructionModifier(instructions.halftime);
-  events.push(...playSegment(home, away, 47, 64, 0.2, "regular", random, halftime, red));
+  const homeAfterHalftime = teamAfterSubstitutions(home, substitutionsAt(instructions, 45));
+  const awayAfterHalftime = teamAfterSubstitutions(away, substitutionsAt(instructions, 45));
+  events.push(...substitutionEvents(home, homeAfterHalftime, substitutionsAt(instructions, 45), 46, "regular"));
+  events.push(...substitutionEvents(away, awayAfterHalftime, substitutionsAt(instructions, 45), 46, "regular"));
+  events.push(...playSegment(homeAfterHalftime, awayAfterHalftime, 47, 64, 0.2, "regular", random, halftime, red));
   const matchMoment = matchMomentFor(home, away, events);
+  const homeLate = teamAfterSubstitutions(homeAfterHalftime, substitutionsAt(instructions, 65));
+  const awayLate = teamAfterSubstitutions(awayAfterHalftime, substitutionsAt(instructions, 65));
+  events.push(...substitutionEvents(homeAfterHalftime, homeLate, substitutionsAt(instructions, 65), 65, "regular"));
+  events.push(...substitutionEvents(awayAfterHalftime, awayLate, substitutionsAt(instructions, 65), 65, "regular"));
   if (matchMoment && instructions.moment) {
     const choice = matchMoments[matchMoment].choices.find(({ id }) => id === instructions.moment);
     events.push(matchEvent("decision", 65, `Decisão aos 65': ${choice?.label ?? "ajuste confirmado"}.`, "regular", undefined, undefined, true));
   }
   const lateGame = mergeModifiers(halftime, momentModifier(instructions.moment));
-  events.push(...playSegment(home, away, 66, 69, 0.05, "regular", random, lateGame, red));
-  events.push(...playSegment(home, away, 70, 89, 0.29, "regular", random, lateGame, red));
+  events.push(...playSegment(homeLate, awayLate, 66, 69, 0.05, "regular", random, lateGame, red));
+  events.push(...playSegment(homeLate, awayLate, 70, 89, 0.29, "regular", random, lateGame, red));
 
   const regular = scoreAt(events, home.id, 90);
   let homeExtra = 0;
@@ -532,13 +579,13 @@ export function simulateMatch(
 
   if (wentToExtraTime) {
     events.push(matchEvent("extra_time", 91, "A partida vai para a prorrogação.", "extra", undefined, undefined, true));
-    events.push(...playSegment(home, away, 93, 119, 0.3, "extra", random, halftime, red));
+    events.push(...playSegment(homeLate, awayLate, 93, 119, 0.3, "extra", random, halftime, red));
     const totals = scoreAt(events, home.id, 120);
     homeExtra = totals.home - regular.home;
     awayExtra = totals.away - regular.away;
     if (totals.home === totals.away) {
       wentToPenalties = true;
-      const disputa = shootout(home, away, random);
+      const disputa = shootout(homeLate, awayLate, random);
       homePenalties = disputa.home;
       awayPenalties = disputa.away;
       penaltyKicks = disputa.kicks;
@@ -551,7 +598,7 @@ export function simulateMatch(
   const awayTotal = regular.away + awayExtra;
   const winnerId = homeTotal > awayTotal || (homeTotal === awayTotal && (homePenalties ?? 0) > (awayPenalties ?? 0)) ? home.id : away.id;
   const finalizedEvents = finalizeEvents(events, home);
-  const winner = winnerId === home.id ? home : away;
+  const winner = winnerId === home.id ? homeLate : awayLate;
   const playerOfMatch = finalizedEvents.find((item) => item.type === "goal" && item.teamId === winnerId)?.playerName
     ?? winner.lineup.reduce((best, player) => player.overall > best.overall ? player : best).name;
 

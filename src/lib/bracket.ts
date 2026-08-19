@@ -78,6 +78,17 @@ export function getCurrentUserMatch(bracket: BracketState): BracketMatch | undef
   return bracket.rounds.find((round) => round.id === bracket.currentRound)?.matches.find((match) => match.home.isUser || match.away.isUser);
 }
 
+/** A mesma campanha pode escalar outra combinação dos 18 antes de cada confronto. */
+export function withCurrentUserTeam(bracket: BracketState, userTeam: TeamSnapshot): BracketState {
+  return {
+    ...bracket,
+    rounds: bracket.rounds.map((round) => round.id !== bracket.currentRound ? round : {
+      ...round,
+      matches: round.matches.map((match) => match.home.isUser ? { ...match, home: userTeam } : match.away.isUser ? { ...match, away: userTeam } : match),
+    }),
+  };
+}
+
 export function resolveCurrentRound(bracket: BracketState, userResult: MatchResult, random: RandomSource = Math.random): BracketState {
   const currentIndex = roundOrder.indexOf(bracket.currentRound);
   const currentRound = bracket.rounds.find((round) => round.id === bracket.currentRound);

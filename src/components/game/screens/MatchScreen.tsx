@@ -6,8 +6,10 @@ import type {
   MatchEventType,
   MatchInstructions,
   MatchResult,
+  MatchSubstitution,
   PenaltyKick,
   RatingsMode,
+  TeamSnapshot,
 } from "@/types/game";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowIcon } from "@/components/ui/Icons";
@@ -19,12 +21,13 @@ import { matchMoments } from "@/data/match-moments";
 const eventCodes: Record<MatchEventType, string> = {
   kickoff: "INI", pressure: "PRE", possession: "POS", shot_off: "FOR", shot_saved: "DEF", big_save: "DEF",
   corner: "ESC", dangerous_foul: "FAL", offside: "IMP", yellow_card: "AMA", red_card: "VER", penalty: "PEN",
-  goal: "GOL", decision: "DEC", halftime: "INT", second_half: "2T", extra_time: "PRO", shootout: "PEN", full_time: "FIM",
+  goal: "GOL", substitution: "TRO", decision: "DEC", halftime: "INT", second_half: "2T", extra_time: "PRO", shootout: "PEN", full_time: "FIM",
 };
 
 /** Cada família de lance tem a sua cor, para a leitura ser instantânea. */
 const eventTone: Partial<Record<MatchEventType, string>> = {
   penalty: "is-penalty", yellow_card: "is-card", red_card: "is-card",
+  substitution: "is-substitution",
   decision: "is-break", halftime: "is-break", second_half: "is-break", extra_time: "is-break", full_time: "is-break", shootout: "is-break",
   kickoff: "is-break", big_save: "is-save",
 };
@@ -43,7 +46,8 @@ const speeds = [
   { id: "fast", label: "Rápido", ms: 65 },
 ];
 const TIMELINE_ROWS = 4;
-const KICK_MS = 1050;
+const KICK_REVEAL_MS = 1250;
+const KICK_RESULT_MS = 760;
 /** Pausa final: a série completa fica na tela antes de liberar o resultado. */
 const CONCLUSION_MS = 2200;
 
@@ -67,9 +71,12 @@ export function MatchScreen({
   const [paused, setPaused] = useState(false);
   /** Postura escolhida no intervalo, ainda não confirmada. */
   const [halftimePick, setHalftimePick] = useState<HalftimeInstruction>();
+  const [halftimeSubs, setHalftimeSubs] = useState<MatchSubstitution[]>(() => result.instructions.substitutions?.filter((item) => item.at === 45) ?? []);
   const [momentPick, setMomentPick] = useState<MatchMomentInstruction>();
-  /** Passo da disputa: 0 antes da primeira, `kicks.length` na conclusão, acima disso liberou. */
+  /** Passo da disputa: a cobrança anuncia o nome antes de revelar o resultado. */
   const [kickStep, setKickStep] = useState(0);
+  const [kickRevealed, setKickRevealed] = useState(false);
+  const [shootoutComplete, setShootoutComplete] = useState(false);
   const [goalFlash, setGoalFlash] = useState(false);
   const [boxOpen, setBoxOpen] = useState(true);
   const userTeam = match.home.isUser ? match.home : match.away;
@@ -79,8 +86,8 @@ export function MatchScreen({
   const needsMoment = minute >= 65 && !result.instructions.moment && Boolean(moment);
   const clockDone = minute >= maxMinute;
   /** A disputa segue no ar até um passo além da última cobrança, para a conclusão ser lida. */
-  const inShootout = clockDone && result.wentToPenalties && kickStep <= kicks.length;
-  const concluded = inShootout && kickStep >= kicks.length;
+  const inShootout = clockDone && result.wentToPenalties && !shootoutComplete;
+  const concluded = kickStep >= kicks.length;
   const finished = clockDone && !inShootout;
   const running = !needsHalftime && !needsMoment && !paused && !clockDone;
 
@@ -111,13 +118,24 @@ export function MatchScreen({
     if (needsMoment) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [needsMoment]);
 
-  // Disputa: uma cobrança por vez e, no fim, uma pausa maior mostrando a conclusão.
+  // Disputa: primeiro o nome do cobrador, depois o resultado. A pausa cria suspense
+  // sem alterar a sequência já definida pelo motor.
   useEffect(() => {
     if (!inShootout) return;
-    const delay = kickStep === 0 ? 700 : kickStep >= kicks.length ? CONCLUSION_MS : KICK_MS;
-    const timer = window.setTimeout(() => setKickStep((value) => value + 1), delay);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (kickStep >= kicks.length) {
+      const timer = window.setTimeout(() => setShootoutComplete(true), reduce ? 100 : CONCLUSION_MS);
+      return () => window.clearTimeout(timer);
+    }
+    const timer = window.setTimeout(() => {
+      if (!kickRevealed) setKickRevealed(true);
+      else {
+        setKickStep((value) => value + 1);
+        setKickRevealed(false);
+      }
+    }, reduce ? 100 : kickRevealed ? KICK_RESULT_MS : KICK_REVEAL_MS);
     return () => window.clearTimeout(timer);
-  }, [inShootout, kickStep, kicks.length]);
+  }, [inShootout, kickRevealed, kickStep, kicks.length]);
 
   const visibleEvents = useMemo(() => result.events.filter((item) => item.minute <= minute), [minute, result.events]);
   const lastUserGoal = useMemo(() => {
@@ -144,7 +162,8 @@ export function MatchScreen({
   );
   const finalHome = result.homeScore + result.homeExtra;
   const finalAway = result.awayScore + result.awayExtra;
-  const shownKicks = kicks.slice(0, Math.min(kickStep, kicks.length));
+  const currentKick = kicks[kickStep];
+  const shownKicks = kicks.slice(0, Math.min(kickStep + (kickRevealed ? 1 : 0), kicks.length));
   const penaltyTally = shownKicks.length ? shownKicks[shownKicks.length - 1] : undefined;
   const status = clockDone
     ? result.wentToPenalties ? (inShootout ? "Pênaltis" : "Fim nos pênaltis") : result.wentToExtraTime ? "Fim na prorrogação" : "Fim de jogo"
@@ -156,7 +175,7 @@ export function MatchScreen({
   const timeline = visibleEvents.slice(-TIMELINE_ROWS).reverse();
 
   // O segundo tempo só começa depois da confirmação, e o intervalo não volta a abrir.
-  const confirmHalftime = () => halftimePick && onInstruction({ ...result.instructions, halftime: halftimePick });
+  const confirmHalftime = () => halftimePick && onInstruction({ ...result.instructions, halftime: halftimePick, substitutions: halftimeSubs });
   const confirmMoment = () => momentPick && onInstruction({ ...result.instructions, moment: momentPick });
   const skip = () => { setPaused(false); setMinute(!result.instructions.halftime ? 45 : !result.instructions.moment ? 65 : maxMinute); };
 
@@ -165,7 +184,7 @@ export function MatchScreen({
       {/* No intervalo o painel ocupa exatamente o espaço do placar: relógio, placar e
           controles saem de cena para a decisão ficar visível sem rolagem. */}
       {needsHalftime ? (
-        <HalftimePanel round={roundLabels[match.round]} picked={halftimePick} onPick={setHalftimePick} onConfirm={confirmHalftime}/>
+        <HalftimePanel round={roundLabels[match.round]} team={userTeam} substitutions={halftimeSubs} onSubstitutionsChange={setHalftimeSubs} picked={halftimePick} onPick={setHalftimePick} onConfirm={confirmHalftime}/>
       ) : (
         <>
           <div className="match-stage"><span>{roundLabels[match.round]} · {status}</span><b>{clockDone ? "ENCERRADO" : `${minute}′`}</b><small>{match.home.stadium ?? "Casa do mandante"}</small></div>
@@ -228,7 +247,7 @@ export function MatchScreen({
         {/* Na disputa, a marca da cal substitui os últimos lances: mesma região, sem
             empilhar um painel embaixo do outro. */}
         {inShootout ? (
-          <Shootout kicks={shownKicks} total={kicks.length} match={match} decided={concluded}/>
+          <Shootout kicks={shownKicks} current={currentKick} revealed={kickRevealed} total={kicks.length} match={match} decided={concluded}/>
         ) : (
           <section className="timeline" aria-label="Últimos lances" aria-live="polite">
             <h2>Últimos lances</h2>
@@ -236,8 +255,8 @@ export function MatchScreen({
               {timeline.map((item, index) => (
                 <article key={item.id} className={`${item.type === "goal" ? item.teamId === userTeam.id ? "is-goal is-user-goal" : "is-goal is-rival-goal" : eventTone[item.type] ?? ""} ${index === timeline.length - 1 && timeline.length === TIMELINE_ROWS ? "is-fading" : ""}`}>
                   <time>{item.minute ? `${item.minute}′` : "0′"}</time>
-                  <span className={item.teamId === userTeam.id ? "is-user" : item.teamId ? "is-rival" : ""}>{eventCodes[item.type]}</span>
-                  <b>{item.description}</b>
+                  <span className={item.teamId === userTeam.id ? "is-user" : item.teamId ? "is-rival" : ""}><EventGlyph type={item.type}/><em>{eventCodes[item.type]}</em></span>
+                  <div className="timeline__event-copy"><b>{item.description}</b>{item.type === "goal" && item.assistName && <small>Assistência: {item.assistName}</small>}</div>
                   {item.teamId && <small>{item.teamId === match.home.id ? match.home.name : match.away.name}</small>}
                 </article>
               ))}
@@ -295,8 +314,11 @@ export function MatchScreen({
  * Intervalo: ocupa o lugar do placar, exige uma escolha e só então devolve o jogo. O botão
  * de seguir mora aqui dentro, para a decisão inteira caber num campo de visão só.
  */
-function HalftimePanel({ round, picked, onPick, onConfirm }: {
+function HalftimePanel({ round, team, substitutions, onSubstitutionsChange, picked, onPick, onConfirm }: {
   round: string;
+  team: TeamSnapshot;
+  substitutions: MatchSubstitution[];
+  onSubstitutionsChange: (value: MatchSubstitution[]) => void;
   picked?: HalftimeInstruction;
   onPick: (choice: HalftimeInstruction) => void;
   onConfirm: () => void;
@@ -316,6 +338,7 @@ function HalftimePanel({ round, picked, onPick, onConfirm }: {
           </button>
         ))}
       </div>
+      <SubstitutionPicker team={team} substitutions={substitutions} onChange={onSubstitutionsChange}/>
       <button type="button" className="button button--primary button--wide" disabled={!picked} onClick={onConfirm}>
         {picked ? "Começar o segundo tempo" : "Escolha uma postura"}<ArrowIcon/>
       </button>
@@ -353,18 +376,66 @@ function MatchMomentPanel({ moment, score, picked, onPick, onConfirm }: {
   );
 }
 
+function SubstitutionPicker({ team, substitutions, onChange }: {
+  team: TeamSnapshot;
+  substitutions: MatchSubstitution[];
+  onChange: (value: MatchSubstitution[]) => void;
+}) {
+  const [outPlayerId, setOutPlayerId] = useState("");
+  const [inPlayerId, setInPlayerId] = useState("");
+  const alreadyOut = new Set(substitutions.map((item) => item.outPlayerId));
+  const alreadyIn = new Set(substitutions.map((item) => item.inPlayerId));
+  const availableOut = team.lineup.filter((player) => !alreadyOut.has(player.id));
+  const availableIn = (team.bench ?? []).filter((player) => !alreadyIn.has(player.id));
+  const add = () => {
+    if (!outPlayerId || !inPlayerId || substitutions.length >= 5) return;
+    onChange([...substitutions, { at: 45, outPlayerId, inPlayerId }]);
+    setOutPlayerId("");
+    setInPlayerId("");
+  };
+  return (
+    <details className="halftime-subs">
+      <summary>Substituições <span>{substitutions.length}/5</span></summary>
+      <div className="halftime-subs__picker">
+        <label>Quem sai<select value={outPlayerId} onChange={(event) => setOutPlayerId(event.target.value)}><option value="">Escolha o titular</option>{availableOut.map((player) => <option key={player.id} value={player.id}>{player.name} · {player.primaryPosition} · {player.overall}</option>)}</select></label>
+        <label>Quem entra<select value={inPlayerId} onChange={(event) => setInPlayerId(event.target.value)}><option value="">Escolha o reserva</option>{availableIn.map((player) => <option key={player.id} value={player.id}>{player.name} · {player.primaryPosition} · {player.overall}</option>)}</select></label>
+        <button type="button" className="button button--quiet" disabled={!outPlayerId || !inPlayerId || substitutions.length >= 5} onClick={add}>Adicionar troca</button>
+      </div>
+      {substitutions.length > 0 && <ul>{substitutions.map((item) => <li key={`${item.outPlayerId}-${item.inPlayerId}`}><span>{team.lineup.find((player) => player.id === item.outPlayerId)?.name} sai</span><b>{team.bench?.find((player) => player.id === item.inPlayerId)?.name} entra</b><button type="button" aria-label="Remover substituição" onClick={() => onChange(substitutions.filter((entry) => entry !== item))}>×</button></li>)}</ul>}
+    </details>
+  );
+}
+
+/** Ícones geométricos próprios: a leitura vem antes do texto, sem recorrer a emoji. */
+function EventGlyph({ type }: { type: MatchEventType }) {
+  const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  if (type === "goal") return <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.8" {...common}/><path d="m7.2 7.8 2.8-1.5 2.8 1.5-.4 3.1-2.4 1.5-2.4-1.5-.4-3.1Z" {...common}/></svg>;
+  if (type === "offside" || type === "corner") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 17V3m0 1h8l-2.2 3L13 10H5" {...common}/></svg>;
+  if (type === "dangerous_foul") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8 5.5 5.5 10h3l.8 4.5L14.5 10h-3l-1-4.5Z" {...common}/></svg>;
+  if (type === "yellow_card" || type === "red_card") return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="6.5" y="3.5" width="7" height="13" rx="1" fill={type === "yellow_card" ? "#d7c38e" : "#e49a80"} stroke="currentColor" strokeWidth="1.2"/></svg>;
+  if (type === "shot_saved" || type === "big_save") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 16V9l1.7-4 1.2 3.2L10 4l1.1 4.2 1.4-3.1L14 9v7" {...common}/><path d="M6 11h8" {...common}/></svg>;
+  if (type === "penalty") return <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6" {...common}/><circle cx="10" cy="10" r="1" fill="currentColor"/></svg>;
+  if (type === "shot_off" || type === "pressure") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 15 11-11M9 4h6v6" {...common}/></svg>;
+  if (type === "possession") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h11m-3-3 3 3-3 3" {...common}/></svg>;
+  if (type === "substitution") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 7h10m-3-3 3 3-3 3M16 13H6m3 3-3-3 3-3" {...common}/></svg>;
+  if (type === "decision") return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="5" width="12" height="11" rx="1" {...common}/><path d="M7 3v4m6-4v4m-6 3h6m-6 3h4" {...common}/></svg>;
+  return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v14M6 7h8M6 13h8" {...common}/></svg>;
+}
+
 /**
  * Disputa de pênaltis no lugar da timeline. Cada lado tem a sua coluna e toda cobrança
  * fica à vista de uma vez: nada de rolagem interna, porque o placar da série só se lê
  * inteiro. A última batida acende por um instante para o olho achar onde parou.
  */
-function Shootout({ kicks, total, match, decided }: {
+function Shootout({ kicks, current, revealed, total, match, decided }: {
   kicks: PenaltyKick[];
+  current?: PenaltyKick;
+  revealed: boolean;
   total: number;
   match: BracketMatch;
   decided: boolean;
 }) {
-  const current = kicks[kicks.length - 1];
+  const scoreKick = kicks.at(-1);
   const userSide = match.home.isUser ? "home" : "away";
   const columns = (["home", "away"] as const).map((side) => ({
     side,
@@ -377,13 +448,13 @@ function Shootout({ kicks, total, match, decided }: {
       <h2>Disputa de pênaltis</h2>
       <div className="shootout__body">
         <div className="shootout__scoreline">
-          <b>{current ? current.homeScore : 0}</b><i>a</i><b>{current ? current.awayScore : 0}</b>
+          <b>{scoreKick ? scoreKick.homeScore : 0}</b><i>a</i><b>{scoreKick ? scoreKick.awayScore : 0}</b>
         </div>
         <p className="shootout__now">
           {decided
             ? <strong>Disputa encerrada.</strong>
             : current
-              ? <><strong>{current.taker}</strong> {current.scored ? "converteu" : "parou no goleiro"}</>
+              ? <><strong>{current.taker}</strong> {revealed ? current.scored ? "converteu" : "parou no goleiro" : "se prepara para bater"}</>
               : "As equipes vão para a marca da cal."}
         </p>
         <div className="shootout__grid">
@@ -392,7 +463,7 @@ function Shootout({ kicks, total, match, decided }: {
               <li className="shootout__team"><b>{team.name}</b></li>
               {sideKicks.map((kick) => (
                 <li key={kick.order}
-                  className={`${kick.scored ? "is-scored" : "is-missed"} ${kick.order === current?.order ? "is-latest" : ""} ${kick.suddenDeath ? "is-sudden" : ""}`}>
+                  className={`${kick.scored ? "is-scored" : "is-missed"} ${kick.order === scoreKick?.order ? "is-latest" : ""} ${kick.suddenDeath ? "is-sudden" : ""}`}>
                   <i aria-hidden="true"/>
                   <b>{kick.taker}</b>
                   <em>{kick.homeScore}–{kick.awayScore}</em>
@@ -431,7 +502,7 @@ function GoalSheet({ goals, match }: { goals: MatchEvent[]; match: BracketMatch 
           <li key={goal.id} className={goal.teamId === match.home.id ? "is-home" : "is-away"}>
             <time>{goal.minute}′</time>
             <b>{goal.playerName}</b>
-            <small>{goal.teamId === match.home.id ? match.home.name : match.away.name}</small>
+            <small>{goal.teamId === match.home.id ? match.home.name : match.away.name}{goal.assistName ? ` · Assistência: ${goal.assistName}` : ""}</small>
           </li>
         ))}
       </ul>
@@ -506,7 +577,7 @@ function BoxScore({ minute, status, userScore, rivalScore, goals, userTeamId, st
           <ul>
             {goals.map((goal) => (
               <li key={goal.id} className={goal.teamId === userTeamId ? "is-user" : "is-rival"}>
-                <i aria-hidden="true"/><b>{goal.playerName}</b><time>{goal.minute}′</time>
+                <i aria-hidden="true"/><div><b>{goal.playerName}</b>{goal.assistName && <small>Assistência: {goal.assistName}</small>}</div><time>{goal.minute}′</time>
               </li>
             ))}
           </ul>

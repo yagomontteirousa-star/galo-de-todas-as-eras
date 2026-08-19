@@ -6,7 +6,7 @@ export type RatingsMode = "visible" | "memory";
 export type HalftimeInstruction = "keep" | "press" | "attack" | "defend";
 export type MatchMomentInstruction = "wide" | "inside" | "direct" | "calm" | "press" | "protect" | "counter" | "set_pieces" | "shots" | "hold" | "restart_fast" | "restart_safe";
 export type MatchMomentId = "trailing-control" | "trailing-break" | "draw-open" | "draw-keeper" | "lead-pressure" | "lead-control" | "rival-tired-right" | "rival-tired-left" | "rain" | "heavy-pitch" | "floodlights" | "wind";
-export type MatchEventType = "kickoff" | "pressure" | "possession" | "shot_off" | "shot_saved" | "big_save" | "corner" | "dangerous_foul" | "offside" | "yellow_card" | "red_card" | "penalty" | "goal" | "decision" | "halftime" | "second_half" | "extra_time" | "shootout" | "full_time";
+export type MatchEventType = "kickoff" | "pressure" | "possession" | "shot_off" | "shot_saved" | "big_save" | "corner" | "dangerous_foul" | "offside" | "yellow_card" | "red_card" | "penalty" | "goal" | "substitution" | "decision" | "halftime" | "second_half" | "extra_time" | "shootout" | "full_time";
 
 export interface Attributes {
   finishing: number; creation: number; pace: number; physical: number;
@@ -48,6 +48,8 @@ export interface Formation {
 }
 
 export interface LineupEntry { slotId: string; playerId: string; squadId: string }
+/** Um atleta do banco não ocupa uma vaga da formação, mas continua ligado ao elenco de origem. */
+export interface SquadPlayerEntry { playerId: string; squadId: string }
 export type PositionFit = "natural" | "secondary" | "improvised";
 
 export interface PlayerEvaluation {
@@ -62,7 +64,7 @@ export interface TeamOverall {
 
 export interface TeamSnapshot {
   id: string; name: string; year: number; formation: FormationId; tactic: TacticId;
-  lineup: Player[]; overall: TeamOverall; isUser?: boolean;
+  lineup: Player[]; bench?: Player[]; lineupEntries?: LineupEntry[]; overall: TeamOverall; isUser?: boolean;
   /** Casa do mandante no recorte histórico daquele elenco. */
   stadium?: string;
   /** Substitui o ano na interface quando o elenco não pertence a uma única temporada. */
@@ -72,14 +74,21 @@ export interface TeamSnapshot {
 export type Opponent = TeamSnapshot;
 export type TournamentRound = "round16" | "quarterfinal" | "semifinal" | "final";
 
+export interface MatchSubstitution {
+  at: 45 | 65;
+  outPlayerId: string;
+  inPlayerId: string;
+}
+
 export interface MatchInstructions {
   halftime?: HalftimeInstruction;
   moment?: MatchMomentInstruction;
+  substitutions?: MatchSubstitution[];
 }
 
 export interface MatchEvent {
   id: string; type: MatchEventType; minute: number; description: string;
-  teamId?: string; playerName?: string; period: "regular" | "extra" | "shootout";
+  teamId?: string; playerId?: string; playerName?: string; assistPlayerId?: string; assistName?: string; period: "regular" | "extra" | "shootout";
   homeScore?: number; awayScore?: number; highlight?: boolean;
 }
 
@@ -103,11 +112,11 @@ export interface BracketMatch {
 export interface BracketRound { id: TournamentRound; matches: BracketMatch[] }
 export interface BracketState { rounds: BracketRound[]; currentRound: TournamentRound; champion?: TeamSnapshot }
 
-export type GameScreen = "home" | "setup" | "draft" | "analysis" | "bracket" | "match" | "victory" | "eliminated" | "champion";
+export type GameScreen = "home" | "setup" | "draft" | "analysis" | "bracket" | "tactics" | "match" | "victory" | "eliminated" | "champion";
 export type CampaignOutcome = "champion" | "eliminated";
 
 export interface SharedPlayer { slot: string; name: string; season: number; overall: number; special: boolean }
-export interface SharedGoal { name: string; minute: number; forUser: boolean }
+export interface SharedGoal { name: string; minute: number; forUser: boolean; assist?: string }
 export interface SharedRivalPlayer { position: string; name: string; overall: number }
 export interface SharedMatch {
   round: TournamentRound; user: number; rival: number;
@@ -128,12 +137,13 @@ export interface SharedCampaign {
   formation: FormationId;
   tactic: TacticId;
   squad: SharedPlayer[];
+  bench?: SharedPlayer[];
   matches: SharedMatch[];
 }
 
 export interface Campaign {
   version: 2; id: string; createdAt: string; updatedAt: string; screen: GameScreen;
-  formation?: FormationId; tactic?: TacticId; ratingsMode?: RatingsMode; lineup: LineupEntry[]; usedSquadIds: string[];
+  formation?: FormationId; tactic?: TacticId; ratingsMode?: RatingsMode; lineup: LineupEntry[]; bench: SquadPlayerEntry[]; suspendedPlayerIds: string[]; usedSquadIds: string[];
   currentSquadId?: string; rerollsLeft: number; bracket?: BracketState; lastMatchId?: string;
   pendingResult?: MatchResult; pendingMatchSeed?: number; matchInstructions?: MatchInstructions; wins: number;
   finishedAt?: string; outcome?: CampaignOutcome;

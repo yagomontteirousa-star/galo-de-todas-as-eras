@@ -50,7 +50,7 @@ export function OutcomeScreen({ campaign, outcome, onContinue, onRestart }: {
           <div><span>Melhor em campo</span><b>{result?.playerOfMatch ?? "·"}</b></div>
           <div><span>Impacto tático</span><b>{result?.instructionImpact ?? "Plano mantido do começo ao fim."}</b></div>
         </div>
-        <div className="result-goals"><span>Gols</span>{goals.length ? goals.map((goal) => <p key={goal.id}><time>{goal.minute}′</time><b>{goal.playerName}</b><small>{goalLine(goal.teamId)}</small></p>) : <p>Sem gols no tempo de jogo.</p>}</div>
+        <div className="result-goals"><span>Gols</span>{goals.length ? goals.map((goal) => <p key={goal.id}><time>{goal.minute}′</time><b>{goal.playerName}</b><small>{goalLine(goal.teamId)}{goal.assistName ? ` · Assistência: ${goal.assistName}` : ""}</small></p>) : <p>Sem gols no tempo de jogo.</p>}</div>
         {opponent && <RivalSquadDisclosure rival={rivalRosterFromTeam(opponent)} className="rival-roster--outcome"/>}
       </aside>
       <SiteFooter/>
