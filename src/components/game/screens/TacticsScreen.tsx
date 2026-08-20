@@ -124,7 +124,7 @@ export function TacticalEditor({ formationId, tactic, lineup, bench, suspendedPl
             const suspendedPlayer = suspended.has(player.id);
             const fit = selectedSlotId ? evaluatePosition(player, formation.slots.find((slot) => slot.id === selectedSlotId)!).fit : undefined;
             return <button type="button" key={player.id} data-tactics-bench={index} disabled={suspendedPlayer}
-              className={`${selectedBenchIndex === index ? "is-selected" : ""} ${suspendedPlayer ? "is-suspended" : ""} ${dragging?.kind === "bench" && dragging.index === index ? "is-drag-source" : ""}`}
+              className={`${selectedBenchIndex === index ? "is-selected" : ""} ${fit && !suspendedPlayer ? `is-fit-${fit}` : ""} ${suspendedPlayer ? "is-suspended" : ""} ${dragging?.kind === "bench" && dragging.index === index ? "is-drag-source" : ""}`}
               aria-pressed={selectedBenchIndex === index} onClick={() => onBenchPlayer(index)}
               onPointerDown={(event) => startDrag({ kind: "bench", index }, event)} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
               <span>{positionLabel(player.primaryPosition)}</span><b>{player.name}</b><em>{player.overall}</em>

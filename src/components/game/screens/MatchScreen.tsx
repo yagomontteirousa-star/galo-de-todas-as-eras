@@ -273,7 +273,7 @@ export function MatchScreen({
           )}
         </>
       )}
-      <div className={`match-content ${needsHalftime ? "is-break" : ""}`}>
+      <div className={`match-content ${needsHalftime ? "is-break" : ""} ${finished ? "is-finished" : ""}`}>
         {substitutionOpen ? (
           <LiveSubstitutionBoard team={userTeam} lineup={liveLineup} bench={liveBench} used={liveSubstitutions.length}
             onChange={applyLiveLineup} onClose={() => { setSubstitutionOpen(false); setPaused(false); }}/>
