@@ -4,7 +4,6 @@ import { useState, useSyncExternalStore } from "react";
 import { Pitch } from "@/components/game/Pitch";
 import { ArrowIcon, CloseIcon } from "@/components/ui/Icons";
 import { SiteFooter } from "@/components/ui/Brand";
-import { CampaignHistoryPopover } from "@/components/game/CampaignHistoryPopover";
 import { LivePlayers } from "@/components/game/LivePlayers";
 import Image from "next/image";
 import { atleticoSquads } from "@/data/atletico-squads";
@@ -102,11 +101,7 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, onRevie
           </div>
           <LivePlayers count={livePlayers}/>
 
-          {history.length > 0 ? (
-            <CampaignHistoryPopover history={history} onReview={onReviewHistory} onStart={onStart}/>
-          ) : (
-            <p className="home-empty">{canResume ? "Nenhuma campanha concluída no arquivo ainda." : "Nenhuma campanha no arquivo ainda. A primeira súmula é sua."}</p>
-          )}
+          {history.length === 0 && <p className="home-empty">{canResume ? "Nenhuma campanha concluída no arquivo ainda." : "Nenhuma campanha no arquivo ainda. A primeira súmula é sua."}</p>}
         </div>
 
         <div className="home-pitch">

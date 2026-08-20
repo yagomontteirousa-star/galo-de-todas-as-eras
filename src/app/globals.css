@@ -83,7 +83,7 @@ h1, h2, h3, p { margin-top: 0; }
 .button:disabled, button:disabled { opacity: .38; cursor: not-allowed; transform: none; }
 
 /* Home */
-.home-screen { height: calc(100dvh - var(--header-h)); display: grid; grid-template-rows: minmax(0,1fr) auto auto; justify-items: center; overflow-x: clip; overflow-y: auto; }
+.home-screen { min-height: calc(100dvh - var(--header-h)); height: auto; display: grid; grid-template-rows: minmax(min-content,1fr) auto auto; align-content: start; justify-items: center; overflow-x: clip; overflow-y: auto; }
 .home-panel { min-width: 0; width: min(1060px, calc(100% - 32px)); align-self: center; display: grid; grid-template-columns: minmax(0,1.08fr) minmax(300px,.92fr); align-items: center; gap: clamp(24px, 4vw, 54px); margin: 18px 16px; padding: clamp(22px, 3vh, 34px) clamp(24px, 3vw, 40px); border: 1px solid var(--line); border-radius: 16px; background: var(--graphite); }
 .home-brand { width: 54px; height: auto; display: block; }
 .home-copy h1 { margin: 14px 0 0; font-family: var(--font-display); font-size: clamp(52px, 5.6vw, 84px); font-weight: 400; line-height: .82; letter-spacing: -.02em; }
