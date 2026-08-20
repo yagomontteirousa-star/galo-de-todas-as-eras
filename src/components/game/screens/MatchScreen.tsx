@@ -5,6 +5,7 @@ import type {
   MatchEvent,
   MatchEventType,
   MatchInstructions,
+  MatchProgress,
   MatchResult,
   PenaltyKick,
   RatingsMode,
@@ -12,13 +13,14 @@ import type {
   SquadPlayerEntry,
   TeamSnapshot,
 } from "@/types/game";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowIcon } from "@/components/ui/Icons";
 import { roundLabels, teamEra } from "@/lib/bracket";
 import { TacticalEditor } from "@/components/game/screens/TacticsScreen";
 import { RivalSquadDisclosure } from "@/components/game/RivalSquadDisclosure";
 import { rivalRosterFromTeam } from "@/lib/rival-roster";
 import { matchMoments } from "@/data/match-moments";
+import { playersById } from "@/data/atletico-squads";
 
 const eventLabels: Record<MatchEventType, string> = {
   kickoff: "Início de jogo", pressure: "Pressão", possession: "Posse de bola", shot_off: "Finalização para fora", shot_saved: "Defesa", big_save: "Grande defesa",
@@ -56,36 +58,48 @@ const CONCLUSION_MS = 2200;
 export function MatchScreen({
   match,
   result,
+  progress,
   ratingsMode,
   onInstruction,
+  onLineupChange,
+  onProgress,
   onFinish,
 }: {
   match: BracketMatch;
   result: MatchResult;
+  progress?: MatchProgress;
   ratingsMode: RatingsMode;
   onInstruction: (instructions: MatchInstructions) => void;
+  onLineupChange: (lineup: LineupEntry[], bench: SquadPlayerEntry[], substitution?: MatchProgress["substitutions"][number]) => void;
+  onProgress: (playback: Pick<MatchProgress, "minute" | "kickStep" | "kickRevealed" | "shootoutComplete">) => void;
   onFinish: () => void;
 }) {
   const maxMinute = result.wentToExtraTime ? 122 : 90;
   const kicks = useMemo(() => result.penaltyKicks ?? [], [result.penaltyKicks]);
-  const [minute, setMinute] = useState(0);
+  const savedProgress = progress?.matchId === match.id ? progress : undefined;
+  const [minute, setMinute] = useState(savedProgress?.minute ?? 0);
   const [speedIndex, setSpeedIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   /** Postura escolhida no intervalo, ainda não confirmada. */
   const [halftimePick, setHalftimePick] = useState<HalftimeInstruction>();
   const [momentPick, setMomentPick] = useState<MatchMomentInstruction>();
   /** Passo da disputa: a cobrança anuncia o nome antes de revelar o resultado. */
-  const [kickStep, setKickStep] = useState(0);
-  const [kickRevealed, setKickRevealed] = useState(false);
-  const [shootoutComplete, setShootoutComplete] = useState(false);
+  const [kickStep, setKickStep] = useState(savedProgress?.kickStep ?? 0);
+  const [kickRevealed, setKickRevealed] = useState(savedProgress?.kickRevealed ?? false);
+  const [shootoutComplete, setShootoutComplete] = useState(savedProgress?.shootoutComplete ?? false);
   const [goalFlash, setGoalFlash] = useState(false);
   const [boxOpen, setBoxOpen] = useState(true);
   const [substitutionOpen, setSubstitutionOpen] = useState(false);
   const userTeam = match.home.isUser ? match.home : match.away;
   const opponent = match.home.isUser ? match.away : match.home;
-  const [liveLineup, setLiveLineup] = useState(() => userTeam.lineupEntries ?? []);
-  const [liveBench, setLiveBench] = useState(() => (userTeam.bench ?? []).map(({ id: playerId, squadId }) => ({ playerId, squadId })));
-  const [liveSubstitutions, setLiveSubstitutions] = useState<{ outName: string; inName: string; minute: number }[]>([]);
+  const [liveLineup, setLiveLineup] = useState(() => savedProgress?.lineup ?? userTeam.lineupEntries ?? []);
+  const [liveBench, setLiveBench] = useState(() => savedProgress?.bench ?? (userTeam.bench ?? []).map(({ id: playerId, squadId }) => ({ playerId, squadId })));
+  const [liveSubstitutions, setLiveSubstitutions] = useState(() => savedProgress?.substitutions ?? []);
+  const progressCallback = useRef(onProgress);
+  useEffect(() => { progressCallback.current = onProgress; }, [onProgress]);
+  useEffect(() => {
+    progressCallback.current({ minute, kickStep, kickRevealed, shootoutComplete });
+  }, [kickRevealed, kickStep, minute, shootoutComplete]);
   const needsHalftime = minute >= 45 && !result.instructions.halftime;
   const moment = result.matchMoment ? matchMoments[result.matchMoment] : undefined;
   const needsMoment = minute >= 65 && !result.instructions.moment && Boolean(moment);
@@ -142,19 +156,9 @@ export function MatchScreen({
     return () => window.clearTimeout(timer);
   }, [inShootout, kickRevealed, kickStep, kicks.length]);
 
-  const visibleEvents = useMemo(() => [
-    ...result.events,
-    ...liveSubstitutions.map((item, index) => ({
-      id: `live-substitution-${index}-${item.minute}`,
-      type: "substitution" as const,
-      minute: item.minute,
-      description: `${item.outName} sai, ${item.inName} entra.`,
-      teamId: userTeam.id,
-      playerName: item.inName,
-      period: item.minute > 90 ? "extra" as const : "regular" as const,
-      highlight: true,
-    })),
-  ].filter((item) => item.minute <= minute).sort((left, right) => left.minute - right.minute || left.id.localeCompare(right.id)), [liveSubstitutions, minute, result.events, userTeam.id]);
+  const visibleEvents = useMemo(() => result.events
+    .filter((item) => item.minute <= minute)
+    .sort((left, right) => left.minute - right.minute || left.id.localeCompare(right.id)), [minute, result.events]);
   const lastUserGoal = useMemo(() => {
     const goals = visibleEvents.filter((item) => item.type === "goal" && item.teamId === userTeam.id);
     return goals.length ? goals[goals.length - 1].id : undefined;
@@ -174,8 +178,8 @@ export function MatchScreen({
   const userVisible = visibleGoals.filter((item) => item.teamId === userTeam.id).length;
   const rivalVisible = visibleGoals.filter((item) => item.teamId === opponent.id).length;
   const matchStats = useMemo(
-    () => matchSummary(visibleEvents, userTeam.id, opponent.id),
-    [opponent.id, userTeam.id, visibleEvents],
+    () => matchSummary(visibleEvents, userTeam, opponent),
+    [opponent, userTeam, visibleEvents],
   );
   const finalHome = result.homeScore + result.homeExtra;
   const finalAway = result.awayScore + result.awayExtra;
@@ -196,14 +200,22 @@ export function MatchScreen({
   const confirmMoment = () => momentPick && onInstruction({ ...result.instructions, moment: momentPick });
   const skip = () => { setPaused(false); setMinute(!result.instructions.halftime ? 45 : !result.instructions.moment ? 65 : maxMinute); };
   const applyLiveLineup = (nextLineup: typeof liveLineup, nextBench: typeof liveBench) => {
-    const outgoing = userTeam.lineup.find((player) => !nextLineup.some((entry) => entry.playerId === player.id) && liveLineup.some((entry) => entry.playerId === player.id));
-    const incoming = (userTeam.bench ?? []).find((player) => nextLineup.some((entry) => entry.playerId === player.id) && !liveLineup.some((entry) => entry.playerId === player.id));
+    const nextIds = new Set(nextLineup.map((entry) => entry.playerId));
+    const currentIds = new Set(liveLineup.map((entry) => entry.playerId));
+    const outgoingEntry = liveLineup.find((entry) => !nextIds.has(entry.playerId));
+    const incomingEntry = nextLineup.find((entry) => !currentIds.has(entry.playerId));
+    const outgoing = outgoingEntry ? playersById.get(outgoingEntry.playerId) : undefined;
+    const incoming = incomingEntry ? playersById.get(incomingEntry.playerId) : undefined;
+    let substitution: MatchProgress["substitutions"][number] | undefined;
     if (outgoing && incoming) {
       if (liveSubstitutions.length >= 5) return;
-      setLiveSubstitutions((current) => [...current, { outName: outgoing.name, inName: incoming.name, minute }]);
+      if (liveSubstitutions.some((item) => item.outPlayerId === incoming.id)) return;
+      substitution = { outPlayerId: outgoing.id, inPlayerId: incoming.id, outName: outgoing.name, inName: incoming.name, minute };
+      setLiveSubstitutions((current) => [...current, substitution!]);
     }
     setLiveLineup(nextLineup);
     setLiveBench(nextBench);
+    onLineupChange(nextLineup, nextBench, substitution);
   };
 
   return (
@@ -276,6 +288,7 @@ export function MatchScreen({
       <div className={`match-content ${needsHalftime ? "is-break" : ""} ${finished ? "is-finished" : ""}`}>
         {substitutionOpen ? (
           <LiveSubstitutionBoard team={userTeam} lineup={liveLineup} bench={liveBench} used={liveSubstitutions.length}
+            unavailablePlayerIds={liveSubstitutions.map((item) => item.outPlayerId)}
             onChange={applyLiveLineup} onClose={() => { setSubstitutionOpen(false); setPaused(false); }}/>
         ) : <>
         {/* Na disputa, a marca da cal substitui os últimos lances: mesma região, sem
@@ -289,7 +302,7 @@ export function MatchScreen({
               {timeline.map((item, index) => (
                 <article key={item.id} className={`${item.type === "goal" ? item.teamId === userTeam.id ? "is-goal is-user-goal" : "is-goal is-rival-goal" : eventTone[item.type] ?? ""} ${index === timeline.length - 1 && timeline.length === TIMELINE_ROWS ? "is-fading" : ""}`}>
                   <time>{item.minute ? `${item.minute}′` : "0′"}</time>
-                  <span className={item.teamId === userTeam.id ? "is-user" : item.teamId ? "is-rival" : ""} aria-label={eventLabels[item.type]} title={eventLabels[item.type]}><EventGlyph type={item.type}/></span>
+                  <span role="img" className={item.teamId === userTeam.id ? "is-user" : item.teamId ? "is-rival" : ""} aria-label={eventLabels[item.type]} title={eventLabels[item.type]}><EventGlyph type={item.type}/></span>
                   <div className="timeline__event-copy"><b>{item.description}</b>{item.type === "goal" && item.assistName && <small>Assistência: {item.assistName}</small>}</div>
                   {item.teamId && <small>{item.teamId === match.home.id ? match.home.name : match.away.name}</small>}
                 </article>
@@ -404,11 +417,12 @@ function MatchMomentPanel({ moment, score, picked, onPick, onConfirm }: {
 }
 
 /** A mesa abre dentro do fluxo da partida, com o relógio pausado e sem cobrir o placar. */
-function LiveSubstitutionBoard({ team, lineup, bench, used, onChange, onClose }: {
+function LiveSubstitutionBoard({ team, lineup, bench, used, unavailablePlayerIds, onChange, onClose }: {
   team: TeamSnapshot;
   lineup: LineupEntry[];
   bench: SquadPlayerEntry[];
   used: number;
+  unavailablePlayerIds: string[];
   onChange: (lineup: LineupEntry[], bench: SquadPlayerEntry[]) => void;
   onClose: () => void;
 }) {
@@ -418,7 +432,8 @@ function LiveSubstitutionBoard({ team, lineup, bench, used, onChange, onClose }:
         <div><span>Jogo pausado</span><h2>Faça a substituição.</h2><p>Toque num titular e escolha no banco quem entra. A partida só recomeça quando você confirmar.</p></div>
         <aside><b>{used}/5 usadas</b><button type="button" className="button button--primary" onClick={onClose}>Retomar jogo<ArrowIcon/></button></aside>
       </header>
-      <TacticalEditor formationId={team.formation} tactic={team.tactic} lineup={lineup} bench={bench} compact onChange={onChange}/>
+      <TacticalEditor formationId={team.formation} tactic={team.tactic} lineup={lineup} bench={bench} compact
+        unavailablePlayerIds={unavailablePlayerIds} unavailableLabel="Já saiu" onChange={onChange}/>
     </section>
   );
 }
@@ -549,8 +564,13 @@ type MatchSummary = {
  * lances já gerados. Posse combina ações de controle e ataque, enquanto finalizações,
  * chutes no alvo e escanteios vêm diretamente dos respectivos lances da partida.
  */
-function matchSummary(events: MatchEvent[], userTeamId: string, rivalTeamId: string): MatchSummary {
-  const values = { user: 0, rival: 0 };
+function matchSummary(events: MatchEvent[], userTeam: TeamSnapshot, rivalTeam: TeamSnapshot): MatchSummary {
+  const userTeamId = userTeam.id;
+  const rivalTeamId = rivalTeam.id;
+  const midfieldEdge = Math.max(-12, Math.min(12, userTeam.overall.midfield - rivalTeam.overall.midfield));
+  const baseShare = Math.max(42, Math.min(58, 50 + midfieldEdge * 0.55));
+  const priorWeight = 8;
+  const values = { user: priorWeight * baseShare / 100, rival: priorWeight * (100 - baseShare) / 100 };
   const add = (teamId: string | undefined, weight = 1) => {
     if (teamId === userTeamId) values.user += weight;
     if (teamId === rivalTeamId) values.rival += weight;
@@ -561,7 +581,7 @@ function matchSummary(events: MatchEvent[], userTeamId: string, rivalTeamId: str
   const controlEvents = events.filter((event) => ["possession", "pressure", "corner", "offside", "shot_off", "shot_saved", "big_save", "penalty", "goal"].includes(event.type));
   for (const event of controlEvents) add(attackingTeam(event), event.type === "possession" ? 2 : 1);
   const possessionTotal = values.user + values.rival;
-  const userPossession = possessionTotal ? Math.round(values.user / possessionTotal * 100) : 50;
+  const userPossession = Math.round(values.user / possessionTotal * 100);
   const possession: [number, number] = [userPossession, 100 - userPossession];
 
   const shots = { user: 0, rival: 0 };
@@ -600,7 +620,7 @@ function BoxScore({ goals, userTeamId, stats }: {
       <div className="match-boxscore__stats">
         <span>Você <i>×</i> rival</span>
         <dl>
-          <Stat label="Posse" values={stats.possession} suffix="%" hint="Estimativa calculada pelos lances de controle e ataque já gerados."/>
+          <Stat label="Posse" values={stats.possession} suffix="%" hint="Calculada pelas ações de controle e ataque da partida."/>
           <Stat label="Finalizações" values={stats.shots}/>
           <Stat label="No alvo" values={stats.onTarget}/>
           <Stat label="Escanteios" values={stats.corners}/>

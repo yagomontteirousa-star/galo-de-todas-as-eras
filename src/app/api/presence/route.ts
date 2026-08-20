@@ -6,6 +6,7 @@ const STORE_TOKEN = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_R
 const PRESENCE_KEY = "pnb:presence";
 const PLAYERS_KEY = "pnb:players";
 const ACTIVE_FOR_MS = 90_000;
+const PRESENCE_REQUESTS_PER_MINUTE = 1_200;
 
 const validVisitor = (value: unknown): value is string => typeof value === "string" && /^[a-zA-Z0-9-]{16,64}$/.test(value);
 
@@ -22,6 +23,13 @@ async function command(args: (string | number)[]) {
 
 const headers = { "Cache-Control": "no-store" };
 const anonymousVisitor = (visitor: string) => createHash("sha256").update(visitor).digest("hex");
+
+async function takePresenceSlot(now = Date.now()) {
+  const key = `pnb:rate:presence:${Math.floor(now / 60_000)}`;
+  const count = Number(await command(["INCR", key])) || 0;
+  if (count === 1) await command(["EXPIRE", key, 120]);
+  return count <= PRESENCE_REQUESTS_PER_MINUTE;
+}
 
 async function totals(now = Date.now()) {
   await command(["ZREMRANGEBYSCORE", PRESENCE_KEY, 0, now - ACTIVE_FOR_MS]);
@@ -49,6 +57,7 @@ export async function GET() {
 export async function POST(request: Request) {
   if (!STORE_URL || !STORE_TOKEN) return NextResponse.json({ available: false }, { headers });
   try {
+    if (!(await takePresenceSlot())) return NextResponse.json({ available: false, error: "muitas-tentativas" }, { status: 429, headers: { ...headers, "Retry-After": "60" } });
     const body: unknown = await request.json();
     const visitor = body && typeof body === "object" ? (body as { visitor?: unknown }).visitor : undefined;
     const leaving = body && typeof body === "object" && (body as { leaving?: unknown }).leaving === true;

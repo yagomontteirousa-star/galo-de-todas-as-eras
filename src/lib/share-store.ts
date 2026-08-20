@@ -12,6 +12,8 @@ const STORE_TOKEN = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_R
 export const shareStoreReady = Boolean(STORE_URL && STORE_TOKEN);
 
 const KEY_PREFIX = "pnb:c:";
+const SHARE_TTL_SECONDS = 31_536_000;
+const SHARE_WRITES_PER_MINUTE = 60;
 /** Alfabeto sem 0/O e 1/l: o id é lido em voz alta e digitado à mão. */
 const ALPHABET = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const ID_LENGTH = 10;
@@ -39,11 +41,19 @@ async function store(command: unknown[]): Promise<unknown> {
   return payload.result;
 }
 
+/** Limite global curto: reduz abuso sem guardar IP, conta ou qualquer dado pessoal. */
+export async function takeShareWriteSlot(now = Date.now()): Promise<boolean> {
+  const key = `pnb:rate:share:${Math.floor(now / 60_000)}`;
+  const count = await store(["INCR", key]);
+  if (Number(count) === 1) await store(["EXPIRE", key, 120]);
+  return Number(count) <= SHARE_WRITES_PER_MINUTE;
+}
+
 /** O snapshot é imutável: gravamos só se o id ainda não existir. */
 export async function saveSharedCampaign(data: SharedCampaign): Promise<string> {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const id = newShareId();
-    const created = await store(["SET", KEY_PREFIX + id, JSON.stringify(data), "NX"]);
+    const created = await store(["SET", KEY_PREFIX + id, JSON.stringify(data), "NX", "EX", SHARE_TTL_SECONDS]);
     if (created) return id;
   }
   throw new Error("não foi possível gerar um id livre");

@@ -80,6 +80,26 @@ export interface MatchSubstitution {
   inPlayerId: string;
 }
 
+export interface LiveMatchSubstitution {
+  minute: number;
+  outPlayerId: string;
+  inPlayerId: string;
+  outName: string;
+  inName: string;
+}
+
+/** Estado mínimo necessário para retomar uma partida exatamente de onde ela parou. */
+export interface MatchProgress {
+  matchId: string;
+  minute: number;
+  lineup: LineupEntry[];
+  bench: SquadPlayerEntry[];
+  substitutions: LiveMatchSubstitution[];
+  kickStep: number;
+  kickRevealed: boolean;
+  shootoutComplete: boolean;
+}
+
 export interface MatchInstructions {
   halftime?: HalftimeInstruction;
   moment?: MatchMomentInstruction;
@@ -145,7 +165,7 @@ export interface Campaign {
   version: 2; id: string; createdAt: string; updatedAt: string; screen: GameScreen;
   formation?: FormationId; tactic?: TacticId; ratingsMode?: RatingsMode; lineup: LineupEntry[]; bench: SquadPlayerEntry[]; suspendedPlayerIds: string[]; usedSquadIds: string[];
   currentSquadId?: string; rerollsLeft: number; bracket?: BracketState; lastMatchId?: string;
-  pendingResult?: MatchResult; pendingMatchSeed?: number; matchInstructions?: MatchInstructions; wins: number;
+  pendingResult?: MatchResult; pendingMatchSeed?: number; matchInstructions?: MatchInstructions; matchProgress?: MatchProgress; wins: number;
   finishedAt?: string; outcome?: CampaignOutcome;
 }
 

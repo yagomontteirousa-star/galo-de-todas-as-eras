@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { shareMessage, shareText, shortCampaignUrl, type SharedCampaign } from "@/lib/share";
 
-type Feedback = "idle" | "copied" | "linked" | "image" | "link-failed" | "image-failed";
+type Feedback = "idle" | "copied" | "linked" | "image" | "link-failed" | "link-limited" | "image-failed";
 
 /**
  * Cópia que ainda funciona onde a Clipboard API não existe (http, WebView antiga). Sem
@@ -39,7 +39,7 @@ export function ShareActions({ data, children }: { data: SharedCampaign; childre
   const share = async () => {
     let url: string;
     try { url = await buildUrl(); }
-    catch { setFeedback("link-failed"); return; }
+    catch (error) { setFeedback(error instanceof Error && error.message === "store-limited" ? "link-limited" : "link-failed"); return; }
     const text = shareText(data, url);
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
@@ -57,7 +57,7 @@ export function ShareActions({ data, children }: { data: SharedCampaign; childre
     try {
       const url = await buildUrl();
       setFeedback(await copyText(url) ? "linked" : "link-failed");
-    } catch { setFeedback("link-failed"); }
+    } catch (error) { setFeedback(error instanceof Error && error.message === "store-limited" ? "link-limited" : "link-failed"); }
   };
 
   const saveImage = async () => {
@@ -96,6 +96,7 @@ export function ShareActions({ data, children }: { data: SharedCampaign; childre
         {feedback === "linked" && "Link copiado. Quem abrir vê esta campanha."}
         {feedback === "image" && "Imagem pronta em PNG, 1080 × 1350."}
         {feedback === "link-failed" && "O link curto está indisponível. Nenhum endereço longo foi criado."}
+        {feedback === "link-limited" && "Muitos links foram pedidos agora. Aguarde um minuto e tente novamente."}
         {feedback === "image-failed" && "A imagem não foi gerada. Tente novamente."}
       </p>
     </div>

@@ -25,4 +25,22 @@ describe("campanha", () => {
     expect(history.map((item) => item.id)).toEqual(["camp-b", "camp-a"]);
     expect(history[1].outcome).toBe("champion");
   });
+
+  it("preserva o andamento da partida ao recarregar a campanha", () => {
+    const campaign: Campaign = {
+      ...createCampaign(),
+      screen: "match",
+      matchProgress: {
+        matchId: "quarterfinal-0",
+        minute: 73,
+        lineup: [],
+        bench: [],
+        substitutions: [{ minute: 61, outPlayerId: "a", inPlayerId: "b", outName: "Titular", inName: "Reserva" }],
+        kickStep: 0,
+        kickRevealed: false,
+        shootoutComplete: false,
+      },
+    };
+    expect(hydrateCampaign(JSON.stringify(campaign))?.matchProgress).toEqual(campaign.matchProgress);
+  });
 });

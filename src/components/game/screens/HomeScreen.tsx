@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Pitch } from "@/components/game/Pitch";
 import { ArrowIcon, CloseIcon } from "@/components/ui/Icons";
 import { SiteFooter } from "@/components/ui/Brand";
@@ -49,10 +49,19 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
   );
   const [dismissedRelease, setDismissedRelease] = useState(false);
   const showRelease = !releaseSeen && !dismissedRelease;
-  const dismissRelease = () => {
+  const closeReleaseRef = useRef<HTMLButtonElement>(null);
+  const dismissRelease = useCallback(() => {
     setDismissedRelease(true);
     try { window.localStorage.setItem(RELEASE_KEY, "seen"); } catch { /* o aviso não bloqueia quem navega sem armazenamento */ }
-  };
+  }, []);
+  useEffect(() => {
+    if (!showRelease) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
+    closeReleaseRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") dismissRelease(); };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => { document.removeEventListener("keydown", closeOnEscape); previous?.focus(); };
+  }, [dismissRelease, showRelease]);
   const finished = !canResume && Boolean(lastOutcome);
   const lead = canResume
     ? "Sua campanha está aberta. Volte para o ponto onde parou."
@@ -62,6 +71,7 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
 
   return (
     <main className="home-screen" id="main">
+      <div className="home-content" inert={showRelease ? true : undefined}>
       <section className="home-panel">
         <div className="home-copy">
           <Image className="home-brand" src="/icon.svg" alt="" width={54} height={59} priority unoptimized/>
@@ -94,20 +104,6 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
           <p>Onze em aberto. O sorteio decide quem entra.</p>
         </div>
       </section>
-
-      {showRelease && <aside className="release-toast" aria-labelledby="release-note-title" aria-live="polite">
-        <div className="release-toast__head">
-          <div><span>Chegou em campo</span><h2 id="release-note-title">Novidades da campanha</h2></div>
-          <button type="button" onClick={dismissRelease} aria-label="Fechar novidades"><CloseIcon/></button>
-        </div>
-        <p>Agora você prepara o time antes do apito e interfere no jogo quando precisar.</p>
-        <ul>
-          <li>11 titulares e 7 reservas por partida.</li>
-          <li>Até cinco substituições com o jogo pausado.</li>
-          <li>Assistências nos gols e suspensão por expulsão.</li>
-        </ul>
-      </aside>}
-
       <section className="how-it-works" id="como-funciona">
         <ol>
           <li><b>01</b><strong>Sorteie um ano</strong><span>Um elenco inteiro do Galo entra em jogo.</span></li>
@@ -116,6 +112,21 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
         </ol>
       </section>
       <SiteFooter/>
+      </div>
+
+      {showRelease && <div className="release-toast" role="dialog" aria-modal="true" aria-labelledby="release-note-title" aria-describedby="release-note-description">
+        <div className="release-toast__head">
+          <div><span>Chegou em campo</span><h2 id="release-note-title">Novidades da campanha</h2></div>
+          <button ref={closeReleaseRef} type="button" onClick={dismissRelease} aria-label="Fechar novidades"><CloseIcon/></button>
+        </div>
+        <p id="release-note-description">Agora você prepara o time antes do apito e interfere no jogo quando precisar.</p>
+        <ul>
+          <li>11 titulares e 7 reservas por partida.</li>
+          <li>Até cinco substituições com o jogo pausado.</li>
+          <li>Assistências nos gols e suspensão por expulsão.</li>
+        </ul>
+      </div>}
+
     </main>
   );
 }

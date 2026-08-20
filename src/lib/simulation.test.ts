@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { opponents } from "@/data/opponents";
 import { formations } from "@/data/formations";
 import { matchMoments } from "@/data/match-moments";
-import { seededRandom, simulateMatch } from "@/lib/simulation";
+import { mergeMatchFuture, seededRandom, simulateMatch } from "@/lib/simulation";
 
 function seeded(seed: number) {
   return () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
@@ -49,6 +49,23 @@ describe("simulation", () => {
     const defender = simulateMatch(opponents[0], opponents[1], seededRandom(7), { halftime: "defend" });
     expect(atacar.instructionImpact).toBeTruthy();
     expect(atacar.instructionImpact).not.toBe(defender.instructionImpact);
+  });
+
+  it("preserva o passado e fecha um resultado coerente ao recalcular o futuro", () => {
+    const home = opponents[0];
+    const away = opponents[1];
+    const previous = simulateMatch(home, away, seededRandom(31), { halftime: "keep" });
+    const revised = simulateMatch(home, away, seededRandom(31), { halftime: "attack" });
+    const merged = mergeMatchFuture(home, away, previous, revised, 65, seededRandom(991));
+    const reading = (result: ReturnType<typeof simulateMatch>) => result.events
+      .filter((event) => event.minute <= 65)
+      .map(({ type, minute, description, teamId, playerId }) => ({ type, minute, description, teamId, playerId }));
+    expect(reading(merged)).toEqual(reading(previous));
+    const goals = merged.events.filter((event) => event.type === "goal");
+    expect(goals.filter((event) => event.teamId === home.id).length).toBe(merged.homeScore + merged.homeExtra);
+    expect(goals.filter((event) => event.teamId === away.id).length).toBe(merged.awayScore + merged.awayExtra);
+    expect([home.id, away.id]).toContain(merged.winnerId);
+    expect(merged.events.at(-1)?.type).toBe("full_time");
   });
 
   it("pausa aos 65 com um contexto coerente e só reescreve a reta final", () => {

@@ -14,12 +14,12 @@ import { OutcomeScreen } from "@/components/game/screens/OutcomeScreen";
 import { CampaignSnapshotScreen } from "@/components/game/screens/CampaignSnapshotScreen";
 import { appendHistory, archiveCampaign, buildUserTeam, CAMPAIGN_STORAGE_KEY, clearLegacyStorage, createCampaign, LAST_CAMPAIGN_STORAGE_KEY, nextAvailableSquad, readHistory, readStoredCampaign, startDraft, toRecord, touchCampaign } from "@/lib/campaign";
 import { createBracket, getCurrentUserMatch, resolveCurrentRound, withCurrentUserTeam } from "@/lib/bracket";
-import { seededRandom, simulateMatch } from "@/lib/simulation";
+import { mergeMatchFuture, seededRandom, simulateMatch } from "@/lib/simulation";
 import { TutorialCoach } from "@/components/game/TutorialCoach";
 import { BrandMark } from "@/components/ui/Brand";
 import { useLivePlayers } from "@/components/game/LivePlayers";
 import { nextTip, readTutorial, restartTutorial, saveTutorial, tutorialTouched, type TutorialState } from "@/lib/tutorial";
-import type { Campaign, CampaignRecord, FormationId, LineupEntry, MatchInstructions, RatingsMode, SharedCampaign, SquadPlayerEntry, TacticId } from "@/types/game";
+import type { Campaign, CampaignRecord, FormationId, LineupEntry, LiveMatchSubstitution, MatchInstructions, MatchProgress, RatingsMode, SharedCampaign, SquadPlayerEntry, TacticId } from "@/types/game";
 
 function homeCampaign(): Campaign { return { ...createCampaign(), screen: "home" }; }
 
@@ -138,17 +138,65 @@ export function Game() {
     const pendingResult = sameMatch && campaign.pendingResult
       ? campaign.pendingResult
       : simulateMatch(match.home, match.away, seededRandom(pendingMatchSeed), matchInstructions);
-    update({ ...preparedCampaign, bracket, suspendedPlayerIds: [], screen: "match", lastMatchId: match.id, pendingMatchSeed, matchInstructions, pendingResult });
+    const matchProgress: MatchProgress = { matchId: match.id, minute: 0, lineup, bench, substitutions: [], kickStep: 0, kickRevealed: false, shootoutComplete: false };
+    update({ ...preparedCampaign, bracket, suspendedPlayerIds: [], screen: "match", lastMatchId: match.id, pendingMatchSeed, matchInstructions, matchProgress, pendingResult });
   };
   const applyInstruction = (instructions: MatchInstructions) => {
     if (!campaign.bracket || campaign.pendingMatchSeed === undefined) return;
     const match = getCurrentUserMatch(campaign.bracket);
     if (!match) return;
+    const revised = simulateMatch(match.home, match.away, seededRandom(campaign.pendingMatchSeed), instructions);
+    const minute = campaign.matchProgress?.minute ?? 0;
+    const pendingResult = minute > 0 && campaign.pendingResult
+      ? mergeMatchFuture(match.home, match.away, campaign.pendingResult, revised, minute, seededRandom((campaign.pendingMatchSeed ^ Math.imul(minute + 1, 2654435761)) >>> 0))
+      : revised;
     update({
       ...campaign,
       matchInstructions: instructions,
-      pendingResult: simulateMatch(match.home, match.away, seededRandom(campaign.pendingMatchSeed), instructions),
+      pendingResult,
     });
+  };
+  const changeLiveLineup = (lineup: LineupEntry[], bench: SquadPlayerEntry[], substitution?: LiveMatchSubstitution) => {
+    if (!campaign.bracket || campaign.pendingMatchSeed === undefined || !campaign.pendingResult) return;
+    const preparedCampaign = { ...campaign, lineup, bench };
+    const preparedTeam = buildUserTeam(preparedCampaign);
+    const bracket = withCurrentUserTeam(campaign.bracket, preparedTeam);
+    const match = getCurrentUserMatch(bracket);
+    if (!match) return;
+    const instructions = campaign.matchInstructions ?? campaign.pendingResult.instructions;
+    const revised = simulateMatch(match.home, match.away, seededRandom(campaign.pendingMatchSeed), instructions);
+    const minute = campaign.matchProgress?.minute ?? substitution?.minute ?? 0;
+    const previous = substitution ? {
+      ...campaign.pendingResult,
+      events: [...campaign.pendingResult.events, {
+        id: `live-substitution-${substitution.minute}-${substitution.outPlayerId}-${substitution.inPlayerId}`,
+        type: "substitution" as const,
+        minute: substitution.minute,
+        description: `${substitution.outName} sai, ${substitution.inName} entra.`,
+        teamId: preparedTeam.id,
+        playerId: substitution.inPlayerId,
+        playerName: substitution.inName,
+        period: substitution.minute > 90 ? "extra" as const : "regular" as const,
+        highlight: true,
+      }],
+    } : campaign.pendingResult;
+    const salt = (campaign.matchProgress?.substitutions.length ?? 0) + (substitution ? 1 : 0);
+    const pendingResult = mergeMatchFuture(match.home, match.away, previous, revised, minute, seededRandom((campaign.pendingMatchSeed ^ Math.imul(minute + salt + 1, 2654435761)) >>> 0));
+    const currentProgress = campaign.matchProgress ?? { matchId: match.id, minute, lineup, bench, substitutions: [], kickStep: 0, kickRevealed: false, shootoutComplete: false };
+    const matchProgress: MatchProgress = {
+      ...currentProgress,
+      lineup,
+      bench,
+      substitutions: substitution ? [...currentProgress.substitutions, substitution] : currentProgress.substitutions,
+    };
+    update({ ...preparedCampaign, bracket, pendingResult, matchInstructions: instructions, matchProgress });
+  };
+  const saveMatchProgress = (playback: Pick<MatchProgress, "minute" | "kickStep" | "kickRevealed" | "shootoutComplete">) => {
+    const match = campaign.bracket ? getCurrentUserMatch(campaign.bracket) : undefined;
+    if (!match) return;
+    const current = campaign.matchProgress ?? { matchId: match.id, minute: 0, lineup: campaign.lineup, bench: campaign.bench, substitutions: [], kickStep: 0, kickRevealed: false, shootoutComplete: false };
+    if (current.minute === playback.minute && current.kickStep === playback.kickStep && current.kickRevealed === playback.kickRevealed && current.shootoutComplete === playback.shootoutComplete) return;
+    update({ ...campaign, matchProgress: { ...current, ...playback } });
   };
   const finishMatch = () => {
     if (!campaign.bracket || !campaign.pendingResult) return;
@@ -160,7 +208,7 @@ export function Game() {
     const suspendedPlayerIds = campaign.pendingResult.events
       .filter((event) => event.type === "red_card" && event.teamId === "user-team" && event.playerId)
       .map((event) => event.playerId!);
-    const next: Campaign = { ...campaign, bracket, wins, screen, pendingResult: undefined, pendingMatchSeed: undefined, matchInstructions: undefined, suspendedPlayerIds };
+    const next: Campaign = { ...campaign, bracket, wins, screen, pendingResult: undefined, pendingMatchSeed: undefined, matchInstructions: undefined, matchProgress: undefined, suspendedPlayerIds };
     if (userWon && !isChampion) { update(next); return; }
     const finished = touchCampaign({ ...next, finishedAt: new Date().toISOString(), outcome: isChampion ? "champion" : "eliminated" });
     const nextHistory = appendHistory(toRecord(finished), history);
@@ -193,7 +241,7 @@ export function Game() {
     {campaign.screen === "tactics" && currentMatch && campaign.bracket && (
       <TacticsScreen campaign={campaign} match={currentMatch} onBack={() => show("bracket")} onStart={startPreparedMatch}/>
     )}
-    {campaign.screen === "match" && currentMatch && campaign.pendingResult && <MatchScreen key={currentMatch.id} match={currentMatch} result={campaign.pendingResult} ratingsMode={campaign.ratingsMode ?? "visible"} onInstruction={applyInstruction} onFinish={finishMatch}/>} 
+    {campaign.screen === "match" && currentMatch && campaign.pendingResult && <MatchScreen key={currentMatch.id} match={currentMatch} result={campaign.pendingResult} progress={campaign.matchProgress} ratingsMode={campaign.ratingsMode ?? "visible"} onInstruction={applyInstruction} onLineupChange={changeLiveLineup} onProgress={saveMatchProgress} onFinish={finishMatch}/>}
     {campaign.screen === "victory" && <OutcomeScreen campaign={campaign} outcome="victory" onContinue={() => show("bracket")} onRestart={restart}/>}
     {campaign.screen === "eliminated" && (
       <OutcomeScreen campaign={campaign} outcome="eliminated" onContinue={() => show("bracket")} onRestart={restart}/>

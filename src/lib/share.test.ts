@@ -45,6 +45,11 @@ describe("compartilhamento", () => {
     await expect(shortCampaignUrl(base)).rejects.toThrow("store-off");
   });
 
+  it("informa quando o limite de links foi atingido sem criar fallback longo", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "muitas-tentativas" }), { status: 429 })));
+    await expect(shortCampaignUrl(base)).rejects.toThrow("store-limited");
+  });
+
   it("aceita somente o id curto devolvido pelo servidor", async () => {
     const request = vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: "Ab3xK9mQ" }), { status: 200 }));
     vi.stubGlobal("fetch", request);

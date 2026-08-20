@@ -10,7 +10,7 @@ export function GameHeader({ campaign, overall, onHome, onRestart }: { campaign:
   const remaining = Math.max(0, 11 - campaign.lineup.length);
   return (
     <header className="game-header">
-      <button type="button" className="game-brand" onClick={onHome} aria-label="Ir para o início">
+      <button type="button" className="game-brand" onClick={onHome} aria-label="Preto no Branco, ir para o início">
         <BrandMark size={34} className="game-brand__mark"/><span>Preto <b>no Branco</b></span>
       </button>
       {isCampaign && (

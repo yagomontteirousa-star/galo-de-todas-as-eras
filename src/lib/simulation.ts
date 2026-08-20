@@ -524,6 +524,95 @@ function instructionImpact(instructions: MatchInstructions): string | undefined 
   return [instructions.halftime && half[instructions.halftime], instructions.moment && moment[instructions.moment]].filter(Boolean).join(" ") || undefined;
 }
 
+const withoutClosingMarkers = (event: MatchEvent) => event.type !== "full_time" && event.type !== "shootout";
+
+/**
+ * Mantém tudo que o jogador já viu e usa uma nova simulação apenas dali em diante.
+ * Isso permite que escalação e decisões alterem o jogo sem reescrever gols anteriores.
+ */
+export function mergeMatchFuture(
+  home: TeamSnapshot,
+  away: TeamSnapshot,
+  previous: MatchResult,
+  revised: MatchResult,
+  fromMinute: number,
+  random: RandomSource = Math.random,
+): MatchResult {
+  const regularPrefix = previous.events.filter((event) => event.period === "regular" && event.minute <= Math.min(fromMinute, 90) && withoutClosingMarkers(event));
+  const regularFuture = fromMinute < 90
+    ? revised.events.filter((event) => event.period === "regular" && event.minute > fromMinute && event.minute <= 90 && withoutClosingMarkers(event))
+    : [];
+  const regularEvents = [...regularPrefix, ...regularFuture];
+  const regular = scoreAt(regularEvents, home.id, 90);
+  const wentToExtraTime = regular.home === regular.away || fromMinute > 90;
+  const events = [...regularEvents];
+  let homeExtra = 0;
+  let awayExtra = 0;
+  let homePenalties: number | undefined;
+  let awayPenalties: number | undefined;
+  let penaltyKicks: PenaltyKick[] | undefined;
+  let wentToPenalties = false;
+
+  if (wentToExtraTime) {
+    if (!events.some((event) => event.type === "extra_time")) {
+      events.push(matchEvent("extra_time", 91, "A partida vai para a prorrogação.", "extra", undefined, undefined, true));
+    }
+    const extraPrefix = fromMinute > 90
+      ? previous.events.filter((event) => event.period === "extra" && event.minute <= fromMinute && event.type !== "full_time" && event.type !== "extra_time")
+      : [];
+    let extraFuture = revised.events.filter((event) => event.period === "extra" && event.minute > Math.max(91, fromMinute) && event.minute <= 120 && event.type !== "full_time" && event.type !== "extra_time");
+    if (!extraFuture.length && fromMinute < 119) {
+      const start = Math.max(93, fromMinute + 1);
+      const factor = 0.3 * Math.max(0, 120 - start) / 27;
+      const red = {
+        home: events.filter((event) => event.type === "red_card" && event.teamId === home.id).length * 0.5,
+        away: events.filter((event) => event.type === "red_card" && event.teamId === away.id).length * 0.5,
+      };
+      extraFuture = playSegment(home, away, start, 119, factor, "extra", random, instructionModifier(revised.instructions.halftime), red);
+    }
+    events.push(...extraPrefix, ...extraFuture);
+    const totals = scoreAt(events, home.id, 120);
+    homeExtra = totals.home - regular.home;
+    awayExtra = totals.away - regular.away;
+    if (totals.home === totals.away) {
+      wentToPenalties = true;
+      const disputa = shootout(home, away, random);
+      homePenalties = disputa.home;
+      awayPenalties = disputa.away;
+      penaltyKicks = disputa.kicks;
+      events.push(matchEvent("shootout", 121, `Pênaltis: ${home.name} ${homePenalties} a ${awayPenalties} ${away.name}.`, "shootout", undefined, undefined, true));
+    }
+  }
+
+  events.push(matchEvent("full_time", wentToExtraTime ? 122 : 90, "Fim de jogo.", wentToExtraTime ? "extra" : "regular", undefined, undefined, true));
+  const homeTotal = regular.home + homeExtra;
+  const awayTotal = regular.away + awayExtra;
+  const winnerId = homeTotal > awayTotal || (homeTotal === awayTotal && (homePenalties ?? 0) > (awayPenalties ?? 0)) ? home.id : away.id;
+  const finalizedEvents = finalizeEvents(events, home);
+  const winner = winnerId === home.id ? home : away;
+  const playerOfMatch = finalizedEvents.find((event) => event.type === "goal" && event.teamId === winnerId)?.playerName
+    ?? winner.lineup.reduce((best, player) => player.overall > best.overall ? player : best).name;
+
+  return {
+    homeScore: regular.home,
+    awayScore: regular.away,
+    homeExtra,
+    awayExtra,
+    homePenalties,
+    awayPenalties,
+    penaltyKicks,
+    wentToExtraTime,
+    wentToPenalties,
+    winnerId,
+    events: finalizedEvents,
+    playerOfMatch,
+    summary: summary(home, away, winnerId),
+    instructions: revised.instructions,
+    instructionImpact: revised.instructionImpact,
+    matchMoment: fromMinute >= 65 ? previous.matchMoment : revised.matchMoment,
+  };
+}
+
 function summary(home: TeamSnapshot, away: TeamSnapshot, winnerId: string): string {
   const winner = winnerId === home.id ? home : away;
   const loser = winnerId === home.id ? away : home;
