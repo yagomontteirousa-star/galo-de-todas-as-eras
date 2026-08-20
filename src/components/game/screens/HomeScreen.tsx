@@ -71,12 +71,12 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
 
           <div className="home-actions">
             {canResume && <button className="button button--primary" type="button" onClick={onResume}>Continuar campanha<ArrowIcon/></button>}
-            {finished && <button className="button button--quiet" type="button" onClick={onReviewLast}>Última campanha<ArrowIcon/></button>}
             {!canResume && (
               <button className="button button--primary" type="button" onClick={onStart}>
                 Começar campanha<ArrowIcon/>
               </button>
             )}
+            {finished && <button className="button button--quiet" type="button" onClick={onReviewLast}>Última campanha<ArrowIcon/></button>}
             {canResume && <button className="button button--quiet" type="button" onClick={onStart}>Nova campanha</button>}
           </div>
 

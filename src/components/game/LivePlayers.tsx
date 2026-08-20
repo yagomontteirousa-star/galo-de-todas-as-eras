@@ -54,6 +54,5 @@ export function LivePlayers({ players }: { players?: LivePlayersCount }) {
   return <p className="live-players" role="status">
     <i aria-hidden="true"/>
     <span>{players.current === 1 ? "1 pessoa jogando agora" : `${players.current} pessoas jogando agora`}</span>
-    {players.total > 0 && <small>{players.total === 1 ? "1 pessoa já entrou em campo" : `${players.total} pessoas já entraram em campo`}</small>}
   </p>;
 }
