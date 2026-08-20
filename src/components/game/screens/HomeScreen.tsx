@@ -4,7 +4,7 @@ import { useState, useSyncExternalStore } from "react";
 import { Pitch } from "@/components/game/Pitch";
 import { ArrowIcon, CloseIcon } from "@/components/ui/Icons";
 import { SiteFooter } from "@/components/ui/Brand";
-import { LivePlayers } from "@/components/game/LivePlayers";
+import { LivePlayers, type LivePlayersCount } from "@/components/game/LivePlayers";
 import Image from "next/image";
 import { atleticoSquads } from "@/data/atletico-squads";
 import { formations } from "@/data/formations";
@@ -39,7 +39,7 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
   onReviewLast: () => void;
   lastOutcome?: CampaignOutcome;
   history: CampaignRecord[];
-  livePlayers?: number;
+  livePlayers?: LivePlayersCount;
   onReplayTutorial?: () => void;
 }) {
   const releaseSeen = useSyncExternalStore(
@@ -71,10 +71,10 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
 
           <div className="home-actions">
             {canResume && <button className="button button--primary" type="button" onClick={onResume}>Continuar campanha<ArrowIcon/></button>}
-            {finished && <button className="button button--primary" type="button" onClick={onReviewLast}>Última campanha<ArrowIcon/></button>}
+            {finished && <button className="button button--quiet" type="button" onClick={onReviewLast}>Última campanha<ArrowIcon/></button>}
             {!canResume && (
-              <button className={`button ${finished ? "button--quiet" : "button--primary"}`} type="button" onClick={onStart}>
-                Começar campanha{finished ? null : <ArrowIcon/>}
+              <button className="button button--primary" type="button" onClick={onStart}>
+                Começar campanha<ArrowIcon/>
               </button>
             )}
             {canResume && <button className="button button--quiet" type="button" onClick={onStart}>Nova campanha</button>}
@@ -84,7 +84,7 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
             {canResume && lastOutcome && <button type="button" className="new-run-link" onClick={onReviewLast}>Ver a última campanha</button>}
             {onReplayTutorial && <button type="button" className="new-run-link" onClick={onReplayTutorial}>Ver o tutorial</button>}
           </div>
-          <LivePlayers count={livePlayers}/>
+          <LivePlayers players={livePlayers}/>
 
           {history.length === 0 && <p className="home-empty">{canResume ? "Nenhuma campanha concluída no arquivo ainda." : "Nenhuma campanha no arquivo ainda. A primeira súmula é sua."}</p>}
         </div>

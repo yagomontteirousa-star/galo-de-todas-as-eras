@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 
 const STORE_URL = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
 const STORE_TOKEN = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
 const PRESENCE_KEY = "pnb:presence";
+const PLAYERS_KEY = "pnb:players";
 const ACTIVE_FOR_MS = 90_000;
 
 const validVisitor = (value: unknown): value is string => typeof value === "string" && /^[a-zA-Z0-9-]{16,64}$/.test(value);
@@ -18,20 +20,44 @@ async function command(args: (string | number)[]) {
   return (await response.json() as { result?: unknown }).result;
 }
 
+const headers = { "Cache-Control": "no-store" };
+const anonymousVisitor = (visitor: string) => createHash("sha256").update(visitor).digest("hex");
+
+async function totals(now = Date.now()) {
+  await command(["ZREMRANGEBYSCORE", PRESENCE_KEY, 0, now - ACTIVE_FOR_MS]);
+  const [current, total] = await Promise.all([
+    command(["ZCARD", PRESENCE_KEY]),
+    command(["SCARD", PLAYERS_KEY]),
+  ]);
+  return {
+    current: typeof current === "number" ? current : Number(current) || 0,
+    total: typeof total === "number" ? total : Number(total) || 0,
+  };
+}
+
+/** A home lê os totais sem registrar uma nova presença. */
+export async function GET() {
+  if (!STORE_URL || !STORE_TOKEN) return NextResponse.json({ available: false }, { headers });
+  try {
+    return NextResponse.json({ available: true, ...(await totals()) }, { headers });
+  } catch {
+    return NextResponse.json({ available: false }, { headers });
+  }
+}
+
 /** Presença anônima: apenas um id local temporário e uma janela curta no Redis. */
 export async function POST(request: Request) {
-  if (!STORE_URL || !STORE_TOKEN) return NextResponse.json({ available: false }, { headers: { "Cache-Control": "no-store" } });
+  if (!STORE_URL || !STORE_TOKEN) return NextResponse.json({ available: false }, { headers });
   try {
     const body: unknown = await request.json();
     const visitor = body && typeof body === "object" ? (body as { visitor?: unknown }).visitor : undefined;
-    if (!validVisitor(visitor)) return NextResponse.json({ error: "visitante-invalido" }, { status: 400 });
+    if (!validVisitor(visitor)) return NextResponse.json({ error: "visitante-invalido" }, { status: 400, headers });
     const now = Date.now();
     await command(["ZADD", PRESENCE_KEY, now, visitor]);
-    await command(["ZREMRANGEBYSCORE", PRESENCE_KEY, 0, now - ACTIVE_FOR_MS]);
-    const count = await command(["ZCARD", PRESENCE_KEY]);
+    await command(["SADD", PLAYERS_KEY, anonymousVisitor(visitor)]);
     await command(["EXPIRE", PRESENCE_KEY, 180]);
-    return NextResponse.json({ available: true, count: typeof count === "number" ? count : Number(count) || 0 }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ available: true, ...(await totals(now)) }, { headers });
   } catch {
-    return NextResponse.json({ available: false }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ available: false }, { headers });
   }
 }

@@ -30,7 +30,7 @@ export function Game() {
   const [reviewedSnapshot, setReviewedSnapshot] = useState<SharedCampaign>();
   const [tutorial, setTutorial] = useState<TutorialState>({ dismissed: true, seen: [] });
   const [storageWarning, setStorageWarning] = useState(false);
-  const livePlayers = useLivePlayers();
+  const livePlayers = useLivePlayers(Boolean(campaign && campaign.screen !== "home"));
   const activeScreen = campaign?.screen;
   const activeSquadId = campaign?.currentSquadId;
 
