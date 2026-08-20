@@ -311,7 +311,6 @@ export function MatchScreen({
                   <div><dt>Melhor em campo</dt><dd>{result.playerOfMatch}</dd></div>
                   <div><dt>Decisão</dt><dd>{result.wentToPenalties ? "Pênaltis" : result.wentToExtraTime ? "Prorrogação" : "90 minutos"}</dd></div>
                 </dl>
-                <RivalSquadDisclosure rival={rivalRosterFromTeam(opponent)} className="rival-roster--match"/>
               </>
             ) : (
               <>
@@ -325,14 +324,11 @@ export function MatchScreen({
             )}
           </div>
         </aside>
+        {finished && <RivalSquadDisclosure rival={rivalRosterFromTeam(opponent)} className="rival-roster--match"/>}
         {!finished && !needsHalftime && (
           <details className="boxscore-collapse" open={boxOpen} onToggle={(event) => setBoxOpen(event.currentTarget.open)}>
             <summary>Resumo da partida</summary>
             <BoxScore
-              minute={minute}
-              status={status}
-              userScore={userVisible}
-              rivalScore={rivalVisible}
               goals={visibleGoals}
               userTeamId={userTeam.id}
               stats={matchStats}
@@ -419,7 +415,7 @@ function LiveSubstitutionBoard({ team, lineup, bench, used, onChange, onClose }:
   return (
     <section className="live-substitution-board" aria-label="Banco e substituições">
       <header>
-        <div><span>Jogo pausado</span><h2>Faça a substituição.</h2><p>Arraste um nome do banco sobre um titular. A partida só recomeça quando você confirmar.</p></div>
+        <div><span>Jogo pausado</span><h2>Faça a substituição.</h2><p>Toque num titular e escolha no banco quem entra. A partida só recomeça quando você confirmar.</p></div>
         <aside><b>{used}/5 usadas</b><button type="button" className="button button--primary" onClick={onClose}>Retomar jogo<ArrowIcon/></button></aside>
       </header>
       <TacticalEditor formationId={team.formation} tactic={team.tactic} lineup={lineup} bench={bench} compact onChange={onChange}/>
@@ -542,66 +538,53 @@ function GoalSheet({ goals, match }: { goals: MatchEvent[]; match: BracketMatch 
 }
 
 type MatchSummary = {
-  possession: [number | null, number | null];
+  possession: [number, number];
   shots: [number, number];
   onTarget: [number, number];
-  momentum: [number, number];
+  corners: [number, number];
 };
 
 /**
  * O motor não guarda uma planilha paralela de estatísticas. O resumo usa somente os
- * lances já gerados: ações de posse para controle, finalizações para chutes e os seis
- * ataques mais recentes para o momento. Assim não há números decorativos na interface.
+ * lances já gerados. Posse combina ações de controle e ataque, enquanto finalizações,
+ * chutes no alvo e escanteios vêm diretamente dos respectivos lances da partida.
  */
 function matchSummary(events: MatchEvent[], userTeamId: string, rivalTeamId: string): MatchSummary {
   const values = { user: 0, rival: 0 };
-  const add = (teamId: string | undefined) => {
-    if (teamId === userTeamId) values.user += 1;
-    if (teamId === rivalTeamId) values.rival += 1;
+  const add = (teamId: string | undefined, weight = 1) => {
+    if (teamId === userTeamId) values.user += weight;
+    if (teamId === rivalTeamId) values.rival += weight;
   };
   const attackingTeam = (event: MatchEvent) => event.type === "big_save"
     ? event.teamId === userTeamId ? rivalTeamId : userTeamId
     : event.teamId;
-  const possessionEvents = events.filter((event) => event.type === "possession");
-  for (const event of possessionEvents) add(event.teamId);
+  const controlEvents = events.filter((event) => ["possession", "pressure", "corner", "offside", "shot_off", "shot_saved", "big_save", "penalty", "goal"].includes(event.type));
+  for (const event of controlEvents) add(attackingTeam(event), event.type === "possession" ? 2 : 1);
   const possessionTotal = values.user + values.rival;
-  const possession: [number | null, number | null] = possessionTotal >= 3
-    ? [Math.round(values.user / possessionTotal * 100), Math.round(values.rival / possessionTotal * 100)]
-    : [null, null];
+  const userPossession = possessionTotal ? Math.round(values.user / possessionTotal * 100) : 50;
+  const possession: [number, number] = [userPossession, 100 - userPossession];
 
   const shots = { user: 0, rival: 0 };
   const onTarget = { user: 0, rival: 0 };
+  const corners = { user: 0, rival: 0 };
   const attacks = events.filter((event) => ["pressure", "corner", "offside", "shot_off", "shot_saved", "big_save", "penalty", "goal"].includes(event.type));
   for (const event of attacks) {
     const side = attackingTeam(event) === userTeamId ? "user" : attackingTeam(event) === rivalTeamId ? "rival" : undefined;
     if (!side) continue;
     if (["shot_off", "shot_saved", "big_save", "goal"].includes(event.type)) shots[side] += 1;
     if (["shot_saved", "big_save", "goal"].includes(event.type)) onTarget[side] += 1;
+    if (event.type === "corner") corners[side] += 1;
   }
-  const lastAttacks = attacks.slice(-6);
-  const momentum: [number, number] = [
-    lastAttacks.filter((event) => attackingTeam(event) === userTeamId).length,
-    lastAttacks.filter((event) => attackingTeam(event) === rivalTeamId).length,
-  ];
-  return { possession, shots: [shots.user, shots.rival], onTarget: [onTarget.user, onTarget.rival], momentum };
+  return { possession, shots: [shots.user, shots.rival], onTarget: [onTarget.user, onTarget.rival], corners: [corners.user, corners.rival] };
 }
 
-function BoxScore({ minute, status, userScore, rivalScore, goals, userTeamId, stats }: {
-  minute: number;
-  status: string;
-  userScore: number;
-  rivalScore: number;
+function BoxScore({ goals, userTeamId, stats }: {
   goals: MatchEvent[];
   userTeamId: string;
   stats: MatchSummary;
 }) {
   return (
     <section className="boxscore-card" aria-label="Resumo da partida">
-      <header className="match-boxscore__score">
-        <span>Placar</span>
-        <strong>{userScore}<i>×</i>{rivalScore}</strong>
-        <small>{minute}′ · {status}</small>
-      </header>
       <div className="match-boxscore__goals">
         <span>Gols</span>
         {goals.length ? (
@@ -617,10 +600,10 @@ function BoxScore({ minute, status, userScore, rivalScore, goals, userTeamId, st
       <div className="match-boxscore__stats">
         <span>Você <i>×</i> rival</span>
         <dl>
-          <Stat label="Posse" values={stats.possession} suffix="%" hint="A posse é calculada a partir dos lances de posse já gerados."/>
+          <Stat label="Posse" values={stats.possession} suffix="%" hint="Estimativa calculada pelos lances de controle e ataque já gerados."/>
           <Stat label="Finalizações" values={stats.shots}/>
           <Stat label="No alvo" values={stats.onTarget}/>
-          <Stat label="Momento" values={stats.momentum} hint="Ataques nos seis últimos lances relevantes."/>
+          <Stat label="Escanteios" values={stats.corners}/>
         </dl>
       </div>
     </section>

@@ -65,11 +65,12 @@ export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new M
             : `Vaga ${slot.label}${selectedPlayer ? isTarget ? ", disponível para o atleta selecionado" : ", incompatível com o atleta selecionado" : ""}`;
           // A sigla mora sozinha no botão; nome e overall ficam na etiqueta logo abaixo.
           const badge = interactive
-            ? <button type="button" className="pitch-slot__badge" onClick={() => onSlotClick?.(slot.id)} aria-label={label} aria-disabled={isSuspended}>{slot.label}</button>
+            ? <button type="button" className="pitch-slot__badge" onClick={(event) => { event.stopPropagation(); onSlotClick?.(slot.id); }} aria-label={label} aria-disabled={isSuspended}>{slot.label}</button>
             : <span className="pitch-slot__badge">{slot.label}</span>;
           return (
             <div key={slot.id} className={className} data-tactics-slot={onSlotPointerDown ? slot.id : undefined}
               style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+              onClick={player && interactive ? () => onSlotClick?.(slot.id) : undefined}
               onPointerDown={player ? (event) => onSlotPointerDown?.(slot.id, event) : undefined}
               onPointerMove={onSlotPointerMove}
               onPointerUp={onSlotPointerUp}

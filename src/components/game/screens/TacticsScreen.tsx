@@ -104,7 +104,7 @@ export function TacticalEditor({ formationId, tactic, lineup, bench, suspendedPl
     ? "Solte sobre outro atleta para trocar."
     : selectedBenchIndex !== undefined ? "Toque na posição que recebe este reserva."
       : selectedSlotId ? "Agora escolha um atleta do banco ou outra posição."
-        : "Arraste um nome sobre outro para trocar. Toque continua disponível.";
+        : "Toque num titular e escolha no banco quem entra.";
 
   return (
     <div className={`tactical-editor ${compact ? "tactical-editor--compact" : ""} ${dragging ? "is-dragging" : ""}`}>
