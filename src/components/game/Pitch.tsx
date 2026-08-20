@@ -2,6 +2,7 @@ import { playersById } from "@/data/atletico-squads";
 import { tacticalSlots } from "@/data/formations";
 import { evaluatePosition } from "@/lib/overall";
 import type { FormationId, LineupEntry, Player, TacticId } from "@/types/game";
+import type { PointerEvent as ReactPointerEvent } from "react";
 
 interface PitchProps {
   formationId: FormationId;
@@ -11,6 +12,7 @@ interface PitchProps {
   previewPlayers?: Map<string, Player>;
   selectedPlayer?: Player;
   selectedSlotId?: string;
+  draggedSlotId?: string;
   /** Vagas que aceitam o atleta em foco; as demais ficam apagadas. */
   targetSlotIds?: string[];
   /** Vaga recusada no último toque, para o feedback curto de bloqueio. */
@@ -18,6 +20,9 @@ interface PitchProps {
   /** Suspenso fica visível, mas não pode ser selecionado para começar a partida. */
   disabledPlayerIds?: string[];
   onSlotClick?: (slotId: string) => void;
+  onSlotPointerDown?: (slotId: string, event: ReactPointerEvent<HTMLDivElement>) => void;
+  onSlotPointerMove?: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onSlotPointerUp?: (event: ReactPointerEvent<HTMLDivElement>) => void;
   compact?: boolean;
   showRatings?: boolean;
 }
@@ -28,7 +33,7 @@ interface PitchProps {
  */
 const displayName = (name: string) => (name.length <= 13 ? name : name.split(" ").at(-1)!);
 
-export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new Map(), selectedPlayer, selectedSlotId, targetSlotIds, rejectedSlotId, disabledPlayerIds = [], onSlotClick, compact = false, showRatings = true }: PitchProps) {
+export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new Map(), selectedPlayer, selectedSlotId, draggedSlotId, targetSlotIds, rejectedSlotId, disabledPlayerIds = [], onSlotClick, onSlotPointerDown, onSlotPointerMove, onSlotPointerUp, compact = false, showRatings = true }: PitchProps) {
   const slots = tacticalSlots(formationId, tactic);
   const targets = targetSlotIds ? new Set(targetSlotIds) : undefined;
   return (
@@ -51,6 +56,7 @@ export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new M
             player ? "is-filled" : "is-empty",
             isSuspended ? "is-suspended" : "",
             selectedSlotId === slot.id ? "is-slot-selected" : "",
+            draggedSlotId === slot.id ? "is-drag-source" : "",
             targets ? (isTarget ? "is-slot-target" : "is-slot-dimmed") : "",
             rejectedSlotId === slot.id ? "is-slot-rejected" : "",
           ].filter(Boolean).join(" ");
@@ -62,7 +68,12 @@ export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new M
             ? <button type="button" className="pitch-slot__badge" onClick={() => onSlotClick?.(slot.id)} aria-label={label} aria-disabled={isSuspended}>{slot.label}</button>
             : <span className="pitch-slot__badge">{slot.label}</span>;
           return (
-            <div key={slot.id} className={className} style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>
+            <div key={slot.id} className={className} data-tactics-slot={onSlotPointerDown ? slot.id : undefined}
+              style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+              onPointerDown={player ? (event) => onSlotPointerDown?.(slot.id, event) : undefined}
+              onPointerMove={onSlotPointerMove}
+              onPointerUp={onSlotPointerUp}
+              onPointerCancel={onSlotPointerUp}>
               {badge}
               {player
                 ? <span className={`pitch-slot__tag ${name!.length > 10 ? "is-long" : ""}`}>

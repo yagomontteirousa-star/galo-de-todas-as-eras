@@ -32,12 +32,11 @@ const showcase: LineupEntry[] = (() => {
 
 const RELEASE_KEY = "preto-no-branco:release-squad-v1";
 
-export function HomeScreen({ onStart, onResume, canResume, onReviewLast, onReviewHistory, lastOutcome, history, livePlayers, onReplayTutorial }: {
+export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOutcome, history, livePlayers, onReplayTutorial }: {
   onStart: () => void;
   onResume: () => void;
   canResume: boolean;
   onReviewLast: () => void;
-  onReviewHistory: (record: CampaignRecord) => void;
   lastOutcome?: CampaignOutcome;
   history: CampaignRecord[];
   livePlayers?: number;
@@ -89,7 +88,7 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, onRevie
             <p>Agora sua campanha tem banco de reservas e uma escalação antes de cada jogo.</p>
             <ul>
               <li>Escolha 11 titulares e 7 reservas.</li>
-              <li>Faça até cinco substituições no intervalo.</li>
+              <li>Faça até cinco substituições com a partida pausada.</li>
               <li>Expulsão deixa o atleta fora da rodada seguinte.</li>
               <li>Gols agora registram quem deu a assistência.</li>
             </ul>

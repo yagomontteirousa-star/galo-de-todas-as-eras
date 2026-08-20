@@ -1,15 +1,143 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Pitch } from "@/components/game/Pitch";
 import { ArrowIcon } from "@/components/ui/Icons";
 import { playersById } from "@/data/atletico-squads";
 import { formations } from "@/data/formations";
 import { evaluatePosition } from "@/lib/overall";
+import { positionLabel } from "@/lib/positions";
 import { roundLabels } from "@/lib/bracket";
-import type { BracketMatch, Campaign, LineupEntry, SquadPlayerEntry } from "@/types/game";
+import type { BracketMatch, Campaign, FormationId, LineupEntry, SquadPlayerEntry, TacticId } from "@/types/game";
 
 const labelFor = (playerId: string) => playersById.get(playerId)?.name ?? "Atleta indisponível";
+type DragSource = { kind: "slot"; slotId: string } | { kind: "bench"; index: number };
+const dragDistance = 10;
 
-/** A prancheta pré jogo trabalha só com as 18 escolhas já feitas na campanha. */
+/** Campo e banco compartilham o gesto de arrastar, mas o toque simples continua acessível. */
+export function TacticalEditor({ formationId, tactic, lineup, bench, suspendedPlayerIds = [], onChange, compact = false }: {
+  formationId: FormationId;
+  tactic: TacticId;
+  lineup: LineupEntry[];
+  bench: SquadPlayerEntry[];
+  suspendedPlayerIds?: string[];
+  onChange: (lineup: LineupEntry[], bench: SquadPlayerEntry[]) => void;
+  compact?: boolean;
+}) {
+  const [selectedSlotId, setSelectedSlotId] = useState<string>();
+  const [selectedBenchIndex, setSelectedBenchIndex] = useState<number>();
+  const [dragging, setDragging] = useState<DragSource>();
+  const activePointer = useRef<{ source: DragSource; pointerId: number; x: number; y: number; moved: boolean } | undefined>(undefined);
+  const ignoreClick = useRef(false);
+  const suspended = useMemo(() => new Set(suspendedPlayerIds), [suspendedPlayerIds]);
+  const formation = formations[formationId];
+  const clearChoice = () => { setSelectedSlotId(undefined); setSelectedBenchIndex(undefined); };
+
+  const replaceSlotWithBench = (slotId: string, benchIndex: number) => {
+    const incoming = bench[benchIndex];
+    const leavingIndex = lineup.findIndex((entry) => entry.slotId === slotId);
+    if (!incoming || leavingIndex < 0 || suspended.has(incoming.playerId)) return;
+    const leaving = lineup[leavingIndex];
+    onChange(
+      lineup.map((entry) => entry.slotId === slotId ? { ...incoming, slotId } : entry),
+      bench.map((entry, index) => index === benchIndex ? { playerId: leaving.playerId, squadId: leaving.squadId } : entry),
+    );
+    clearChoice();
+  };
+  const swapSlots = (first: string, second: string) => {
+    if (first === second) return;
+    const left = lineup.find((entry) => entry.slotId === first);
+    const right = lineup.find((entry) => entry.slotId === second);
+    if (!left || !right) return;
+    onChange(lineup.map((entry) => entry.slotId === first ? { ...entry, slotId: second } : entry.slotId === second ? { ...entry, slotId: first } : entry), bench);
+    clearChoice();
+  };
+  const swapBench = (first: number, second: number) => {
+    if (first === second || !bench[first] || !bench[second]) return;
+    const next = [...bench];
+    [next[first], next[second]] = [next[second], next[first]];
+    onChange(lineup, next);
+    clearChoice();
+  };
+  const drop = (source: DragSource, target: DragSource) => {
+    if (source.kind === "slot" && target.kind === "slot") return swapSlots(source.slotId, target.slotId);
+    if (source.kind === "bench" && target.kind === "slot") return replaceSlotWithBench(target.slotId, source.index);
+    if (source.kind === "slot" && target.kind === "bench") return replaceSlotWithBench(source.slotId, target.index);
+    if (source.kind === "bench" && target.kind === "bench") return swapBench(source.index, target.index);
+  };
+  const startDrag = (source: DragSource, event: ReactPointerEvent<HTMLElement>) => {
+    if (source.kind === "bench" && suspended.has(bench[source.index]?.playerId)) return;
+    activePointer.current = { source, pointerId: event.pointerId, x: event.clientX, y: event.clientY, moved: false };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+  const moveDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const current = activePointer.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    if (!current.moved && Math.hypot(event.clientX - current.x, event.clientY - current.y) >= dragDistance) {
+      current.moved = true;
+      setDragging(current.source);
+    }
+  };
+  const finishDrag = (event: ReactPointerEvent<HTMLElement>) => {
+    const current = activePointer.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+    activePointer.current = undefined;
+    if (current.moved) {
+      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-tactics-slot], [data-tactics-bench]");
+      if (target?.dataset.tacticsSlot) drop(current.source, { kind: "slot", slotId: target.dataset.tacticsSlot });
+      else if (target?.dataset.tacticsBench !== undefined) drop(current.source, { kind: "bench", index: Number(target.dataset.tacticsBench) });
+      ignoreClick.current = true;
+      window.setTimeout(() => { ignoreClick.current = false; }, 0);
+    }
+    setDragging(undefined);
+  };
+  const onPitchSlot = (slotId: string) => {
+    if (ignoreClick.current) return;
+    if (selectedBenchIndex !== undefined) return replaceSlotWithBench(slotId, selectedBenchIndex);
+    if (selectedSlotId) return swapSlots(selectedSlotId, slotId);
+    setSelectedSlotId(slotId);
+  };
+  const onBenchPlayer = (index: number) => {
+    if (ignoreClick.current || suspended.has(bench[index].playerId)) return;
+    if (selectedSlotId) return replaceSlotWithBench(selectedSlotId, index);
+    setSelectedBenchIndex((current) => current === index ? undefined : index);
+  };
+  const instruction = dragging
+    ? "Solte sobre outro atleta para trocar."
+    : selectedBenchIndex !== undefined ? "Toque na posição que recebe este reserva."
+      : selectedSlotId ? "Agora escolha um atleta do banco ou outra posição."
+        : "Arraste um nome sobre outro para trocar. Toque continua disponível.";
+
+  return (
+    <div className={`tactical-editor ${compact ? "tactical-editor--compact" : ""} ${dragging ? "is-dragging" : ""}`}>
+      <div className="tactics-pitch">
+        <Pitch formationId={formationId} tactic={tactic} lineup={lineup} selectedSlotId={selectedSlotId} draggedSlotId={dragging?.kind === "slot" ? dragging.slotId : undefined}
+          onSlotClick={onPitchSlot} disabledPlayerIds={suspendedPlayerIds}
+          onSlotPointerDown={(slotId, event) => startDrag({ kind: "slot", slotId }, event)}
+          onSlotPointerMove={moveDrag} onSlotPointerUp={finishDrag}/>
+        <p aria-live="polite">{instruction}</p>
+      </div>
+      <aside className="tactics-bench" aria-label="Banco de reservas">
+        <header><h2>Banco de reservas</h2><span>{bench.length} disponíveis</span></header>
+        <div className="tactics-bench__list">
+          {bench.map((entry, index) => {
+            const player = playersById.get(entry.playerId);
+            if (!player) return null;
+            const suspendedPlayer = suspended.has(player.id);
+            const fit = selectedSlotId ? evaluatePosition(player, formation.slots.find((slot) => slot.id === selectedSlotId)!).fit : undefined;
+            return <button type="button" key={player.id} data-tactics-bench={index} disabled={suspendedPlayer}
+              className={`${selectedBenchIndex === index ? "is-selected" : ""} ${suspendedPlayer ? "is-suspended" : ""} ${dragging?.kind === "bench" && dragging.index === index ? "is-drag-source" : ""}`}
+              aria-pressed={selectedBenchIndex === index} onClick={() => onBenchPlayer(index)}
+              onPointerDown={(event) => startDrag({ kind: "bench", index }, event)} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
+              <span>{positionLabel(player.primaryPosition)}</span><b>{player.name}</b><em>{player.overall}</em>
+              {suspendedPlayer ? <small>Suspenso</small> : fit && <small className={`fit--${fit}`}>{fit === "natural" ? "Natural" : fit === "secondary" ? "Alternativa" : "Improviso"}</small>}
+            </button>;
+          })}
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+/** A prancheta pré-jogo trabalha só com as 18 escolhas já feitas na campanha. */
 export function TacticsScreen({ campaign, match, onBack, onStart }: {
   campaign: Campaign;
   match: BracketMatch;
@@ -18,35 +146,10 @@ export function TacticsScreen({ campaign, match, onBack, onStart }: {
 }) {
   const [lineup, setLineup] = useState(campaign.lineup);
   const [bench, setBench] = useState(campaign.bench);
-  const [selectedSlotId, setSelectedSlotId] = useState<string>();
-  const [selectedBenchIndex, setSelectedBenchIndex] = useState<number>();
-  const formation = formations[campaign.formation!];
   const suspended = useMemo(() => new Set(campaign.suspendedPlayerIds), [campaign.suspendedPlayerIds]);
   const opponent = match.home.isUser ? match.away : match.home;
   const suspendedNames = [...lineup, ...bench].filter((entry) => suspended.has(entry.playerId)).map((entry) => labelFor(entry.playerId));
   const invalidStarter = lineup.some((entry) => suspended.has(entry.playerId));
-
-  const swap = (slotId: string, benchIndex: number) => {
-    const incoming = bench[benchIndex];
-    const leavingIndex = lineup.findIndex((entry) => entry.slotId === slotId);
-    if (!incoming || leavingIndex < 0 || suspended.has(incoming.playerId)) return;
-    const leaving = lineup[leavingIndex];
-    setLineup((current) => current.map((entry) => entry.slotId === slotId ? { ...incoming, slotId } : entry));
-    setBench((current) => current.map((entry, index) => index === benchIndex ? { playerId: leaving.playerId, squadId: leaving.squadId } : entry));
-    setSelectedSlotId(undefined);
-    setSelectedBenchIndex(undefined);
-  };
-
-  const onPitchSlot = (slotId: string) => {
-    if (selectedBenchIndex !== undefined) return swap(slotId, selectedBenchIndex);
-    setSelectedSlotId((current) => current === slotId ? undefined : slotId);
-  };
-
-  const onBenchPlayer = (index: number) => {
-    if (suspended.has(bench[index].playerId)) return;
-    if (selectedSlotId) return swap(selectedSlotId, index);
-    setSelectedBenchIndex((current) => current === index ? undefined : index);
-  };
 
   return (
     <main className="screen tactics-screen" id="main">
@@ -63,30 +166,9 @@ export function TacticsScreen({ campaign, match, onBack, onStart }: {
         </dl>
       </header>
 
-      <section className="tactics-board" aria-label="Mesa tática">
-        <div className="tactics-pitch">
-          <Pitch formationId={campaign.formation!} tactic={campaign.tactic} lineup={lineup} selectedSlotId={selectedSlotId}
-            onSlotClick={onPitchSlot} disabledPlayerIds={campaign.suspendedPlayerIds}/>
-          <p>{selectedBenchIndex !== undefined ? "Toque na posição que recebe este reserva." : selectedSlotId ? "Agora escolha um atleta do banco." : "Toque numa camisa e depois em um reserva para trocar antes do apito."}</p>
-        </div>
-        <aside className="tactics-bench">
-          <header><h2>Banco de reservas</h2><span>7 disponíveis</span></header>
-          <div className="tactics-bench__list">
-            {bench.map((entry, index) => {
-              const player = playersById.get(entry.playerId);
-              if (!player) return null;
-              const suspendedPlayer = suspended.has(player.id);
-              const fit = selectedSlotId ? evaluatePosition(player, formation.slots.find((slot) => slot.id === selectedSlotId)!).fit : undefined;
-              return <button type="button" key={player.id} disabled={suspendedPlayer} className={`${selectedBenchIndex === index ? "is-selected" : ""} ${suspendedPlayer ? "is-suspended" : ""}`}
-                aria-pressed={selectedBenchIndex === index} onClick={() => onBenchPlayer(index)}>
-                <span>{player.primaryPosition}</span><b>{player.name}</b><em>{player.overall}</em>
-                {suspendedPlayer ? <small>Suspenso</small> : fit && <small className={`fit--${fit}`}>{fit === "natural" ? "Natural" : fit === "secondary" ? "Alternativa" : "Improviso"}</small>}
-              </button>;
-            })}
-          </div>
-          {suspendedNames.length > 0 && <p className="tactics-suspension">Suspenso nesta rodada: {suspendedNames.join(", ")}.</p>}
-        </aside>
-      </section>
+      <TacticalEditor formationId={campaign.formation!} tactic={campaign.tactic ?? "balanced"} lineup={lineup} bench={bench}
+        suspendedPlayerIds={campaign.suspendedPlayerIds} onChange={(nextLineup, nextBench) => { setLineup(nextLineup); setBench(nextBench); }}/>
+      {suspendedNames.length > 0 && <p className="tactics-suspension">Suspenso nesta rodada: {suspendedNames.join(", ")}.</p>}
 
       <footer className="tactics-actions">
         <button type="button" className="button button--quiet" onClick={onBack}>Voltar à chave</button>

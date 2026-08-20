@@ -6,14 +6,16 @@ import type {
   MatchEventType,
   MatchInstructions,
   MatchResult,
-  MatchSubstitution,
   PenaltyKick,
   RatingsMode,
+  LineupEntry,
+  SquadPlayerEntry,
   TeamSnapshot,
 } from "@/types/game";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowIcon } from "@/components/ui/Icons";
 import { roundLabels, teamEra } from "@/lib/bracket";
+import { TacticalEditor } from "@/components/game/screens/TacticsScreen";
 import { RivalSquadDisclosure } from "@/components/game/RivalSquadDisclosure";
 import { rivalRosterFromTeam } from "@/lib/rival-roster";
 import { matchMoments } from "@/data/match-moments";
@@ -71,7 +73,6 @@ export function MatchScreen({
   const [paused, setPaused] = useState(false);
   /** Postura escolhida no intervalo, ainda não confirmada. */
   const [halftimePick, setHalftimePick] = useState<HalftimeInstruction>();
-  const [halftimeSubs, setHalftimeSubs] = useState<MatchSubstitution[]>(() => result.instructions.substitutions?.filter((item) => item.at === 45) ?? []);
   const [momentPick, setMomentPick] = useState<MatchMomentInstruction>();
   /** Passo da disputa: a cobrança anuncia o nome antes de revelar o resultado. */
   const [kickStep, setKickStep] = useState(0);
@@ -79,8 +80,12 @@ export function MatchScreen({
   const [shootoutComplete, setShootoutComplete] = useState(false);
   const [goalFlash, setGoalFlash] = useState(false);
   const [boxOpen, setBoxOpen] = useState(true);
+  const [substitutionOpen, setSubstitutionOpen] = useState(false);
   const userTeam = match.home.isUser ? match.home : match.away;
   const opponent = match.home.isUser ? match.away : match.home;
+  const [liveLineup, setLiveLineup] = useState(() => userTeam.lineupEntries ?? []);
+  const [liveBench, setLiveBench] = useState(() => (userTeam.bench ?? []).map(({ id: playerId, squadId }) => ({ playerId, squadId })));
+  const [liveSubstitutions, setLiveSubstitutions] = useState<{ outName: string; inName: string; minute: number }[]>([]);
   const needsHalftime = minute >= 45 && !result.instructions.halftime;
   const moment = result.matchMoment ? matchMoments[result.matchMoment] : undefined;
   const needsMoment = minute >= 65 && !result.instructions.moment && Boolean(moment);
@@ -137,7 +142,19 @@ export function MatchScreen({
     return () => window.clearTimeout(timer);
   }, [inShootout, kickRevealed, kickStep, kicks.length]);
 
-  const visibleEvents = useMemo(() => result.events.filter((item) => item.minute <= minute), [minute, result.events]);
+  const visibleEvents = useMemo(() => [
+    ...result.events,
+    ...liveSubstitutions.map((item, index) => ({
+      id: `live-substitution-${index}-${item.minute}`,
+      type: "substitution" as const,
+      minute: item.minute,
+      description: `${item.outName} sai, ${item.inName} entra.`,
+      teamId: userTeam.id,
+      playerName: item.inName,
+      period: item.minute > 90 ? "extra" as const : "regular" as const,
+      highlight: true,
+    })),
+  ].filter((item) => item.minute <= minute).sort((left, right) => left.minute - right.minute || left.id.localeCompare(right.id)), [liveSubstitutions, minute, result.events, userTeam.id]);
   const lastUserGoal = useMemo(() => {
     const goals = visibleEvents.filter((item) => item.type === "goal" && item.teamId === userTeam.id);
     return goals.length ? goals[goals.length - 1].id : undefined;
@@ -175,16 +192,26 @@ export function MatchScreen({
   const timeline = visibleEvents.slice(-TIMELINE_ROWS).reverse();
 
   // O segundo tempo só começa depois da confirmação, e o intervalo não volta a abrir.
-  const confirmHalftime = () => halftimePick && onInstruction({ ...result.instructions, halftime: halftimePick, substitutions: halftimeSubs });
+  const confirmHalftime = () => halftimePick && onInstruction({ ...result.instructions, halftime: halftimePick });
   const confirmMoment = () => momentPick && onInstruction({ ...result.instructions, moment: momentPick });
   const skip = () => { setPaused(false); setMinute(!result.instructions.halftime ? 45 : !result.instructions.moment ? 65 : maxMinute); };
+  const applyLiveLineup = (nextLineup: typeof liveLineup, nextBench: typeof liveBench) => {
+    const outgoing = userTeam.lineup.find((player) => !nextLineup.some((entry) => entry.playerId === player.id) && liveLineup.some((entry) => entry.playerId === player.id));
+    const incoming = (userTeam.bench ?? []).find((player) => nextLineup.some((entry) => entry.playerId === player.id) && !liveLineup.some((entry) => entry.playerId === player.id));
+    if (outgoing && incoming) {
+      if (liveSubstitutions.length >= 5) return;
+      setLiveSubstitutions((current) => [...current, { outName: outgoing.name, inName: incoming.name, minute }]);
+    }
+    setLiveLineup(nextLineup);
+    setLiveBench(nextBench);
+  };
 
   return (
     <main className="screen match-screen" id="main">
       {/* No intervalo o painel ocupa exatamente o espaço do placar: relógio, placar e
           controles saem de cena para a decisão ficar visível sem rolagem. */}
       {needsHalftime ? (
-        <HalftimePanel round={roundLabels[match.round]} team={userTeam} substitutions={halftimeSubs} onSubstitutionsChange={setHalftimeSubs} picked={halftimePick} onPick={setHalftimePick} onConfirm={confirmHalftime}/>
+        <HalftimePanel round={roundLabels[match.round]} picked={halftimePick} onPick={setHalftimePick} onConfirm={confirmHalftime}/>
       ) : (
         <>
           <div className="match-stage"><span>{roundLabels[match.round]} · {status}</span><b>{clockDone ? "ENCERRADO" : `${minute}′`}</b><small>{match.home.stadium ?? "Casa do mandante"}</small></div>
@@ -229,6 +256,9 @@ export function MatchScreen({
               <button type="button" className="match-control" onClick={() => setPaused((value) => !value)} aria-pressed={paused}>
                 {paused ? "▶ Retomar" : "❚❚ Pausar"}
               </button>
+              <button type="button" className="match-control match-control--substitution" onClick={() => { setPaused(true); setSubstitutionOpen(true); }}>
+                Banco e substituições <b>{liveSubstitutions.length}/5</b>
+              </button>
               <div className="match-speeds" role="group" aria-label="Velocidade da simulação">
                 <span>Velocidade</span>
                 {speeds.map((speed, index) => (
@@ -244,6 +274,10 @@ export function MatchScreen({
         </>
       )}
       <div className={`match-content ${needsHalftime ? "is-break" : ""}`}>
+        {substitutionOpen ? (
+          <LiveSubstitutionBoard team={userTeam} lineup={liveLineup} bench={liveBench} used={liveSubstitutions.length}
+            onChange={applyLiveLineup} onClose={() => { setSubstitutionOpen(false); setPaused(false); }}/>
+        ) : <>
         {/* Na disputa, a marca da cal substitui os últimos lances: mesma região, sem
             empilhar um painel embaixo do outro. */}
         {inShootout ? (
@@ -305,6 +339,7 @@ export function MatchScreen({
             />
           </details>
         )}
+        </>}
       </div>
     </main>
   );
@@ -314,11 +349,8 @@ export function MatchScreen({
  * Intervalo: ocupa o lugar do placar, exige uma escolha e só então devolve o jogo. O botão
  * de seguir mora aqui dentro, para a decisão inteira caber num campo de visão só.
  */
-function HalftimePanel({ round, team, substitutions, onSubstitutionsChange, picked, onPick, onConfirm }: {
+function HalftimePanel({ round, picked, onPick, onConfirm }: {
   round: string;
-  team: TeamSnapshot;
-  substitutions: MatchSubstitution[];
-  onSubstitutionsChange: (value: MatchSubstitution[]) => void;
   picked?: HalftimeInstruction;
   onPick: (choice: HalftimeInstruction) => void;
   onConfirm: () => void;
@@ -338,7 +370,6 @@ function HalftimePanel({ round, team, substitutions, onSubstitutionsChange, pick
           </button>
         ))}
       </div>
-      <SubstitutionPicker team={team} substitutions={substitutions} onChange={onSubstitutionsChange}/>
       <button type="button" className="button button--primary button--wide" disabled={!picked} onClick={onConfirm}>
         {picked ? "Começar o segundo tempo" : "Escolha uma postura"}<ArrowIcon/>
       </button>
@@ -376,33 +407,23 @@ function MatchMomentPanel({ moment, score, picked, onPick, onConfirm }: {
   );
 }
 
-function SubstitutionPicker({ team, substitutions, onChange }: {
+/** A mesa abre dentro do fluxo da partida, com o relógio pausado e sem cobrir o placar. */
+function LiveSubstitutionBoard({ team, lineup, bench, used, onChange, onClose }: {
   team: TeamSnapshot;
-  substitutions: MatchSubstitution[];
-  onChange: (value: MatchSubstitution[]) => void;
+  lineup: LineupEntry[];
+  bench: SquadPlayerEntry[];
+  used: number;
+  onChange: (lineup: LineupEntry[], bench: SquadPlayerEntry[]) => void;
+  onClose: () => void;
 }) {
-  const [outPlayerId, setOutPlayerId] = useState("");
-  const [inPlayerId, setInPlayerId] = useState("");
-  const alreadyOut = new Set(substitutions.map((item) => item.outPlayerId));
-  const alreadyIn = new Set(substitutions.map((item) => item.inPlayerId));
-  const availableOut = team.lineup.filter((player) => !alreadyOut.has(player.id));
-  const availableIn = (team.bench ?? []).filter((player) => !alreadyIn.has(player.id));
-  const add = () => {
-    if (!outPlayerId || !inPlayerId || substitutions.length >= 5) return;
-    onChange([...substitutions, { at: 45, outPlayerId, inPlayerId }]);
-    setOutPlayerId("");
-    setInPlayerId("");
-  };
   return (
-    <details className="halftime-subs">
-      <summary>Substituições <span>{substitutions.length}/5</span></summary>
-      <div className="halftime-subs__picker">
-        <label>Quem sai<select value={outPlayerId} onChange={(event) => setOutPlayerId(event.target.value)}><option value="">Escolha o titular</option>{availableOut.map((player) => <option key={player.id} value={player.id}>{player.name} · {player.primaryPosition} · {player.overall}</option>)}</select></label>
-        <label>Quem entra<select value={inPlayerId} onChange={(event) => setInPlayerId(event.target.value)}><option value="">Escolha o reserva</option>{availableIn.map((player) => <option key={player.id} value={player.id}>{player.name} · {player.primaryPosition} · {player.overall}</option>)}</select></label>
-        <button type="button" className="button button--quiet" disabled={!outPlayerId || !inPlayerId || substitutions.length >= 5} onClick={add}>Adicionar troca</button>
-      </div>
-      {substitutions.length > 0 && <ul>{substitutions.map((item) => <li key={`${item.outPlayerId}-${item.inPlayerId}`}><span>{team.lineup.find((player) => player.id === item.outPlayerId)?.name} sai</span><b>{team.bench?.find((player) => player.id === item.inPlayerId)?.name} entra</b><button type="button" aria-label="Remover substituição" onClick={() => onChange(substitutions.filter((entry) => entry !== item))}>×</button></li>)}</ul>}
-    </details>
+    <section className="live-substitution-board" aria-label="Banco e substituições">
+      <header>
+        <div><span>Jogo pausado</span><h2>Faça a substituição.</h2><p>Arraste um nome do banco sobre um titular. A partida só recomeça quando você confirmar.</p></div>
+        <aside><b>{used}/5 usadas</b><button type="button" className="button button--primary" onClick={onClose}>Retomar jogo<ArrowIcon/></button></aside>
+      </header>
+      <TacticalEditor formationId={team.formation} tactic={team.tactic} lineup={lineup} bench={bench} compact onChange={onChange}/>
+    </section>
   );
 }
 

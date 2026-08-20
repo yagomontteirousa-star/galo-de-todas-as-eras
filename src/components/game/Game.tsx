@@ -84,9 +84,6 @@ export function Game() {
     setReviewedSnapshot(undefined);
     setCampaign({ ...lastCampaign, screen: lastCampaign.outcome === "champion" ? "champion" : "eliminated" });
   };
-  const reviewHistory = (record: CampaignRecord) => {
-    if (record.snapshot) setReviewedSnapshot(record.snapshot);
-  };
   const resume = () => {
     const screen = campaign.pendingResult ? "match" : campaign.bracket ? "bracket" : campaign.lineup.length === 11 && campaign.bench.length === 7 ? "analysis" : campaign.formation ? "draft" : "setup";
     update({ ...campaign, screen });
@@ -182,7 +179,7 @@ export function Game() {
     <GameHeader campaign={campaign} overall={team?.overall.final} onHome={goHome} onRestart={restart}/>
     {storageWarning && <div className="storage-warning" role="status">O navegador bloqueou o salvamento. Você pode jogar, mas esta campanha pode não continuar após fechar a aba.</div>}
     {campaign.screen === "home" && reviewedSnapshot && <CampaignSnapshotScreen data={reviewedSnapshot} onBack={() => setReviewedSnapshot(undefined)} onRestart={restart}/>}
-    {campaign.screen === "home" && !reviewedSnapshot && <HomeScreen onStart={restart} onResume={resume} canResume={canResume} onReviewLast={reviewLast} onReviewHistory={reviewHistory} lastOutcome={lastCampaign?.outcome} history={history} livePlayers={livePlayers} onReplayTutorial={tutorialTouched(tutorial) ? replayTutorial : undefined}/>}
+    {campaign.screen === "home" && !reviewedSnapshot && <HomeScreen onStart={restart} onResume={resume} canResume={canResume} onReviewLast={reviewLast} lastOutcome={lastCampaign?.outcome} history={history} livePlayers={livePlayers} onReplayTutorial={tutorialTouched(tutorial) ? replayTutorial : undefined}/>}
     {campaign.screen === "setup" && <SetupScreen onContinue={setup}/>}
     {campaign.screen === "draft" && currentSquad && (
       <DraftScreen key={currentSquad.id} campaign={campaign} squad={currentSquad} onConfirm={confirmPicks} onReroll={reroll} onRelocateLineupEntry={relocateLineupEntry}/>
