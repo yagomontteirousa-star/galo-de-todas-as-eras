@@ -80,20 +80,6 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
             {canResume && <button className="button button--quiet" type="button" onClick={onStart}>Nova campanha</button>}
           </div>
 
-          {showRelease && <aside className="release-note" aria-labelledby="release-note-title">
-            <div className="release-note__head">
-              <h2 id="release-note-title">Novidades em campo</h2>
-              <button type="button" onClick={dismissRelease} aria-label="Fechar novidades"><CloseIcon/></button>
-            </div>
-            <p>Agora sua campanha tem banco de reservas e uma escalação antes de cada jogo.</p>
-            <ul>
-              <li>Escolha 11 titulares e 7 reservas.</li>
-              <li>Faça até cinco substituições com a partida pausada.</li>
-              <li>Expulsão deixa o atleta fora da rodada seguinte.</li>
-              <li>Gols agora registram quem deu a assistência.</li>
-            </ul>
-          </aside>}
-
           <div className="home-links">
             {canResume && lastOutcome && <button type="button" className="new-run-link" onClick={onReviewLast}>Ver a última campanha</button>}
             {onReplayTutorial && <button type="button" className="new-run-link" onClick={onReplayTutorial}>Ver o tutorial</button>}
@@ -108,6 +94,19 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
           <p>Onze em aberto. O sorteio decide quem entra.</p>
         </div>
       </section>
+
+      {showRelease && <aside className="release-toast" aria-labelledby="release-note-title" aria-live="polite">
+        <div className="release-toast__head">
+          <div><span>Chegou em campo</span><h2 id="release-note-title">Novidades da campanha</h2></div>
+          <button type="button" onClick={dismissRelease} aria-label="Fechar novidades"><CloseIcon/></button>
+        </div>
+        <p>Agora você prepara o time antes do apito e interfere no jogo quando precisar.</p>
+        <ul>
+          <li>11 titulares e 7 reservas por partida.</li>
+          <li>Até cinco substituições com o jogo pausado.</li>
+          <li>Assistências nos gols e suspensão por expulsão.</li>
+        </ul>
+      </aside>}
 
       <section className="how-it-works" id="como-funciona">
         <ol>
