@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 const VISITOR_KEY = "preto-no-branco:presence-id";
 
@@ -22,30 +22,28 @@ function visitorId() {
 }
 
 /** O número só existe quando o Redis responde. Ninguém precisa se identificar. */
-export function useLivePlayers(isPlaying: boolean) {
+export function useLivePlayers() {
   const [players, setPlayers] = useState<LivePlayersCount>();
-  const visitor = useRef<string | null>(null);
   useEffect(() => {
     let alive = true;
+    const id = visitorId();
     const beat = async () => {
       try {
-        if (!isPlaying) {
-          const response = await fetch("/api/presence", { cache: "no-store" });
-          const data = await response.json() as { available?: boolean; current?: number; total?: number };
-          if (alive && data.available && typeof data.current === "number" && typeof data.total === "number" && Number.isInteger(data.current) && Number.isInteger(data.total)) setPlayers({ current: data.current, total: data.total });
-          return;
-        }
-        const id = visitor.current ?? visitorId();
-        visitor.current = id;
         const response = await fetch("/api/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ visitor: id }), cache: "no-store" });
         const data = await response.json() as { available?: boolean; current?: number; total?: number };
         if (alive && data.available && typeof data.current === "number" && typeof data.total === "number" && Number.isInteger(data.current) && Number.isInteger(data.total)) setPlayers({ current: data.current, total: data.total });
       } catch { /* presença é complementar; a home não depende dela */ }
     };
+    const leave = () => {
+      const payload = JSON.stringify({ visitor: id, leaving: true });
+      if (navigator.sendBeacon) navigator.sendBeacon("/api/presence", new Blob([payload], { type: "application/json" }));
+      else void fetch("/api/presence", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload, keepalive: true }).catch(() => undefined);
+    };
     void beat();
     const interval = window.setInterval(() => void beat(), 30_000);
-    return () => { alive = false; window.clearInterval(interval); };
-  }, [isPlaying]);
+    window.addEventListener("pagehide", leave);
+    return () => { alive = false; window.clearInterval(interval); window.removeEventListener("pagehide", leave); };
+  }, []);
   return players;
 }
 

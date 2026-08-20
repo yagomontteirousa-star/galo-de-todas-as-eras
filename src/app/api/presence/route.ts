@@ -35,7 +35,7 @@ async function totals(now = Date.now()) {
   };
 }
 
-/** A home lê os totais sem registrar uma nova presença. */
+/** Consulta complementar dos totais sem alterar a presença. */
 export async function GET() {
   if (!STORE_URL || !STORE_TOKEN) return NextResponse.json({ available: false }, { headers });
   try {
@@ -45,13 +45,18 @@ export async function GET() {
   }
 }
 
-/** Presença anônima: apenas um id local temporário e uma janela curta no Redis. */
+/** Presença anônima: entrada, renovação e saída usam apenas um id aleatório local. */
 export async function POST(request: Request) {
   if (!STORE_URL || !STORE_TOKEN) return NextResponse.json({ available: false }, { headers });
   try {
     const body: unknown = await request.json();
     const visitor = body && typeof body === "object" ? (body as { visitor?: unknown }).visitor : undefined;
+    const leaving = body && typeof body === "object" && (body as { leaving?: unknown }).leaving === true;
     if (!validVisitor(visitor)) return NextResponse.json({ error: "visitante-invalido" }, { status: 400, headers });
+    if (leaving) {
+      await command(["ZREM", PRESENCE_KEY, visitor]);
+      return NextResponse.json({ available: true, ...(await totals()) }, { headers });
+    }
     const now = Date.now();
     await command(["ZADD", PRESENCE_KEY, now, visitor]);
     await command(["SADD", PLAYERS_KEY, anonymousVisitor(visitor)]);
