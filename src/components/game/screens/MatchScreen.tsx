@@ -450,11 +450,7 @@ function EventGlyph({ type }: { type: MatchEventType }) {
   return <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6" {...common}/><path d="M10 6v4l3 2" {...common}/></svg>;
 }
 
-/**
- * Disputa de pênaltis no lugar da timeline. Cada lado tem a sua coluna e toda cobrança
- * fica à vista de uma vez: nada de rolagem interna, porque o placar da série só se lê
- * inteiro. A última batida acende por um instante para o olho achar onde parou.
- */
+/** A disputa ocupa a timeline. O cobrador entra na sua coluna antes do resultado. */
 function Shootout({ kicks, current, revealed, total, match, decided }: {
   kicks: PenaltyKick[];
   current?: PenaltyKick;
@@ -497,7 +493,14 @@ function Shootout({ kicks, current, revealed, total, match, decided }: {
                   <em>{kick.homeScore}–{kick.awayScore}</em>
                 </li>
               ))}
-              {!sideKicks.length && <li className="shootout__waiting"><b>Aguardando</b></li>}
+              {current && !revealed && current.side === side && (
+                <li className="is-pending" aria-label={`${current.taker} se prepara para bater`}>
+                  <i aria-hidden="true"/>
+                  <b>{current.taker}</b>
+                  <em>na marca</em>
+                </li>
+              )}
+              {!sideKicks.length && !(current && !revealed && current.side === side) && <li className="shootout__waiting"><b>Aguardando</b></li>}
             </ol>
           ))}
         </div>
