@@ -8,6 +8,7 @@ const room: MultiplayerRoom = { id: "room", code: "AB3XK9MQ", hostUserId: "user-
 const participant = (index: number): MultiplayerParticipant => ({
   id: `player-${index}`, roomId: room.id, userId: `user-${index}`, nickname: `Jogador ${index}`,
   slotIndex: index - 1, status: "ready", team: { ...opponents[index], id: `draft-${index}`, isUser: true },
+  draftSchedule: [], draftRound: 0, draftPick: 0, connected: true, lobbyReady: true,
   createdAt, updatedAt: createdAt,
 });
 

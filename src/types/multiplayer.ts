@@ -11,6 +11,7 @@ export interface MultiplayerRoom {
   ratingsMode: RatingsMode;
   currentRound: TournamentRound;
   bracket?: BracketState;
+  draftStartedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -24,6 +25,13 @@ export interface MultiplayerParticipant {
   status: MultiplayerPlayerStatus;
   campaign?: Campaign;
   team?: TeamSnapshot;
+  draftSchedule: string[];
+  draftRound: number;
+  draftPick: number;
+  draftDeadline?: string;
+  connected: boolean;
+  lobbyReady: boolean;
+  leftAt?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +40,9 @@ export interface MultiplayerDecision {
   matchId: string;
   userId: string;
   instructions: MatchInstructions;
+  lineup?: MatchProgress["lineup"];
+  bench?: MatchProgress["bench"];
+  substitutions?: MatchProgress["substitutions"];
   updatedAt: string;
 }
 
@@ -46,7 +57,15 @@ export interface MultiplayerMatch {
   awayParticipantId?: string;
   controllerUserId: string;
   seed: number;
-  status: "waiting" | "playing" | "finished";
+  status: "waiting" | "ready" | "playing" | "halftime" | "moment" | "finished";
+  homeReady: boolean;
+  awayReady: boolean;
+  homeCpu: boolean;
+  awayCpu: boolean;
+  officialMinute: number;
+  phaseStartedAt?: string;
+  phaseBaseMinute: number;
+  decisionDeadline?: string;
   result?: MatchResult;
   progress?: MatchProgress;
   updatedAt: string;
@@ -60,4 +79,9 @@ export interface MultiplayerSnapshot {
   userId: string;
   connected: boolean;
   localDevelopment: boolean;
+}
+
+export interface MultiplayerPresence {
+  userId: string;
+  onlineAt: string;
 }

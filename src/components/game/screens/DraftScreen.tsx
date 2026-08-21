@@ -30,12 +30,16 @@ const prefersReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isHandheld = () => typeof window !== "undefined" && window.matchMedia("(max-width: 920px)").matches;
 
-export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLineupEntry }: {
+export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLineupEntry, pickLimit = 2, deadline, pickNumber, disableReroll = false }: {
   campaign: Campaign;
   squad: HistoricalSquad;
   onConfirm: (picks: LineupEntry[], benchPicks: SquadPlayerEntry[]) => void;
   onReroll: () => void;
   onRelocateLineupEntry: (fromSlotId: string, toSlotId: string) => void;
+  pickLimit?: 1 | 2;
+  deadline?: string;
+  pickNumber?: 1 | 2;
+  disableReroll?: boolean;
 }) {
   const [selectedId, setSelectedId] = useState<string>();
   const [hoverId, setHoverId] = useState<string>();
@@ -49,6 +53,8 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   const [spinYear, setSpinYear] = useState<number | undefined>(
     () => prefersReducedMotion() ? undefined : squadYears[Math.floor(Math.random() * squadYears.length)]);
   const toastSeq = useRef(0);
+  const autoPickRef = useRef(false);
+  const [secondsLeft, setSecondsLeft] = useState(() => deadline ? Math.max(0, Math.ceil((Date.parse(deadline) - Date.now()) / 1000)) : undefined);
   const rosterRef = useRef<HTMLElement>(null);
   /** Toque que virou rolagem não seleciona: guardamos a origem e comparamos o deslocamento. */
   const gesture = useRef<{ id: number; x: number; y: number; dragged: boolean } | null>(null);
@@ -93,7 +99,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   const usedPeople = usedPersonIds(combined);
   const alreadyChosen = (player: Player) => usedPeople.has(player.personId);
   const openSlots = formation.slots.filter((slot) => !occupied.has(slot.id));
-  const maxPicks = choosingBench ? Math.min(2, 7 - campaign.bench.length) : Math.min(2, 11 - campaign.lineup.length);
+  const maxPicks = choosingBench ? Math.min(pickLimit, 7 - campaign.bench.length) : Math.min(pickLimit, 11 - campaign.lineup.length);
   const activePicks = choosingBench ? benchPicks : picks;
   const totalFilled = campaign.lineup.length + picks.length;
   const totalBench = campaign.bench.length + benchPicks.length;
@@ -225,6 +231,34 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
     focusSection(fieldRef);
   };
 
+  useEffect(() => {
+    if (!deadline) return;
+    const update = () => setSecondsLeft(Math.max(0, Math.ceil((Date.parse(deadline) - Date.now()) / 1000)));
+    update();
+    const timer = window.setInterval(update, 200);
+    return () => window.clearInterval(timer);
+  }, [deadline]);
+
+  useEffect(() => {
+    if (secondsLeft !== 0 || autoPickRef.current || advancing || revealing) return;
+    autoPickRef.current = true;
+    const timer = window.setTimeout(() => {
+      const candidates = players.filter((player) => !alreadyChosen(player)).sort((left, right) => right.overall - left.overall);
+      if (choosingBench) {
+        const player = candidates[0];
+        if (player) assignBenchPlayer(player);
+        return;
+      }
+      for (const player of candidates) {
+        const slot = openSlots.find((item) => canPlay(player, item));
+        if (slot) { assignPlayer(player, slot); return; }
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // A expiração é um evento externo. As funções abaixo usam o retrato desta rodada.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [advancing, choosingBench, openSlots, players, revealing, secondsLeft]);
+
   const targetSlotIds = activePlayer
     ? compatibleSlots(activePlayer, openSlots).map((slot) => slot.id)
     : undefined;
@@ -252,6 +286,10 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
               <strong aria-live="polite">{spinYear ?? squad.year}</strong>
               <h1>{revealing ? "Girando o arquivo" : squad.name}</h1>
             </div>
+            {secondsLeft !== undefined && <div className="draft-countdown" role="timer" aria-live="polite" aria-label={`${secondsLeft} segundos restantes`}>
+              <svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="18"/><circle cx="22" cy="22" r="18" style={{ strokeDashoffset: 113 - (113 * secondsLeft) / 15 }}/></svg>
+              <strong>{secondsLeft}</strong><small>{pickNumber ? `${pickNumber}ª escolha` : "segundos"}</small>
+            </div>}
           </header>
 
           {revealing ? (
@@ -262,7 +300,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
           ) : (<>
           <div className="roster-heading">
             <div><h2>{choosingBench ? maxPicks === 1 ? "Escolha 1 reserva" : "Escolha 2 reservas" : maxPicks === 1 ? "Escolha o jogador" : "Escolha 2 jogadores"}</h2><span>{activePicks.length} de {maxPicks} neste ano</span></div>
-            <button type="button" className="reroll-action" disabled={!campaign.rerollsLeft || advancing} onClick={onReroll}>
+            <button type="button" className="reroll-action" disabled={disableReroll || !campaign.rerollsLeft || advancing} onClick={onReroll}>
               <ShuffleIcon/>Outro ano
               <em>{campaign.rerollsLeft}</em>
               <small>{campaign.rerollsLeft === 1 ? "sorteio restante" : "sorteios restantes"}</small>

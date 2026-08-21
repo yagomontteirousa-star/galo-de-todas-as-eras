@@ -19,15 +19,15 @@ function db() {
   return supabase;
 }
 
-type RoomRow = { id: string; code: string; host_user_id: string; status: MultiplayerRoom["status"]; ratings_mode: RatingsMode; current_round: TournamentRound; bracket: MultiplayerRoom["bracket"] | null; created_at: string; updated_at: string };
-type PlayerRow = { id: string; room_id: string; user_id: string; nickname: string; slot_index: number; status: MultiplayerParticipant["status"]; campaign: Campaign | null; team: TeamSnapshot | null; created_at: string; updated_at: string };
-type MatchRow = { id: string; room_id: string; round: TournamentRound; match_index: number; home_team: TeamSnapshot; away_team: TeamSnapshot; home_participant_id: string | null; away_participant_id: string | null; controller_user_id: string; seed: number; status: MultiplayerMatch["status"]; result: MatchResult | null; progress: MatchProgress | null; updated_at: string };
-type DecisionRow = { match_id: string; user_id: string; instructions: MatchInstructions; updated_at: string };
+type RoomRow = { id: string; code: string; host_user_id: string; status: MultiplayerRoom["status"]; ratings_mode: RatingsMode; current_round: TournamentRound; bracket: MultiplayerRoom["bracket"] | null; draft_started_at: string | null; created_at: string; updated_at: string };
+type PlayerRow = { id: string; room_id: string; user_id: string; nickname: string; slot_index: number; status: MultiplayerParticipant["status"]; campaign: Campaign | null; team: TeamSnapshot | null; draft_schedule: string[]; draft_round: number; draft_pick: number; draft_deadline: string | null; connected: boolean; lobby_ready: boolean; left_at: string | null; created_at: string; updated_at: string };
+type MatchRow = { id: string; room_id: string; round: TournamentRound; match_index: number; home_team: TeamSnapshot; away_team: TeamSnapshot; home_participant_id: string | null; away_participant_id: string | null; controller_user_id: string; seed: number; status: MultiplayerMatch["status"]; result: MatchResult | null; progress: MatchProgress | null; home_ready: boolean; away_ready: boolean; home_cpu: boolean; away_cpu: boolean; official_minute: number; phase_started_at: string | null; phase_base_minute: number; decision_deadline: string | null; updated_at: string };
+type DecisionRow = { match_id: string; user_id: string; instructions: MatchInstructions; lineup: MatchProgress["lineup"] | null; bench: MatchProgress["bench"] | null; substitutions: MatchProgress["substitutions"] | null; updated_at: string };
 
-const roomFrom = (row: RoomRow): MultiplayerRoom => ({ id: row.id, code: row.code, hostUserId: row.host_user_id, status: row.status, ratingsMode: row.ratings_mode, currentRound: row.current_round, bracket: row.bracket ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at });
-const playerFrom = (row: PlayerRow): MultiplayerParticipant => ({ id: row.id, roomId: row.room_id, userId: row.user_id, nickname: row.nickname, slotIndex: row.slot_index, status: row.status, campaign: row.campaign ?? undefined, team: row.team ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at });
-const matchFrom = (row: MatchRow): MultiplayerMatch => ({ id: row.id, roomId: row.room_id, round: row.round, index: row.match_index, homeTeam: row.home_team, awayTeam: row.away_team, homeParticipantId: row.home_participant_id ?? undefined, awayParticipantId: row.away_participant_id ?? undefined, controllerUserId: row.controller_user_id, seed: row.seed, status: row.status, result: row.result ?? undefined, progress: row.progress ?? undefined, updatedAt: row.updated_at });
-const decisionFrom = (row: DecisionRow): MultiplayerDecision => ({ matchId: row.match_id, userId: row.user_id, instructions: row.instructions, updatedAt: row.updated_at });
+const roomFrom = (row: RoomRow): MultiplayerRoom => ({ id: row.id, code: row.code, hostUserId: row.host_user_id, status: row.status, ratingsMode: row.ratings_mode, currentRound: row.current_round, bracket: row.bracket ?? undefined, draftStartedAt: row.draft_started_at ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at });
+const playerFrom = (row: PlayerRow): MultiplayerParticipant => ({ id: row.id, roomId: row.room_id, userId: row.user_id, nickname: row.nickname, slotIndex: row.slot_index, status: row.status, campaign: row.campaign ?? undefined, team: row.team ?? undefined, draftSchedule: row.draft_schedule ?? [], draftRound: row.draft_round ?? 0, draftPick: row.draft_pick ?? 0, draftDeadline: row.draft_deadline ?? undefined, connected: row.connected ?? false, lobbyReady: row.lobby_ready ?? false, leftAt: row.left_at ?? undefined, createdAt: row.created_at, updatedAt: row.updated_at });
+const matchFrom = (row: MatchRow): MultiplayerMatch => ({ id: row.id, roomId: row.room_id, round: row.round, index: row.match_index, homeTeam: row.home_team, awayTeam: row.away_team, homeParticipantId: row.home_participant_id ?? undefined, awayParticipantId: row.away_participant_id ?? undefined, controllerUserId: row.controller_user_id, seed: row.seed, status: row.status, result: row.result ?? undefined, progress: row.progress ?? undefined, homeReady: row.home_ready ?? false, awayReady: row.away_ready ?? false, homeCpu: row.home_cpu ?? !row.home_participant_id, awayCpu: row.away_cpu ?? !row.away_participant_id, officialMinute: row.official_minute ?? 0, phaseStartedAt: row.phase_started_at ?? undefined, phaseBaseMinute: row.phase_base_minute ?? 0, decisionDeadline: row.decision_deadline ?? undefined, updatedAt: row.updated_at });
+const decisionFrom = (row: DecisionRow): MultiplayerDecision => ({ matchId: row.match_id, userId: row.user_id, instructions: row.instructions, lineup: row.lineup ?? undefined, bench: row.bench ?? undefined, substitutions: row.substitutions ?? undefined, updatedAt: row.updated_at });
 
 type LocalState = { userId: string; rooms: Map<string, MultiplayerRoom>; players: MultiplayerParticipant[]; matches: MultiplayerMatch[]; decisions: MultiplayerDecision[]; listeners: Set<() => void> };
 declare global { var __pretoNoBrancoMultiplayer: LocalState | undefined; }
@@ -63,7 +63,7 @@ export async function createMultiplayerRoom(nickname: string, ratingsMode: Ratin
     const createdAt = now();
     const room: MultiplayerRoom = { id: crypto.randomUUID(), code: roomCode(), hostUserId: userId, status: "waiting", ratingsMode, currentRound: "round16", createdAt, updatedAt: createdAt };
     local().rooms.set(room.code, room);
-    local().players.push({ id: crypto.randomUUID(), roomId: room.id, userId, nickname, slotIndex: 0, status: "waiting", createdAt, updatedAt: createdAt });
+    local().players.push({ id: crypto.randomUUID(), roomId: room.id, userId, nickname, slotIndex: 0, status: "waiting", draftSchedule: [], draftRound: 0, draftPick: 0, connected: true, lobbyReady: false, createdAt, updatedAt: createdAt });
     notifyLocal();
     return room.code;
   }
@@ -82,7 +82,7 @@ export async function joinMultiplayerRoom(code: string, nickname: string): Promi
     if (local().players.some((player) => player.roomId === room.id && player.userId === userId)) return;
     const count = local().players.filter((player) => player.roomId === room.id).length;
     if (count >= 16 || room.status !== "waiting") throw new Error("Esta sala não aceita novos jogadores.");
-    local().players.push({ id: crypto.randomUUID(), roomId: room.id, userId, nickname, slotIndex: count, status: "waiting", createdAt: now(), updatedAt: now() });
+    local().players.push({ id: crypto.randomUUID(), roomId: room.id, userId, nickname, slotIndex: count, status: "waiting", draftSchedule: [], draftRound: 0, draftPick: 0, connected: true, lobbyReady: false, createdAt: now(), updatedAt: now() });
     notifyLocal();
     return;
   }
@@ -123,12 +123,24 @@ export function subscribeMultiplayerRoom(code: string, refresh: () => void): () 
   let channel: RealtimeChannel | undefined;
   void loadMultiplayerRoom(code).then((snapshot) => {
     if (!snapshot || !active) return;
-    channel = client.channel(`room:${snapshot.room.id}`)
+    channel = client.channel(`room:${snapshot.room.id}`, { config: { presence: { key: snapshot.userId } } })
       .on("postgres_changes", { event: "*", schema: "public", table: "multiplayer_rooms", filter: `id=eq.${snapshot.room.id}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "multiplayer_players", filter: `room_id=eq.${snapshot.room.id}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "multiplayer_matches", filter: `room_id=eq.${snapshot.room.id}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "multiplayer_decisions" }, refresh)
-      .subscribe();
+      .on("presence", { event: "sync" }, refresh)
+      .on("presence", { event: "leave" }, ({ leftPresences }) => {
+        for (const presence of leftPresences) {
+          const userId = typeof presence.userId === "string" ? presence.userId : undefined;
+          if (userId) void client.rpc("mark_multiplayer_disconnected", { p_room_id: snapshot.room.id, p_user_id: userId });
+        }
+        refresh();
+      })
+      .subscribe(async (status) => {
+        if (status !== "SUBSCRIBED") return;
+        await channel?.track({ userId: snapshot.userId, onlineAt: now() });
+        await client.rpc("set_multiplayer_presence", { p_room_id: snapshot.room.id, p_connected: true });
+      });
   }).catch(() => undefined);
   return () => {
     active = false;
@@ -136,13 +148,77 @@ export function subscribeMultiplayerRoom(code: string, refresh: () => void): () 
   };
 }
 
-export async function saveMultiplayerDraft(participant: MultiplayerParticipant, campaign: Campaign, team?: TeamSnapshot, status: MultiplayerParticipant["status"] = "drafting") {
+export async function beginMultiplayerDraft(room: MultiplayerRoom, schedules: Record<string, string[]>) {
   const client = db();
   if (!client) {
-    local().players = local().players.map((item) => item.id === participant.id ? { ...item, campaign, team, status, updatedAt: now() } : item);
+    if (local().players.some((item) => item.roomId === room.id && !item.lobbyReady)) throw new Error("Todos os participantes precisam confirmar presença.");
+    local().rooms.set(room.code, { ...room, status: "drafting", draftStartedAt: now(), updatedAt: now() });
+    local().players = local().players.map((item) => item.roomId === room.id ? { ...item, status: "drafting", campaign: undefined, team: undefined, draftSchedule: schedules[item.id] ?? [], draftRound: 0, draftPick: 0, draftDeadline: undefined } : item);
     notifyLocal(); return;
   }
-  const { error } = await client.from("multiplayer_players").update({ campaign, team: team ?? null, status }).eq("id", participant.id);
+  const { error } = await client.rpc("begin_multiplayer_draft", { p_room_id: room.id, p_schedules: schedules });
+  if (error) throw new Error(error.message);
+}
+
+export async function setMultiplayerLobbyReady(roomId: string, ready: boolean) {
+  const client = db();
+  if (!client) {
+    local().players = local().players.map((item) => item.roomId === roomId && item.userId === local().userId ? { ...item, lobbyReady: ready, updatedAt: now() } : item);
+    notifyLocal(); return;
+  }
+  const { error } = await client.rpc("toggle_multiplayer_lobby_ready", { p_room_id: roomId, p_ready: ready });
+  if (error) throw new Error(error.message);
+}
+
+export async function kickMultiplayerParticipant(roomId: string, participantId: string) {
+  const client = db();
+  if (!client) {
+    local().players = local().players.filter((item) => item.id !== participantId);
+    notifyLocal(); return;
+  }
+  const { error } = await client.rpc("kick_multiplayer_player", { p_room_id: roomId, p_player_id: participantId });
+  if (error) throw new Error(error.message);
+}
+
+export async function leaveMultiplayerRoom(roomId: string) {
+  const client = db();
+  if (!client) {
+    local().players = local().players.filter((item) => !(item.roomId === roomId && item.userId === local().userId));
+    notifyLocal(); return;
+  }
+  const { error } = await client.rpc("leave_multiplayer_room", { p_room_id: roomId });
+  if (error) throw new Error(error.message);
+}
+
+export async function readyMultiplayerMatch(matchId: string) {
+  const client = db();
+  if (!client) {
+    const match = local().matches.find((item) => item.id === matchId);
+    if (!match) return;
+    const own = local().players.find((item) => item.userId === local().userId);
+    const next = { ...match, homeReady: match.homeReady || match.homeParticipantId === own?.id, awayReady: match.awayReady || match.awayParticipantId === own?.id };
+    const starts = (next.homeCpu || next.homeReady || !next.homeParticipantId) && (next.awayCpu || next.awayReady || !next.awayParticipantId);
+    local().matches = local().matches.map((item) => item.id === matchId ? { ...next, status: starts ? "playing" : "ready", phaseStartedAt: starts ? now() : undefined } : item);
+    notifyLocal(); return;
+  }
+  const { error } = await client.rpc("ready_multiplayer_match", { p_match_id: matchId });
+  if (error) throw new Error(error.message);
+}
+
+export async function syncMultiplayerMatch(matchId: string) {
+  const client = db();
+  if (!client) return;
+  const { error } = await client.rpc("sync_multiplayer_match", { p_match_id: matchId });
+  if (error) throw new Error(error.message);
+}
+
+export async function saveMultiplayerDraft(participant: MultiplayerParticipant, campaign: Campaign, team?: TeamSnapshot, status: MultiplayerParticipant["status"] = "drafting", draft?: { round: number; pick: number; deadline?: string }) {
+  const client = db();
+  if (!client) {
+    local().players = local().players.map((item) => item.id === participant.id ? { ...item, campaign, team, status, draftRound: draft?.round ?? item.draftRound, draftPick: draft?.pick ?? item.draftPick, draftDeadline: draft?.deadline, updatedAt: now() } : item);
+    notifyLocal(); return;
+  }
+  const { error } = await client.from("multiplayer_players").update({ campaign, team: team ?? null, status, ...(draft ? { draft_round: draft.round, draft_pick: draft.pick, draft_deadline: draft.deadline ?? null } : {}) }).eq("id", participant.id);
   if (error) throw new Error(error.message);
 }
 
@@ -154,7 +230,7 @@ export async function startMultiplayerRoom(room: MultiplayerRoom, bracket: Brack
     local().players = local().players.map((item) => item.roomId === room.id ? { ...item, status: "playing" } : item);
     notifyLocal(); return;
   }
-  const payload = matches.map((match) => ({ id: match.id, room_id: room.id, round: match.round, match_index: match.index, home_team: match.homeTeam, away_team: match.awayTeam, home_participant_id: match.homeParticipantId ?? null, away_participant_id: match.awayParticipantId ?? null, controller_user_id: match.controllerUserId, seed: match.seed, status: match.status, result: match.result ?? null, progress: match.progress ?? null }));
+  const payload = matches.map((match) => ({ id: match.id, room_id: room.id, round: match.round, match_index: match.index, home_team: match.homeTeam, away_team: match.awayTeam, home_participant_id: match.homeParticipantId ?? null, away_participant_id: match.awayParticipantId ?? null, controller_user_id: match.controllerUserId, seed: match.seed, status: match.status, result: match.result ?? null, progress: match.progress ?? null, home_cpu: match.homeCpu, away_cpu: match.awayCpu }));
   const { error } = await client.rpc("start_multiplayer_room", { p_room_id: room.id, p_bracket: bracket, p_matches: payload });
   if (error) throw new Error(error.message);
 }
@@ -176,7 +252,7 @@ export async function advanceMultiplayerRoom(room: MultiplayerRoom, bracket: Bra
     local().rooms.set(room.code, { ...room, currentRound: matches[0].round, bracket, status: matches[0].round === "final" ? "playing" : room.status, updatedAt: now() });
     notifyLocal(); return;
   }
-  const payload = matches.map((match) => ({ id: match.id, room_id: room.id, round: match.round, match_index: match.index, home_team: match.homeTeam, away_team: match.awayTeam, home_participant_id: match.homeParticipantId ?? null, away_participant_id: match.awayParticipantId ?? null, controller_user_id: match.controllerUserId, seed: match.seed, status: match.status, result: match.result ?? null, progress: match.progress ?? null }));
+  const payload = matches.map((match) => ({ id: match.id, room_id: room.id, round: match.round, match_index: match.index, home_team: match.homeTeam, away_team: match.awayTeam, home_participant_id: match.homeParticipantId ?? null, away_participant_id: match.awayParticipantId ?? null, controller_user_id: match.controllerUserId, seed: match.seed, status: match.status, result: match.result ?? null, progress: match.progress ?? null, home_cpu: match.homeCpu, away_cpu: match.awayCpu }));
   const { error } = await client.rpc("advance_multiplayer_room", { p_room_id: room.id, p_round: matches[0].round, p_bracket: bracket, p_matches: payload });
   if (error) throw new Error(error.message);
 }
@@ -191,14 +267,14 @@ export async function completeMultiplayerRoom(room: MultiplayerRoom, bracket: Br
   if (error) throw new Error(error.message);
 }
 
-export async function saveMultiplayerDecision(matchId: string, instructions: MatchInstructions) {
+export async function saveMultiplayerDecision(matchId: string, instructions: MatchInstructions, state?: Pick<MatchProgress, "lineup" | "bench" | "substitutions">) {
   const userId = await ensureMultiplayerUser();
   const client = db();
   if (!client) {
-    const entry: MultiplayerDecision = { matchId, userId, instructions, updatedAt: now() };
+    const entry: MultiplayerDecision = { matchId, userId, instructions, ...state, updatedAt: now() };
     local().decisions = [...local().decisions.filter((item) => !(item.matchId === matchId && item.userId === userId)), entry];
     notifyLocal(); return;
   }
-  const { error } = await client.from("multiplayer_decisions").upsert({ match_id: matchId, user_id: userId, instructions }, { onConflict: "match_id,user_id" });
+  const { error } = await client.rpc("submit_multiplayer_decision", { p_match_id: matchId, p_instructions: instructions, p_lineup: state?.lineup ?? null, p_bench: state?.bench ?? null, p_substitutions: state?.substitutions ?? null });
   if (error) throw new Error(error.message);
 }

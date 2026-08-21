@@ -336,7 +336,7 @@ export function MatchScreen({
                 <dl className="post-match__live">
                   <div><dt>Adversário</dt><dd>{opponent.name} {teamEra(opponent)}</dd></div>
                   <div><dt>Orientação</dt><dd>{chosen ? chosen.label : "No intervalo"}</dd></div>
-                  <div><dt>Ritmo</dt><dd>{paused ? "Pausado" : speeds[speedIndex].label}</dd></div>
+                  <div><dt>Ritmo</dt><dd>{playbackMode === "follower" ? "Normal" : paused ? "Pausado" : speeds[speedIndex].label}</dd></div>
                 </dl>
               </>
             )}

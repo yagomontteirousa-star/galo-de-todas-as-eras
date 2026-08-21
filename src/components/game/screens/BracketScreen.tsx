@@ -15,12 +15,14 @@ function TeamLine({ team, score, isWinner, decided }: { team: TeamSnapshot; scor
   );
 }
 
-export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult }: {
+export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult, playLabel, playDisabled = false }: {
   bracket: BracketState;
   ratingsMode: RatingsMode;
   onPlay: () => void;
   /** Só chega preenchido quando a chave foi aberta a partir de uma campanha encerrada. */
   onBackToResult?: () => void;
+  playLabel?: string;
+  playDisabled?: boolean;
 }) {
   const currentMatch = getCurrentUserMatch(bracket);
   const current = currentMatch?.result ? undefined : currentMatch;
@@ -45,7 +47,7 @@ export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult }: 
               <ArrowIcon className="icon--back"/>Voltar ao resultado
             </button>
           )}
-          {current && <button type="button" className="button button--primary" onClick={onPlay}>Jogar contra {opponent?.name}<ArrowIcon/></button>}
+          {current && <button type="button" className="button button--primary" disabled={playDisabled} onClick={onPlay}>{playLabel ?? `Jogar contra ${opponent?.name}`}<ArrowIcon/></button>}
         </div>
       </div>
       <nav className="bracket-phases" aria-label="Fases do mata-mata">

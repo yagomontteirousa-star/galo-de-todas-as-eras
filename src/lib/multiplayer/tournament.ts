@@ -60,6 +60,9 @@ export function multiplayerMatchesForRound(room: MultiplayerRoom, round: Bracket
       homeParticipantId: home?.id, awayParticipantId: away?.id,
       controllerUserId: controller.userId, seed,
       status: cpuOnly ? "finished" : "waiting", result, progress,
+      homeReady: false, awayReady: false,
+      homeCpu: !home, awayCpu: !away,
+      officialMinute: 0, phaseBaseMinute: 0,
       updatedAt: new Date().toISOString(),
     };
   });
