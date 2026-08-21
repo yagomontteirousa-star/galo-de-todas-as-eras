@@ -64,6 +64,7 @@ export function MatchScreen({
   onLineupChange,
   onProgress,
   onFinish,
+  playbackMode = "local",
 }: {
   match: BracketMatch;
   result: MatchResult;
@@ -73,6 +74,7 @@ export function MatchScreen({
   onLineupChange: (lineup: LineupEntry[], bench: SquadPlayerEntry[], substitution?: MatchProgress["substitutions"][number]) => void;
   onProgress: (playback: Pick<MatchProgress, "minute" | "kickStep" | "kickRevealed" | "shootoutComplete">) => void;
   onFinish: () => void;
+  playbackMode?: "local" | "controller" | "follower";
 }) {
   const maxMinute = result.wentToExtraTime ? 122 : 90;
   const kicks = useMemo(() => result.penaltyKicks ?? [], [result.penaltyKicks]);
@@ -98,8 +100,9 @@ export function MatchScreen({
   const progressCallback = useRef(onProgress);
   useEffect(() => { progressCallback.current = onProgress; }, [onProgress]);
   useEffect(() => {
+    if (playbackMode === "follower") return;
     progressCallback.current({ minute, kickStep, kickRevealed, shootoutComplete });
-  }, [kickRevealed, kickStep, minute, shootoutComplete]);
+  }, [kickRevealed, kickStep, minute, playbackMode, shootoutComplete]);
   const needsHalftime = minute >= 45 && !result.instructions.halftime;
   const moment = result.matchMoment ? matchMoments[result.matchMoment] : undefined;
   const needsMoment = minute >= 65 && !result.instructions.moment && Boolean(moment);
@@ -108,7 +111,7 @@ export function MatchScreen({
   const inShootout = clockDone && result.wentToPenalties && !shootoutComplete;
   const concluded = kickStep >= kicks.length;
   const finished = clockDone && !inShootout;
-  const running = !needsHalftime && !needsMoment && !paused && !clockDone;
+  const running = playbackMode !== "follower" && !needsHalftime && !needsMoment && !paused && !clockDone;
 
   useEffect(() => {
     if (!running) return;
@@ -140,7 +143,7 @@ export function MatchScreen({
   // Disputa: primeiro o nome do cobrador, depois o resultado. A pausa cria suspense
   // sem alterar a sequência já definida pelo motor.
   useEffect(() => {
-    if (!inShootout) return;
+    if (!inShootout || playbackMode === "follower") return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (kickStep >= kicks.length) {
       const timer = window.setTimeout(() => setShootoutComplete(true), reduce ? 100 : CONCLUSION_MS);
@@ -154,7 +157,7 @@ export function MatchScreen({
       }
     }, reduce ? 100 : kickRevealed ? KICK_RESULT_MS : KICK_REVEAL_MS);
     return () => window.clearTimeout(timer);
-  }, [inShootout, kickRevealed, kickStep, kicks.length]);
+  }, [inShootout, kickRevealed, kickStep, kicks.length, playbackMode]);
 
   const visibleEvents = useMemo(() => result.events
     .filter((item) => item.minute <= minute)
@@ -265,6 +268,7 @@ export function MatchScreen({
           )}
           {!clockDone && !needsMoment && (
             <div className="match-controls">
+              {playbackMode === "follower" ? <span className="match-sync-status">Partida sincronizada pelo outro jogador</span> : <>
               <button type="button" className="match-control" onClick={() => setPaused((value) => !value)} aria-pressed={paused}>
                 {paused ? "▶ Retomar" : "❚❚ Pausar"}
               </button>
@@ -281,6 +285,7 @@ export function MatchScreen({
               <button type="button" className="match-control" onClick={skip}>
                 {result.instructions.halftime ? "Avançar até o fim" : "Avançar até o intervalo"}
               </button>
+              </>}
             </div>
           )}
         </>
@@ -302,7 +307,7 @@ export function MatchScreen({
               {timeline.map((item, index) => (
                 <article key={item.id} className={`${item.type === "goal" ? item.teamId === userTeam.id ? "is-goal is-user-goal" : "is-goal is-rival-goal" : eventTone[item.type] ?? ""} ${index === timeline.length - 1 && timeline.length === TIMELINE_ROWS ? "is-fading" : ""}`}>
                   <time>{item.minute ? `${item.minute}′` : "0′"}</time>
-                  <span role="img" className={item.teamId === userTeam.id ? "is-user" : item.teamId ? "is-rival" : ""} aria-label={eventLabels[item.type]} title={eventLabels[item.type]}><EventGlyph type={item.type}/></span>
+                  <span role="img" className={`event-icon event-icon--${item.type} ${item.teamId === userTeam.id ? "is-user" : item.teamId ? "is-rival" : ""}`} aria-label={eventLabels[item.type]} title={eventLabels[item.type]}><EventGlyph type={item.type}/></span>
                   <div className="timeline__event-copy"><b>{item.description}</b>{item.type === "goal" && item.assistName && <small>Assistência: {item.assistName}</small>}</div>
                   {item.teamId && <small>{item.teamId === match.home.id ? match.home.name : match.away.name}</small>}
                 </article>
@@ -440,25 +445,25 @@ function LiveSubstitutionBoard({ team, lineup, bench, used, unavailablePlayerIds
 
 /** Ícones geométricos próprios: a leitura vem antes do texto, sem recorrer a emoji. */
 function EventGlyph({ type }: { type: MatchEventType }) {
-  const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  const ball = <><circle cx="10" cy="10" r="6.7" {...common}/><path d="m7.3 7.5 2.7-1.4 2.7 1.4-.4 3-2.3 1.5-2.3-1.5-.4-3Z" {...common}/></>;
-  if (type === "goal") return <svg viewBox="0 0 20 20" aria-hidden="true">{ball}</svg>;
-  if (type === "offside" || type === "corner") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 17V3m0 1 9 3-4 3 4 3-9 3" {...common}/></svg>;
-  if (type === "dangerous_foul") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8h6v5H5zM11 10h2.2a2.8 2.8 0 1 1 0 3.8M7 8V5m3 3V5" {...common}/></svg>;
-  if (type === "yellow_card" || type === "red_card") return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="6.2" y="3" width="7.6" height="14" rx="1.2" fill={type === "yellow_card" ? "#f5c542" : "#e49a80"} stroke="currentColor" strokeWidth="1.1"/></svg>;
-  if (type === "shot_saved" || type === "big_save") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5.5 16v-6l1.4-4 1.4 3L10 4l1.2 5 1.7-3 1.6 4v6M5.5 12h9" {...common}/></svg>;
-  if (type === "penalty") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 16V7h12v9M6 7V4h8v3" {...common}/><circle cx="10" cy="12" r="2" {...common}/></svg>;
-  if (type === "shot_off") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m4 15 11-11M9 4h6v6M4 5l11 11" {...common}/></svg>;
-  if (type === "pressure") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 6h8m-3-3 3 3-3 3M4 10h11m-3-3 3 3-3 3M4 14h8m-3-3 3 3-3 3" {...common}/></svg>;
-  if (type === "possession") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h10m-3-3 3 3-3 3" {...common}/><circle cx="5" cy="10" r="2" {...common}/></svg>;
-  if (type === "substitution") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 7h10m-3-3 3 3-3 3M16 13H6m3 3-3-3 3-3" {...common}/></svg>;
-  if (type === "decision") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4h8v12H6zM8 3h4M8 8h4m-4 4h3" {...common}/></svg>;
-  if (type === "kickoff") return <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6" {...common}/><path d="m8.5 7.4 4.5 2.6-4.5 2.6Z" fill="currentColor" stroke="none"/></svg>;
-  if (type === "halftime") return <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6" {...common}/><path d="M8 7v6m4-6v6" {...common}/></svg>;
-  if (type === "full_time") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 17V3m0 1 9 3-4 3 4 3-9 3" {...common}/></svg>;
-  if (type === "second_half" || type === "extra_time") return <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6" {...common}/><path d="M10 6v4l3 2M4 4l2 2m8-2-2 2" {...common}/></svg>;
-  if (type === "shootout") return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 16V7h12v9M6 7V4h8v3" {...common}/><g transform="translate(10 12) scale(.28) translate(-10 -10)">{ball}</g></svg>;
-  return <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6" {...common}/><path d="M10 6v4l3 2" {...common}/></svg>;
+  const common = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  const ball = <><circle cx="12" cy="12" r="8" {...common}/><path d="m12 8 3 2.2-1.2 3.5h-3.6L9 10.2 12 8Zm0-4v4m-7.6 1.4L9 10.2m-2.7 7.6 3.9-4.1m7.5 4.1-3.9-4.1m5.8-4.3L15 10.2" {...common}/></>;
+  if (type === "goal") return <svg viewBox="0 0 24 24" aria-hidden="true">{ball}</svg>;
+  if (type === "offside" || type === "corner") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V3m0 2h11l-3 4 3 4H6" {...common}/></svg>;
+  if (type === "dangerous_foul") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="1.5" {...common} fill="currentColor" fillOpacity=".12"/><path d="M12 7v6m0 4h.01" {...common}/></svg>;
+  if (type === "yellow_card" || type === "red_card") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="1.5" fill={type === "yellow_card" ? "#f5c542" : "#e49a80"} stroke="currentColor" strokeWidth="1.3"/></svg>;
+  if (type === "shot_saved" || type === "big_save") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12V8.5a1.4 1.4 0 0 1 2.8 0V11 6.8a1.4 1.4 0 0 1 2.8 0V11 7.8a1.4 1.4 0 0 1 2.8 0V12 10a1.4 1.4 0 0 1 2.8 0v4.2c0 4-2.4 6.3-6.3 6.3h-.8c-3.5 0-5.9-2.5-5.9-5.8v-2.2c0-1 .8-1.8 1.8-1.8Z" {...common}/></svg>;
+  if (type === "penalty") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20V7h17v13M7 7V4h10v3" {...common}/><circle cx="12" cy="15.5" r="2" {...common}/></svg>;
+  if (type === "shot_off") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="17" r="3" {...common}/><path d="m10 14 8-8m-4 0h4v4" {...common}/></svg>;
+  if (type === "pressure") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 17 7-7 7 7M5 11l7-7 7 7" {...common}/></svg>;
+  if (type === "possession") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" {...common}/><path d="M5.2 9A7.3 7.3 0 0 1 17 5.8L19 8M18.8 15A7.3 7.3 0 0 1 7 18.2L5 16" {...common}/></svg>;
+  if (type === "substitution") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h14m-4-4 4 4-4 4M20 16H6m4 4-4-4 4-4" {...common}/></svg>;
+  if (type === "decision") return <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2" {...common}/><path d="M9 4V2h6v2M9 9h6m-6 4h6m-6 4h4" {...common}/></svg>;
+  if (type === "kickoff") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" {...common}/><path d="m10 8 6 4-6 4Z" fill="currentColor" stroke="none"/></svg>;
+  if (type === "halftime") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" {...common}/><path d="M9.5 8v8m5-8v8" {...common}/></svg>;
+  if (type === "full_time") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V3m0 2h11v8H6m5-8v8m6-4H6" {...common}/></svg>;
+  if (type === "second_half" || type === "extra_time") return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" {...common}/><path d="M12 7v5l3.5 2M5 4l2 2m10-2-2 2" {...common}/></svg>;
+  if (type === "shootout") return <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20V7h17v13M7 7V4h10v3" {...common}/><circle cx="12" cy="16" r="2.2" fill="currentColor"/></svg>;
+  return <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" {...common}/><path d="M12 7v5l3.5 2" {...common}/></svg>;
 }
 
 /** A disputa ocupa a timeline. O cobrador entra na sua coluna antes do resultado. */

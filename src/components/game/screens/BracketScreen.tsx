@@ -9,7 +9,7 @@ function TeamLine({ team, score, isWinner, decided }: { team: TeamSnapshot; scor
   return (
     <div className={`bracket-team ${isWinner ? "is-winner" : decided ? "is-out" : ""} ${team.isUser ? "is-user" : ""}`}>
       <small>{teamEra(team)}</small>
-      <span>{team.name}{team.isUser && <em>você</em>}</span>
+      <span>{team.name}{team.isUser && <em>você</em>}{team.controller === "cpu" && <em>CPU</em>}</span>
       <b>{score ?? "—"}</b>
     </div>
   );

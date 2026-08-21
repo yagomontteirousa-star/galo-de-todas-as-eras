@@ -6,6 +6,7 @@ import { ArrowIcon, CloseIcon } from "@/components/ui/Icons";
 import { SiteFooter } from "@/components/ui/Brand";
 import { LivePlayers, type LivePlayersCount } from "@/components/game/LivePlayers";
 import Image from "next/image";
+import Link from "next/link";
 import { atleticoSquads } from "@/data/atletico-squads";
 import { formations } from "@/data/formations";
 import { evaluatePosition } from "@/lib/overall";
@@ -91,6 +92,7 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
           </div>
 
           <div className="home-links">
+            <Link href="/multiplayer" className="new-run-link">Multiplayer privado</Link>
             {canResume && lastOutcome && <button type="button" className="new-run-link" onClick={onReviewLast}>Ver a última campanha</button>}
             {onReplayTutorial && <button type="button" className="new-run-link" onClick={onReplayTutorial}>Ver o tutorial</button>}
           </div>
@@ -100,7 +102,7 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
         </div>
 
         <div className="home-pitch">
-          <Pitch formationId="4-3-3" lineup={showcase}/>
+          <Pitch formationId="4-3-3" lineup={showcase} hideCollidingEmptySlots/>
           <p>Onze em aberto. O sorteio decide quem entra.</p>
         </div>
       </section>

@@ -16,4 +16,3 @@ out/
 Thumbs.db
 
 .vercel
-.env*

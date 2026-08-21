@@ -38,7 +38,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#0b0c0c" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="pt-BR" className={`${sans.variable} ${condensed.variable}`}><body>
+  return <html lang="pt-BR" data-scroll-behavior="smooth" className={`${sans.variable} ${condensed.variable}`}><body>
     <template id="design-contract" dangerouslySetInnerHTML={{ __html: `<!--
 THESIS: Uma súmula viva transforma arquivo histórico em decisão instantânea; recusamos o dashboard genérico e a landing longa.
 OWN-WORLD: Grafite fosco, papel off-white, campo verde profundo, linhas de tabela e dourado reservado a anos e conquistas.

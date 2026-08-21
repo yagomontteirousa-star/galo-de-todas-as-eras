@@ -25,17 +25,20 @@ interface PitchProps {
   onSlotPointerUp?: (event: ReactPointerEvent<HTMLDivElement>) => void;
   compact?: boolean;
   showRatings?: boolean;
+  /** Na vitrine estreita, omite vagas vazias que encostariam numa peça preenchida. */
+  hideCollidingEmptySlots?: boolean;
 }
 
 /**
  * O campo é estreito, então o nome inteiro só cabe quando é curto. Acima disso vale o
- * sobrenome, que é como o jogador é chamado, e o corte fica por conta do ellipsis do CSS.
+ * sobrenome, que é como o jogador é chamado. O nome completo continua no rótulo acessível.
  */
-const displayName = (name: string) => (name.length <= 13 ? name : name.split(" ").at(-1)!);
+const displayName = (name: string) => (name.length <= 9 ? name : name.split(" ").at(-1)!);
 
-export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new Map(), selectedPlayer, selectedSlotId, draggedSlotId, targetSlotIds, rejectedSlotId, disabledPlayerIds = [], onSlotClick, onSlotPointerDown, onSlotPointerMove, onSlotPointerUp, compact = false, showRatings = true }: PitchProps) {
+export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new Map(), selectedPlayer, selectedSlotId, draggedSlotId, targetSlotIds, rejectedSlotId, disabledPlayerIds = [], onSlotClick, onSlotPointerDown, onSlotPointerMove, onSlotPointerUp, compact = false, showRatings = true, hideCollidingEmptySlots = false }: PitchProps) {
   const slots = tacticalSlots(formationId, tactic);
   const targets = targetSlotIds ? new Set(targetSlotIds) : undefined;
+  const occupiedSlots = slots.filter((slot) => lineup.some((entry) => entry.slotId === slot.id) || previewPlayers.has(slot.id));
   return (
     <div className={`pitch-frame ${compact ? "pitch-frame--compact" : ""}`}>
       <div className="pitch" aria-label={`Campo na formação ${formationId}`}>
@@ -51,9 +54,13 @@ export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new M
           const fit = selectedPlayer && isTarget ? evaluatePosition(selectedPlayer, slot).fit : undefined;
           const interactive = Boolean(onSlotClick);
           const name = player ? displayName(player.name) : undefined;
+          const isObscured = hideCollidingEmptySlots && !player && occupiedSlots.some((occupied) =>
+            Math.abs(occupied.x - slot.x) < 35 && Math.abs(occupied.y - slot.y) < 13,
+          );
           const className = [
             "pitch-slot",
             player ? "is-filled" : "is-empty",
+            isObscured ? "is-obscured" : "",
             isSuspended ? "is-suspended" : "",
             selectedSlotId === slot.id ? "is-slot-selected" : "",
             draggedSlotId === slot.id ? "is-drag-source" : "",
@@ -69,6 +76,7 @@ export function Pitch({ formationId, tactic, lineup = [], previewPlayers = new M
             : <span className="pitch-slot__badge">{slot.label}</span>;
           return (
             <div key={slot.id} className={className} data-tactics-slot={onSlotPointerDown ? slot.id : undefined}
+              data-slot-id={slot.id}
               style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
               onClick={player && interactive ? () => onSlotClick?.(slot.id) : undefined}
               onPointerDown={player ? (event) => onSlotPointerDown?.(slot.id, event) : undefined}

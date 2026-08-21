@@ -69,6 +69,9 @@ export interface TeamSnapshot {
   stadium?: string;
   /** Substitui o ano na interface quando o elenco não pertence a uma única temporada. */
   eraLabel?: string;
+  /** Identidade de controle usada apenas pelo multiplayer privado. */
+  controller?: "human" | "cpu";
+  participantId?: string;
 }
 
 export type Opponent = TeamSnapshot;

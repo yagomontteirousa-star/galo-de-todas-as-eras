@@ -9,10 +9,11 @@ const ratingsOptions: { id: RatingsMode; label: string; detail: string }[] = [
   { id: "visible", label: "Quero uma ajuda", detail: "Jogar com overall visível como apoio." },
 ];
 
-export function SetupScreen({ onContinue }: { onContinue: (formation: FormationId, tactic: TacticId, ratingsMode: RatingsMode) => void }) {
+export function SetupScreen({ onContinue, fixedRatingsMode }: { onContinue: (formation: FormationId, tactic: TacticId, ratingsMode: RatingsMode) => void; fixedRatingsMode?: RatingsMode }) {
   const [formation, setFormation] = useState<FormationId>("4-3-3");
   const [tactic, setTactic] = useState<TacticId>("balanced");
-  const [ratingsMode, setRatingsMode] = useState<RatingsMode>("visible");
+  const [ratingsMode, setRatingsMode] = useState<RatingsMode>(fixedRatingsMode ?? "visible");
+  const effectiveRatingsMode = fixedRatingsMode ?? ratingsMode;
   return (
     <main className="screen screen--setup" id="main">
       <div className="setup-layout">
@@ -22,7 +23,7 @@ export function SetupScreen({ onContinue }: { onContinue: (formation: FormationI
         <div className="setup-controls">
           <div className="setup-title"><h1>Defina o seu jogo.</h1></div>
 
-          <fieldset>
+          {!fixedRatingsMode && <fieldset>
             <legend>Formação</legend>
             <div className="choice-grid choice-grid--formation">
               {(Object.keys(formations) as FormationId[]).map((id) => (
@@ -31,7 +32,9 @@ export function SetupScreen({ onContinue }: { onContinue: (formation: FormationI
                 </button>
               ))}
             </div>
-          </fieldset>
+          </fieldset>}
+
+          {fixedRatingsMode && <p className="multiplayer-fixed-rating">A sala inteira joga com overall {fixedRatingsMode === "visible" ? "visível" : "oculto"}.</p>}
 
           <fieldset className="setup-tactics">
             <legend>Perfil tático</legend>
@@ -55,7 +58,7 @@ export function SetupScreen({ onContinue }: { onContinue: (formation: FormationI
             </div>
           </fieldset>
 
-          <button className="button button--primary button--wide" type="button" onClick={() => onContinue(formation, tactic, ratingsMode)}>Sortear o primeiro ano<ArrowIcon/></button>
+          <button className="button button--primary button--wide" type="button" onClick={() => onContinue(formation, tactic, effectiveRatingsMode)}>Sortear o primeiro ano<ArrowIcon/></button>
         </div>
       </div>
     </main>
