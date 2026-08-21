@@ -23,7 +23,7 @@ export function SetupScreen({ onContinue, fixedRatingsMode }: { onContinue: (for
         <div className="setup-controls">
           <div className="setup-title"><h1>Defina o seu jogo.</h1></div>
 
-          {!fixedRatingsMode && <fieldset>
+          <fieldset>
             <legend>Formação</legend>
             <div className="choice-grid choice-grid--formation">
               {(Object.keys(formations) as FormationId[]).map((id) => (
@@ -32,9 +32,7 @@ export function SetupScreen({ onContinue, fixedRatingsMode }: { onContinue: (for
                 </button>
               ))}
             </div>
-          </fieldset>}
-
-          {fixedRatingsMode && <p className="multiplayer-fixed-rating">A sala inteira joga com overall {fixedRatingsMode === "visible" ? "visível" : "oculto"}.</p>}
+          </fieldset>
 
           <fieldset className="setup-tactics">
             <legend>Perfil tático</legend>
@@ -47,7 +45,7 @@ export function SetupScreen({ onContinue, fixedRatingsMode }: { onContinue: (for
             </div>
           </fieldset>
 
-          <fieldset>
+          {!fixedRatingsMode && <fieldset>
             <legend>Overall na hora de escolher</legend>
             <div className="ratings-choice">
               {ratingsOptions.map((option) => (
@@ -56,7 +54,7 @@ export function SetupScreen({ onContinue, fixedRatingsMode }: { onContinue: (for
                 </button>
               ))}
             </div>
-          </fieldset>
+          </fieldset>}
 
           <button className="button button--primary button--wide" type="button" onClick={() => onContinue(formation, tactic, effectiveRatingsMode)}>Sortear o primeiro ano<ArrowIcon/></button>
         </div>

@@ -18,6 +18,11 @@ export function multiplayerTeam(participant: MultiplayerParticipant): TeamSnapsh
   return { ...participant.team, id: `multiplayer-${participant.id}`, name: participant.nickname, isUser: false, controller: "human", participantId: participant.id, eraLabel: "Seleção histórica" };
 }
 
+export function multiplayerMatchCanStart(match: MultiplayerMatch): boolean {
+  return (match.homeCpu || match.homeReady || !match.homeParticipantId)
+    && (match.awayCpu || match.awayReady || !match.awayParticipantId);
+}
+
 export function createMultiplayerBracket(participants: MultiplayerParticipant[], seed: number): BracketState {
   const random = seededRandom(seed);
   const humans = participants.map(multiplayerTeam);

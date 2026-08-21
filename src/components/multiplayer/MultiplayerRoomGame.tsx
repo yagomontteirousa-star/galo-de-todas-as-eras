@@ -21,7 +21,10 @@ import type { Campaign, FormationId, HalftimeInstruction, LineupEntry, MatchInst
 import type { MultiplayerMatch, MultiplayerParticipant, MultiplayerPlayerStatus, MultiplayerSnapshot } from "@/types/multiplayer";
 
 const DRAFT_SECONDS = 15;
+const ANALYSIS_SECONDS = 8;
+const TRANSITION_SECONDS = 5;
 const newDraftDeadline = () => new Date(Date.now() + DRAFT_SECONDS * 1000).toISOString();
+const transitionDelay = (updatedAt: string) => Math.max(0, Date.parse(updatedAt) + TRANSITION_SECONDS * 1000 - Date.now());
 const statusLabels: Record<MultiplayerPlayerStatus, string> = { waiting: "Aguardando", drafting: "Montando elenco", ready: "Pronto", playing: "Jogando", eliminated: "Eliminado", qualified: "Classificado" };
 const halftimeOptions: { id: HalftimeInstruction; label: string; detail: string }[] = [
   { id: "keep", label: "Manter o plano", detail: "Equilíbrio e controle" },
@@ -79,7 +82,7 @@ export function MultiplayerRoomGame({ code }: { code: string }) {
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
   const [actionPending, setActionPending] = useState(false);
-  const [view, setView] = useState<"bracket" | "match">("bracket");
+  const [dismissedResultId, setDismissedResultId] = useState<string>();
   const advancingRef = useRef<string | undefined>(undefined);
   const resolvingRef = useRef<string | undefined>(undefined);
 
@@ -161,17 +164,28 @@ export function MultiplayerRoomGame({ code }: { code: string }) {
     try { const nextBracket = createMultiplayerBracket(snapshot.participants, Math.floor(Math.random() * 2147483647)); const matches = multiplayerMatchesForRound(snapshot.room, nextBracket.rounds[0], snapshot.participants); await startMultiplayerRoom(snapshot.room, nextBracket, matches); await refresh(); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "A sala não pôde começar."); }
   };
-  const prepareMatch = async () => { if (!currentMatch) return; if (["playing", "halftime", "moment"].includes(currentMatch.status)) { setView("match"); return; } try { await readyMultiplayerMatch(currentMatch.id); await refresh(); } catch (cause) { setError(cause instanceof Error ? cause.message : "A partida não pôde ser liberada."); } };
+  const prepareMatch = async () => { if (!currentMatch) return; if (["playing", "halftime", "moment"].includes(currentMatch.status)) return; try { await readyMultiplayerMatch(currentMatch.id); await refresh(); } catch (cause) { setError(cause instanceof Error ? cause.message : "A partida não pôde ser liberada."); } };
 
   useEffect(() => {
     if (!snapshot || snapshot.room.status !== "playing") return;
     const final = snapshot.matches.find((match) => match.round === "final" && match.status === "finished");
-    if (final && host && advancingRef.current !== "finished") { advancingRef.current = "finished"; void completeMultiplayerRoom(snapshot.room, viewedBracket(snapshot.room, snapshot.matches, participant?.id ?? "")).then(refresh).catch((cause) => setError(cause instanceof Error ? cause.message : "A sala não foi encerrada.")); return; }
     const next = nextMultiplayerRound(snapshot.room, snapshot.matches);
-    if (!next || advancingRef.current === next.id) return;
-    advancingRef.current = next.id;
-    const nextBracket = viewedBracket({ ...snapshot.room, currentRound: next.id }, snapshot.matches, participant?.id ?? ""); nextBracket.rounds.push(next);
-    void advanceMultiplayerRoom(snapshot.room, nextBracket, multiplayerMatchesForRound(snapshot.room, next, snapshot.participants)).then(refresh).catch((cause) => setError(cause instanceof Error ? cause.message : "A chave não avançou."));
+    if ((!final && !next) || !host) return;
+    const targetId = final ? "finished" : next!.id;
+    if (advancingRef.current === targetId) return;
+    const finishedThisRound = snapshot.matches.filter((match) => match.round === snapshot.room.currentRound && match.status === "finished");
+    const latestFinish = Math.max(...finishedThisRound.map((match) => Date.parse(match.updatedAt)));
+    const delay = transitionDelay(new Date(latestFinish).toISOString());
+    const timer = window.setTimeout(() => {
+      advancingRef.current = targetId;
+      if (final) {
+        void completeMultiplayerRoom(snapshot.room, viewedBracket(snapshot.room, snapshot.matches, participant?.id ?? "")).then(refresh).catch((cause) => setError(cause instanceof Error ? cause.message : "A sala não foi encerrada."));
+        return;
+      }
+      const nextBracket = viewedBracket({ ...snapshot.room, currentRound: next!.id }, snapshot.matches, participant?.id ?? ""); nextBracket.rounds.push(next!);
+      void advanceMultiplayerRoom(snapshot.room, nextBracket, multiplayerMatchesForRound(snapshot.room, next!, snapshot.participants)).then(refresh).catch((cause) => setError(cause instanceof Error ? cause.message : "A chave não avançou."));
+    }, delay);
+    return () => window.clearTimeout(timer);
   }, [host, participant?.id, refresh, snapshot]);
 
   useEffect(() => {
@@ -194,15 +208,15 @@ export function MultiplayerRoomGame({ code }: { code: string }) {
   if (snapshot.room.status === "drafting" && !campaign) return <SetupScreen fixedRatingsMode={snapshot.room.ratingsMode} onContinue={setup}/>;
   const squad = campaign?.currentSquadId ? squadsById.get(campaign.currentSquadId) : undefined;
   if (snapshot.room.status === "drafting" && participant.status !== "ready" && campaign?.screen === "draft" && squad) return <div className="multiplayer-draft"><DraftScreen key={`${squad.id}-${participant.draftPick}`} campaign={campaign} squad={squad} onConfirm={confirmPick} onReroll={() => {}} onRelocateLineupEntry={relocate} pickLimit={1} deadline={participant.draftDeadline} pickNumber={(participant.draftPick + 1) as 1 | 2} disableReroll/></div>;
-  if (snapshot.room.status === "drafting" && participant.status !== "ready" && campaign?.screen === "analysis" && team) return <AnalysisScreen campaign={campaign} team={team} onStart={markReady}/>;
-  if (currentMatch && view === "match" && (currentMatch.status === "halftime" || currentMatch.status === "moment")) return <MultiplayerDecisionBreak snapshot={snapshot} participant={participant} match={currentMatch} onDone={refresh}/>;
+  if (snapshot.room.status === "drafting" && participant.status !== "ready" && campaign?.screen === "analysis" && team) return <AnalysisScreen campaign={campaign} team={team} onStart={markReady} autoStartSeconds={ANALYSIS_SECONDS}/>;
+  if (currentMatch && (currentMatch.status === "halftime" || currentMatch.status === "moment")) return <MultiplayerDecisionBreak snapshot={snapshot} participant={participant} match={currentMatch} onDone={refresh}/>;
 
-  if (currentMatch?.result && currentMatch.status === "playing") {
+  if (currentMatch?.result && (currentMatch.status === "playing" || (currentMatch.status === "finished" && dismissedResultId !== currentMatch.id))) {
     const home = { ...currentMatch.homeTeam, isUser: currentMatch.homeParticipantId === participant.id }; const away = { ...currentMatch.awayTeam, isUser: currentMatch.awayParticipantId === participant.id };
     const ownDecision = snapshot.decisions.find((item) => item.matchId === currentMatch.id && item.userId === snapshot.userId); const ownCampaign = participant.campaign!;
-    const progress: MatchProgress = { matchId: currentMatch.id, minute: currentMatch.officialMinute, lineup: ownDecision?.lineup ?? ownCampaign.lineup, bench: ownDecision?.bench ?? ownCampaign.bench, substitutions: ownDecision?.substitutions ?? [], kickStep: currentMatch.result.penaltyKicks?.length ?? 0, kickRevealed: true, shootoutComplete: false };
+    const progress: MatchProgress = { matchId: currentMatch.id, minute: currentMatch.officialMinute, lineup: ownDecision?.lineup ?? ownCampaign.lineup, bench: ownDecision?.bench ?? ownCampaign.bench, substitutions: ownDecision?.substitutions ?? [], kickStep: currentMatch.result.penaltyKicks?.length ?? 0, kickRevealed: true, shootoutComplete: currentMatch.status === "finished" };
     const displayResult = { ...currentMatch.result, instructions: { ...currentMatch.result.instructions, ...(currentMatch.officialMinute > 45 ? { halftime: currentMatch.result.instructions.halftime ?? "keep" as const } : {}), ...(currentMatch.officialMinute > 65 ? { moment: currentMatch.result.instructions.moment ?? "calm" as const } : {}) } };
-    return <MatchScreen key={`${currentMatch.id}-${currentMatch.officialMinute}`} match={{ id: currentMatch.id, round: currentMatch.round, index: currentMatch.index, home, away }} result={displayResult} progress={progress} ratingsMode={snapshot.room.ratingsMode} onInstruction={() => {}} onLineupChange={() => {}} onProgress={() => {}} onFinish={() => setView("bracket")} playbackMode="follower"/>;
+    return <MatchScreen key={`${currentMatch.id}-${currentMatch.officialMinute}`} match={{ id: currentMatch.id, round: currentMatch.round, index: currentMatch.index, home, away }} result={displayResult} progress={progress} ratingsMode={snapshot.room.ratingsMode} onInstruction={() => {}} onLineupChange={() => {}} onProgress={() => {}} onFinish={() => setDismissedResultId(currentMatch.id)} playbackMode="follower" autoFinishAt={currentMatch.status === "finished" ? new Date(Date.parse(currentMatch.updatedAt) + TRANSITION_SECONDS * 1000).toISOString() : undefined}/>;
   }
 
   const allReady = snapshot.participants.length > 0 && snapshot.participants.every((item) => item.status === "ready" && item.team);
@@ -211,7 +225,28 @@ export function MultiplayerRoomGame({ code }: { code: string }) {
     return <div className="multiplayer-shell"><RoomBar snapshot={snapshot} onCopy={copyInvite} onLeave={leave}/><BracketScreen bracket={bracket} ratingsMode={snapshot.room.ratingsMode} onPlay={prepareMatch} playLabel={matchLabel} playDisabled={currentMatch?.status === "finished" || (currentMatch?.status === "ready" && ownReady)}/>{notice && <p className="multiplayer-notice" role="status">{notice}</p>}</div>;
   }
 
-  return <main className="multiplayer-lobby" id="main"><RoomBar snapshot={snapshot} onCopy={copyInvite} onLeave={leave}/><section className="multiplayer-lobby__hero"><div><h1>{snapshot.room.status === "waiting" ? "A sala espera o apito." : "Os elencos estão em montagem."}</h1><p>{snapshot.room.status === "waiting" ? "Confirme sua presença. Quando todos estiverem prontos, o anfitrião libera o draft para a sala inteira." : "Cada escolha tem 15 segundos. Quem terminar fica pronto para o mata-mata."}</p></div><dl><div><dt>Jogadores</dt><dd>{snapshot.participants.length}/16</dd></div><div><dt>Overall</dt><dd>{snapshot.room.ratingsMode === "visible" ? "Visível" : "Oculto"}</dd></div></dl></section>{snapshot.localDevelopment && <p className="multiplayer-dev-note"><b>Teste local</b> Esta sala existe apenas nesta execução do navegador.</p>}<section className="multiplayer-slots" aria-label="Participantes e vagas">{Array.from({ length: 16 }, (_, index) => { const player = snapshot.participants.find((item) => item.slotIndex === index); const status = player && participantStatus(player, snapshot); return <article key={index} className={player ? "is-filled" : "is-empty"}><span>{String(index + 1).padStart(2, "0")}</span>{player ? <div><b>{player.nickname}{player.userId === snapshot.room.hostUserId && <em>Anfitrião</em>}</b>{snapshot.room.status === "waiting" ? <small className={`multiplayer-status ${player.lobbyReady ? "is-ready" : "is-waiting"}`}>{player.lobbyReady && <CheckIcon/>}{player.lobbyReady ? "Pronto para começar" : "Aguardando confirmação"}</small> : <small className={`multiplayer-status is-${status}`}>{status === "drafting" ? <i/> : status === "ready" ? <CheckIcon/> : null}{statusLabels[status!]}</small>}</div> : <div><b>Vaga livre</b><small>Será preenchida por CPU</small></div>}{host && player && player.id !== participant.id && snapshot.room.status !== "playing" && <button type="button" className="multiplayer-kick" onClick={() => void kick(player)} aria-label={`Remover ${player.nickname}`}>Remover</button>}</article>; })}</section><footer className="multiplayer-lobby__actions"><button type="button" className="button button--quiet" onClick={copyInvite}>Copiar convite</button>{snapshot.room.status === "waiting" && <button type="button" className={participant.lobbyReady ? "button button--quiet multiplayer-presence-button is-ready" : "button button--primary multiplayer-presence-button"} disabled={actionPending} onClick={() => void toggleLobbyReady()}>{participant.lobbyReady && <CheckIcon/>}{participant.lobbyReady ? "Desfazer confirmação" : "Estou pronto"}</button>}{snapshot.room.status === "waiting" && host && <button type="button" className="button button--primary" disabled={!allLobbyReady || actionPending} onClick={beginDraft}>Iniciar montagem dos elencos<ArrowIcon/></button>}{snapshot.room.status === "drafting" && participant.status === "ready" && <span className="multiplayer-ready"><CheckIcon/> Elenco pronto</span>}{snapshot.room.status === "drafting" && host && <button type="button" className="button button--primary" disabled={!allReady} onClick={launch}>Iniciar torneio<ArrowIcon/></button>}</footer>{snapshot.room.status === "waiting" && host && !allLobbyReady && <p className="multiplayer-lobby__hint">O draft será liberado quando todos os participantes confirmarem presença.</p>}{snapshot.room.status === "drafting" && host && !allReady && <p className="multiplayer-lobby__hint">Participantes que entraram precisam concluir o elenco ou ser removidos antes do início.</p>}{notice && <p className="multiplayer-notice" role="status">{notice}</p>}{error && <p className="multiplayer-error" role="alert">{error}</p>}</main>;
+  return <main className="multiplayer-lobby" id="main"><RoomBar snapshot={snapshot} onCopy={copyInvite} onLeave={leave}/><section className="multiplayer-lobby__hero"><div><h1>{snapshot.room.status === "waiting" ? "A sala espera o apito." : "Os elencos estão em montagem."}</h1><p>{snapshot.room.status === "waiting" ? "Confirme sua presença. Quando todos estiverem prontos, o anfitrião libera o draft para a sala inteira." : "Cada escolha tem 15 segundos. Quem terminar fica pronto para o mata-mata."}</p></div><dl><div><dt>Jogadores</dt><dd>{snapshot.participants.length}/16</dd></div><div><dt>Overall</dt><dd>{snapshot.room.ratingsMode === "visible" ? "Visível" : "Oculto"}</dd></div></dl></section>{snapshot.localDevelopment && <p className="multiplayer-dev-note"><b>Teste local</b> Esta sala existe apenas nesta execução do navegador.</p>}<section className="multiplayer-slots" aria-label="Participantes e vagas">{Array.from({ length: 16 }, (_, index) => { const player = snapshot.participants.find((item) => item.slotIndex === index); const status = player && participantStatus(player, snapshot); return <article key={index} className={player ? "is-filled" : "is-empty"}><span>{String(index + 1).padStart(2, "0")}</span>{player ? <div><b>{player.nickname}{player.userId === snapshot.room.hostUserId && <em>Anfitrião</em>}</b>{snapshot.room.status === "waiting" ? <small className={`multiplayer-status ${player.lobbyReady ? "is-ready" : "is-waiting"}`}>{player.lobbyReady && <CheckIcon/>}{player.lobbyReady ? "Pronto para começar" : "Aguardando confirmação"}</small> : <small className={`multiplayer-status is-${status}`}>{status === "drafting" ? <i/> : status === "ready" ? <CheckIcon/> : null}{statusLabels[status!]}</small>}</div> : <div><b>Vaga livre</b><small>Será preenchida por CPU</small></div>}{host && player && player.id !== participant.id && snapshot.room.status !== "playing" && <button type="button" className="multiplayer-kick" onClick={() => void kick(player)} aria-label={`Remover ${player.nickname}`}>Remover</button>}</article>; })}</section><footer className="multiplayer-lobby__actions"><button type="button" className="button button--quiet" onClick={copyInvite}>Copiar convite</button>{snapshot.room.status === "waiting" && <button type="button" className={participant.lobbyReady ? "button button--quiet multiplayer-presence-button is-ready" : "button button--primary multiplayer-presence-button"} disabled={actionPending} onClick={() => void toggleLobbyReady()}>{participant.lobbyReady && <CheckIcon/>}{participant.lobbyReady ? "Desfazer confirmação" : "Estou pronto"}</button>}{snapshot.room.status === "waiting" && host && <button type="button" className="button button--primary" disabled={!allLobbyReady || actionPending} onClick={beginDraft}>Iniciar montagem dos elencos<ArrowIcon/></button>}{snapshot.room.status === "drafting" && participant.status === "ready" && <span className="multiplayer-ready"><CheckIcon/> Elenco pronto</span>}{snapshot.room.status === "drafting" && allReady && <AutoAdvanceTimer seconds={TRANSITION_SECONDS} label="chaveamento" onComplete={host ? launch : undefined}/>} {snapshot.room.status === "drafting" && host && <button type="button" className="button button--primary" disabled={!allReady} onClick={launch}>{allReady ? "Iniciar agora" : "Iniciar torneio"}<ArrowIcon/></button>}</footer>{snapshot.room.status === "waiting" && host && !allLobbyReady && <p className="multiplayer-lobby__hint">O draft será liberado quando todos os participantes confirmarem presença.</p>}{snapshot.room.status === "drafting" && host && !allReady && <p className="multiplayer-lobby__hint">Participantes que entraram precisam concluir o elenco ou ser removidos antes do início.</p>}{notice && <p className="multiplayer-notice" role="status">{notice}</p>}{error && <p className="multiplayer-error" role="alert">{error}</p>}</main>;
+}
+
+function AutoAdvanceTimer({ seconds, label, onComplete }: { seconds: number; label: string; onComplete?: () => void }) {
+  const [secondsLeft, setSecondsLeft] = useState(seconds);
+  const completed = useRef(false);
+  const completeRef = useRef(onComplete);
+  useEffect(() => { completeRef.current = onComplete; }, [onComplete]);
+  useEffect(() => {
+    const deadline = Date.now() + seconds * 1000;
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining === 0 && !completed.current) {
+        completed.current = true;
+        window.clearInterval(timer);
+        completeRef.current?.();
+      }
+    }, 200);
+    return () => window.clearInterval(timer);
+  }, [seconds]);
+  return <span className="auto-advance-timer" role="timer" aria-label={`${label} em ${secondsLeft} segundos`}><b>{secondsLeft}</b><small>{label}</small></span>;
 }
 
 function MultiplayerDecisionBreak({ snapshot, participant, match, onDone }: { snapshot: MultiplayerSnapshot; participant: MultiplayerParticipant; match: MultiplayerMatch; onDone: () => Promise<void> }) {

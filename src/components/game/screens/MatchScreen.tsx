@@ -65,6 +65,7 @@ export function MatchScreen({
   onProgress,
   onFinish,
   playbackMode = "local",
+  autoFinishAt,
 }: {
   match: BracketMatch;
   result: MatchResult;
@@ -75,6 +76,7 @@ export function MatchScreen({
   onProgress: (playback: Pick<MatchProgress, "minute" | "kickStep" | "kickRevealed" | "shootoutComplete">) => void;
   onFinish: () => void;
   playbackMode?: "local" | "controller" | "follower";
+  autoFinishAt?: string;
 }) {
   const maxMinute = result.wentToExtraTime ? 122 : 90;
   const kicks = useMemo(() => result.penaltyKicks ?? [], [result.penaltyKicks]);
@@ -92,13 +94,17 @@ export function MatchScreen({
   const [goalFlash, setGoalFlash] = useState(false);
   const [boxOpen, setBoxOpen] = useState(true);
   const [substitutionOpen, setSubstitutionOpen] = useState(false);
+  const [autoFinishSeconds, setAutoFinishSeconds] = useState(() => autoFinishAt ? Math.max(0, Math.ceil((Date.parse(autoFinishAt) - Date.now()) / 1000)) : undefined);
+  const autoFinishCompleted = useRef(false);
   const userTeam = match.home.isUser ? match.home : match.away;
   const opponent = match.home.isUser ? match.away : match.home;
   const [liveLineup, setLiveLineup] = useState(() => savedProgress?.lineup ?? userTeam.lineupEntries ?? []);
   const [liveBench, setLiveBench] = useState(() => savedProgress?.bench ?? (userTeam.bench ?? []).map(({ id: playerId, squadId }) => ({ playerId, squadId })));
   const [liveSubstitutions, setLiveSubstitutions] = useState(() => savedProgress?.substitutions ?? []);
   const progressCallback = useRef(onProgress);
+  const finishCallback = useRef(onFinish);
   useEffect(() => { progressCallback.current = onProgress; }, [onProgress]);
+  useEffect(() => { finishCallback.current = onFinish; }, [onFinish]);
   useEffect(() => {
     if (playbackMode === "follower") return;
     progressCallback.current({ minute, kickStep, kickRevealed, shootoutComplete });
@@ -112,6 +118,20 @@ export function MatchScreen({
   const concluded = kickStep >= kicks.length;
   const finished = clockDone && !inShootout;
   const running = playbackMode !== "follower" && !needsHalftime && !needsMoment && !paused && !clockDone;
+
+  useEffect(() => {
+    if (!finished || !autoFinishAt) return;
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((Date.parse(autoFinishAt) - Date.now()) / 1000));
+      setAutoFinishSeconds(remaining);
+      if (remaining === 0 && !autoFinishCompleted.current) {
+        autoFinishCompleted.current = true;
+        window.clearInterval(timer);
+        finishCallback.current();
+      }
+    }, 200);
+    return () => window.clearInterval(timer);
+  }, [autoFinishAt, finished]);
 
   useEffect(() => {
     if (!running) return;
@@ -192,7 +212,7 @@ export function MatchScreen({
   const status = clockDone
     ? result.wentToPenalties ? (inShootout ? "Pênaltis" : "Fim nos pênaltis") : result.wentToExtraTime ? "Fim na prorrogação" : "Fim de jogo"
     : minute > 90 ? "Prorrogação" : minute > 45 ? "Segundo tempo" : "Primeiro tempo";
-  const revealOpponent = ratingsMode === "visible" || clockDone;
+  const showRatings = ratingsMode === "visible";
   const chosen = halftimeOptions.find((option) => option.id === result.instructions.halftime);
   const allGoals = result.events.filter((item) => item.type === "goal");
   // Fila invertida: o lance mais novo encabeça a lista e o mais antigo cai no fim.
@@ -233,7 +253,7 @@ export function MatchScreen({
           <section className={`scoreboard ${goalFlash ? "is-goal-flash" : ""}`} aria-live="polite">
             <div className="score-team">
               <span>{teamEra(match.home)}</span><h1>{match.home.name}</h1>
-              <small>{match.home.isUser || revealOpponent ? `OVR ${match.home.overall.final} · ` : ""}{match.home.formation}</small>
+              <small>{showRatings ? `OVR ${match.home.overall.final} · ` : ""}{match.home.formation}</small>
             </div>
             <div className="score-numbers">
               <strong>{clockDone ? finalHome : homeVisible}</strong><i>×</i><strong>{clockDone ? finalAway : awayVisible}</strong>
@@ -241,7 +261,7 @@ export function MatchScreen({
             </div>
             <div className="score-team score-team--away">
               <span>{teamEra(match.away)}</span><h1>{match.away.name}</h1>
-              <small>{match.away.isUser || revealOpponent ? `OVR ${match.away.overall.final} · ` : ""}{match.away.formation}</small>
+              <small>{showRatings ? `OVR ${match.away.overall.final} · ` : ""}{match.away.formation}</small>
             </div>
           </section>
           <div className="match-progress" aria-hidden="true">
@@ -263,7 +283,8 @@ export function MatchScreen({
                 <span>Partida encerrada</span>
                 <b>{result.winnerId === userTeam.id ? "Vitória confirmada" : "Resultado confirmado"}</b>
               </div>
-              <button type="button" className="button button--primary" onClick={onFinish}>Ver resultado<ArrowIcon/></button>
+              {autoFinishSeconds !== undefined && <span className="auto-advance-timer" role="timer" aria-label={`Chaveamento em ${autoFinishSeconds} segundos`}><b>{autoFinishSeconds}</b><small>chaveamento</small></span>}
+              <button type="button" className="button button--primary" onClick={() => { if (autoFinishCompleted.current) return; autoFinishCompleted.current = true; onFinish(); }}>{autoFinishAt ? "Ir para a chave" : "Ver resultado"}<ArrowIcon/></button>
             </section>
           )}
           {!clockDone && !needsMoment && (
@@ -320,7 +341,7 @@ export function MatchScreen({
             {finished ? (
               <>
                 <span>LEITURA PÓS-JOGO</span>
-                <div className="result-compact"><b>{finalHome} × {finalAway}</b><small>OVR {match.home.overall.final} × {match.away.overall.final}</small></div>
+                <div className="result-compact"><b>{finalHome} × {finalAway}</b>{showRatings && <small>OVR {match.home.overall.final} × {match.away.overall.final}</small>}</div>
                 <p>{result.summary}</p>
                 {result.wentToPenalties && <PenaltySummary kicks={kicks} match={match}/>}
                 <GoalSheet goals={allGoals} match={match}/>

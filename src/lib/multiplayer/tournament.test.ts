@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { opponents } from "@/data/opponents";
-import { createMultiplayerBracket, multiplayerMatchesForRound, nextMultiplayerRound, viewedBracket } from "@/lib/multiplayer/tournament";
+import { createMultiplayerBracket, multiplayerMatchCanStart, multiplayerMatchesForRound, nextMultiplayerRound, viewedBracket } from "@/lib/multiplayer/tournament";
 import type { MultiplayerParticipant, MultiplayerRoom } from "@/types/multiplayer";
 
 const createdAt = "2026-08-20T12:00:00.000Z";
@@ -39,5 +39,19 @@ describe("multiplayer tournament", () => {
     expect(nextMultiplayerRound(room, matches)).toBeUndefined();
     const finished = matches.map((match) => ({ ...match, status: "finished" as const }));
     expect(nextMultiplayerRound(room, finished)?.matches).toHaveLength(4);
+  });
+
+  it("libera imediatamente uma partida humana contra CPU quando o humano confirma", () => {
+    const players = [participant(1)];
+    const bracket = createMultiplayerBracket(players, 31);
+    const match = multiplayerMatchesForRound(room, bracket.rounds[0], players)
+      .find((item) => item.homeParticipantId || item.awayParticipantId)!;
+    const confirmed = {
+      ...match,
+      homeReady: match.homeReady || match.homeParticipantId === players[0].id,
+      awayReady: match.awayReady || match.awayParticipantId === players[0].id,
+    };
+    expect(match.homeCpu || match.awayCpu).toBe(true);
+    expect(multiplayerMatchCanStart(confirmed)).toBe(true);
   });
 });

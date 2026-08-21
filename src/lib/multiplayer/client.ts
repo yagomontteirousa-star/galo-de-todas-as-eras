@@ -3,6 +3,7 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from "@supabase/supabase-js";
 import type { BracketState, Campaign, MatchInstructions, MatchProgress, MatchResult, RatingsMode, TeamSnapshot, TournamentRound } from "@/types/game";
 import type { MultiplayerDecision, MultiplayerMatch, MultiplayerParticipant, MultiplayerRoom, MultiplayerSnapshot } from "@/types/multiplayer";
+import { multiplayerMatchCanStart } from "@/lib/multiplayer/tournament";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -197,7 +198,7 @@ export async function readyMultiplayerMatch(matchId: string) {
     if (!match) return;
     const own = local().players.find((item) => item.userId === local().userId);
     const next = { ...match, homeReady: match.homeReady || match.homeParticipantId === own?.id, awayReady: match.awayReady || match.awayParticipantId === own?.id };
-    const starts = (next.homeCpu || next.homeReady || !next.homeParticipantId) && (next.awayCpu || next.awayReady || !next.awayParticipantId);
+    const starts = multiplayerMatchCanStart(next);
     local().matches = local().matches.map((item) => item.id === matchId ? { ...next, status: starts ? "playing" : "ready", phaseStartedAt: starts ? now() : undefined } : item);
     notifyLocal(); return;
   }
