@@ -10,6 +10,7 @@ export const multiplayerConfigured = Boolean(url && publishableKey);
 export const multiplayerLocalDevelopment = !multiplayerConfigured && process.env.NODE_ENV === "development";
 
 let supabase: SupabaseClient | undefined;
+let multiplayerUserPromise: Promise<string> | undefined;
 function db() {
   if (!multiplayerConfigured) return undefined;
   supabase ??= createClient(url!, publishableKey!, {
@@ -44,11 +45,15 @@ export async function ensureMultiplayerUser(): Promise<string> {
     if (!multiplayerLocalDevelopment) throw new Error("Multiplayer temporariamente indisponível. O Supabase ainda não está conectado.");
     return local().userId;
   }
-  const { data: session } = await client.auth.getSession();
-  if (session.session?.user.id) return session.session.user.id;
-  const { data, error } = await client.auth.signInAnonymously();
-  if (error || !data.user) throw new Error("Não foi possível abrir sua sessão privada. Tente novamente.");
-  return data.user.id;
+  multiplayerUserPromise ??= (async () => {
+    const { data: session } = await client.auth.getSession();
+    if (session.session?.user.id) return session.session.user.id;
+    const { data, error } = await client.auth.signInAnonymously();
+    if (error || !data.user) throw new Error("Não foi possível abrir sua sessão privada. Tente novamente.");
+    return data.user.id;
+  })();
+  try { return await multiplayerUserPromise; }
+  catch (error) { multiplayerUserPromise = undefined; throw error; }
 }
 
 export async function createMultiplayerRoom(nickname: string, ratingsMode: RatingsMode): Promise<string> {
@@ -114,17 +119,21 @@ export function subscribeMultiplayerRoom(code: string, refresh: () => void): () 
     if (!multiplayerLocalDevelopment) return () => {};
     local().listeners.add(refresh); return () => local().listeners.delete(refresh);
   }
+  let active = true;
   let channel: RealtimeChannel | undefined;
   void loadMultiplayerRoom(code).then((snapshot) => {
-    if (!snapshot) return;
+    if (!snapshot || !active) return;
     channel = client.channel(`room:${snapshot.room.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "multiplayer_rooms", filter: `id=eq.${snapshot.room.id}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "multiplayer_players", filter: `room_id=eq.${snapshot.room.id}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "multiplayer_matches", filter: `room_id=eq.${snapshot.room.id}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "multiplayer_decisions" }, refresh)
       .subscribe();
-  });
-  return () => { if (channel) void client.removeChannel(channel); };
+  }).catch(() => undefined);
+  return () => {
+    active = false;
+    if (channel) void client.removeChannel(channel);
+  };
 }
 
 export async function saveMultiplayerDraft(participant: MultiplayerParticipant, campaign: Campaign, team?: TeamSnapshot, status: MultiplayerParticipant["status"] = "drafting") {

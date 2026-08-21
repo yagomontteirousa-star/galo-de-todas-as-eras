@@ -162,25 +162,33 @@ alter table public.multiplayer_players enable row level security;
 alter table public.multiplayer_matches enable row level security;
 alter table public.multiplayer_decisions enable row level security;
 
-create policy "room members read rooms" on public.multiplayer_rooms for select using (
+create policy "room members read rooms" on public.multiplayer_rooms for select to authenticated using (
   public.is_multiplayer_room_member(id)
 );
-create policy "host updates room" on public.multiplayer_rooms for update using (host_user_id=auth.uid()) with check (host_user_id=auth.uid());
-create policy "room members read players" on public.multiplayer_players for select using (
+create policy "host updates room" on public.multiplayer_rooms for update to authenticated using (host_user_id=auth.uid()) with check (host_user_id=auth.uid());
+create policy "room members read players" on public.multiplayer_players for select to authenticated using (
   public.is_multiplayer_room_member(room_id)
 );
-create policy "player updates self" on public.multiplayer_players for update using (user_id=auth.uid()) with check (user_id=auth.uid());
-create policy "room members read matches" on public.multiplayer_matches for select using (
+create policy "player updates self" on public.multiplayer_players for update to authenticated using (user_id=auth.uid()) with check (user_id=auth.uid());
+create policy "room members read matches" on public.multiplayer_matches for select to authenticated using (
   public.is_multiplayer_room_member(room_id)
 );
-create policy "controller updates match" on public.multiplayer_matches for update using (controller_user_id=auth.uid()) with check (controller_user_id=auth.uid());
-create policy "participants read decisions" on public.multiplayer_decisions for select using (
+create policy "controller updates match" on public.multiplayer_matches for update to authenticated using (controller_user_id=auth.uid()) with check (controller_user_id=auth.uid());
+create policy "participants read decisions" on public.multiplayer_decisions for select to authenticated using (
   exists(select 1 from public.multiplayer_matches m join public.multiplayer_players me on me.room_id=m.room_id where m.id=match_id and me.user_id=auth.uid())
 );
-create policy "player writes own decision" on public.multiplayer_decisions for insert with check (
+create policy "player writes own decision" on public.multiplayer_decisions for insert to authenticated with check (
   user_id=auth.uid() and exists(select 1 from public.multiplayer_matches m join public.multiplayer_players p on p.id in (m.home_participant_id,m.away_participant_id) where m.id=match_id and p.user_id=auth.uid())
 );
-create policy "player updates own decision" on public.multiplayer_decisions for update using (user_id=auth.uid()) with check (user_id=auth.uid());
+create policy "player updates own decision" on public.multiplayer_decisions for update to authenticated using (user_id=auth.uid()) with check (user_id=auth.uid());
+
+revoke all on function public.multiplayer_touch_updated_at() from public, anon;
+revoke all on function public.multiplayer_code() from public, anon;
+revoke all on function public.create_multiplayer_room(text,text) from public, anon;
+revoke all on function public.join_multiplayer_room(text,text) from public, anon;
+revoke all on function public.start_multiplayer_room(uuid,jsonb,jsonb) from public, anon;
+revoke all on function public.advance_multiplayer_room(uuid,text,jsonb,jsonb) from public, anon;
+revoke all on function public.is_multiplayer_room_member(uuid) from public, anon;
 
 grant execute on function public.create_multiplayer_room(text,text) to authenticated;
 grant execute on function public.join_multiplayer_room(text,text) to authenticated;

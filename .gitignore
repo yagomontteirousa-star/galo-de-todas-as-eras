@@ -16,3 +16,8 @@ out/
 Thumbs.db
 
 .vercel
+
+# Local integration tooling
+.agents/
+skills-lock.json
+supabase/.temp/
