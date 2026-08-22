@@ -66,6 +66,7 @@ export function MatchScreen({
   onFinish,
   playbackMode = "local",
   autoFinishAt,
+  multiplayerRules = false,
 }: {
   match: BracketMatch;
   result: MatchResult;
@@ -77,25 +78,28 @@ export function MatchScreen({
   onFinish: () => void;
   playbackMode?: "local" | "controller" | "follower";
   autoFinishAt?: string;
+  multiplayerRules?: boolean;
 }) {
   const maxMinute = result.wentToExtraTime ? 122 : 90;
   const kicks = useMemo(() => result.penaltyKicks ?? [], [result.penaltyKicks]);
   const savedProgress = progress?.matchId === match.id ? progress : undefined;
-  const [minute, setMinute] = useState(savedProgress?.minute ?? 0);
-  const [speedIndex, setSpeedIndex] = useState(0);
+  const [localMinute, setMinute] = useState(savedProgress?.minute ?? 0);
+  const [speedIndex, setSpeedIndex] = useState(multiplayerRules ? 1 : 0);
   const [paused, setPaused] = useState(false);
   /** Postura escolhida no intervalo, ainda não confirmada. */
   const [halftimePick, setHalftimePick] = useState<HalftimeInstruction>();
   const [momentPick, setMomentPick] = useState<MatchMomentInstruction>();
   /** Passo da disputa: a cobrança anuncia o nome antes de revelar o resultado. */
-  const [kickStep, setKickStep] = useState(savedProgress?.kickStep ?? 0);
-  const [kickRevealed, setKickRevealed] = useState(savedProgress?.kickRevealed ?? false);
-  const [shootoutComplete, setShootoutComplete] = useState(savedProgress?.shootoutComplete ?? false);
+  const [localKickStep, setKickStep] = useState(savedProgress?.kickStep ?? 0);
+  const [localKickRevealed, setKickRevealed] = useState(savedProgress?.kickRevealed ?? false);
+  const [localShootoutComplete, setShootoutComplete] = useState(savedProgress?.shootoutComplete ?? false);
   const [goalFlash, setGoalFlash] = useState(false);
   const [boxOpen, setBoxOpen] = useState(true);
   const [substitutionOpen, setSubstitutionOpen] = useState(false);
   const [autoFinishSeconds, setAutoFinishSeconds] = useState(() => autoFinishAt ? Math.max(0, Math.ceil((Date.parse(autoFinishAt) - Date.now()) / 1000)) : undefined);
   const autoFinishCompleted = useRef(false);
+  const decisionExpired = useRef("");
+  const [decisionSeconds, setDecisionSeconds] = useState<number>();
   const userTeam = match.home.isUser ? match.home : match.away;
   const opponent = match.home.isUser ? match.away : match.home;
   const [liveLineup, setLiveLineup] = useState(() => savedProgress?.lineup ?? userTeam.lineupEntries ?? []);
@@ -103,8 +107,20 @@ export function MatchScreen({
   const [liveSubstitutions, setLiveSubstitutions] = useState(() => savedProgress?.substitutions ?? []);
   const progressCallback = useRef(onProgress);
   const finishCallback = useRef(onFinish);
+  const instructionCallback = useRef(onInstruction);
+  const instructionsRef = useRef(result.instructions);
+  const halftimePickRef = useRef(halftimePick);
+  const momentPickRef = useRef(momentPick);
+  const minute = playbackMode === "follower" ? savedProgress?.minute ?? localMinute : localMinute;
+  const kickStep = playbackMode === "follower" ? savedProgress?.kickStep ?? localKickStep : localKickStep;
+  const kickRevealed = playbackMode === "follower" ? savedProgress?.kickRevealed ?? localKickRevealed : localKickRevealed;
+  const shootoutComplete = playbackMode === "follower" ? savedProgress?.shootoutComplete ?? localShootoutComplete : localShootoutComplete;
   useEffect(() => { progressCallback.current = onProgress; }, [onProgress]);
   useEffect(() => { finishCallback.current = onFinish; }, [onFinish]);
+  useEffect(() => { instructionCallback.current = onInstruction; }, [onInstruction]);
+  useEffect(() => { instructionsRef.current = result.instructions; }, [result.instructions]);
+  useEffect(() => { halftimePickRef.current = halftimePick; }, [halftimePick]);
+  useEffect(() => { momentPickRef.current = momentPick; }, [momentPick]);
   useEffect(() => {
     if (playbackMode === "follower") return;
     progressCallback.current({ minute, kickStep, kickRevealed, shootoutComplete });
@@ -117,7 +133,7 @@ export function MatchScreen({
   const inShootout = clockDone && result.wentToPenalties && !shootoutComplete;
   const concluded = kickStep >= kicks.length;
   const finished = clockDone && !inShootout;
-  const running = playbackMode !== "follower" && !needsHalftime && !needsMoment && !paused && !clockDone;
+  const running = playbackMode !== "follower" && !needsHalftime && !needsMoment && (multiplayerRules || !paused) && !clockDone;
 
   useEffect(() => {
     if (!finished || !autoFinishAt) return;
@@ -222,6 +238,26 @@ export function MatchScreen({
   const confirmHalftime = () => halftimePick && onInstruction({ ...result.instructions, halftime: halftimePick });
   const confirmMoment = () => momentPick && onInstruction({ ...result.instructions, moment: momentPick });
   const skip = () => { setPaused(false); setMinute(!result.instructions.halftime ? 45 : !result.instructions.moment ? 65 : maxMinute); };
+
+  useEffect(() => {
+    const gate = needsHalftime ? "halftime" : needsMoment ? "moment" : "";
+    if (!multiplayerRules || !gate) {
+      decisionExpired.current = "";
+      return;
+    }
+    const maximum = gate === "moment" ? 10 : 15;
+    const target = Date.now() + maximum * 1000;
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((target - Date.now()) / 1000));
+      setDecisionSeconds(remaining);
+      if (remaining || decisionExpired.current === gate) return;
+      decisionExpired.current = gate;
+      window.clearInterval(timer);
+      if (gate === "halftime") instructionCallback.current({ ...instructionsRef.current, halftime: halftimePickRef.current ?? "keep" });
+      else instructionCallback.current({ ...instructionsRef.current, moment: momentPickRef.current ?? "calm" });
+    }, 200);
+    return () => window.clearInterval(timer);
+  }, [multiplayerRules, needsHalftime, needsMoment]);
   const applyLiveLineup = (nextLineup: typeof liveLineup, nextBench: typeof liveBench) => {
     const nextIds = new Set(nextLineup.map((entry) => entry.playerId));
     const currentIds = new Set(liveLineup.map((entry) => entry.playerId));
@@ -246,7 +282,7 @@ export function MatchScreen({
       {/* No intervalo o painel ocupa exatamente o espaço do placar: relógio, placar e
           controles saem de cena para a decisão ficar visível sem rolagem. */}
       {needsHalftime ? (
-        <HalftimePanel round={roundLabels[match.round]} picked={halftimePick} onPick={setHalftimePick} onConfirm={confirmHalftime}/>
+        <HalftimePanel round={roundLabels[match.round]} picked={halftimePick} seconds={decisionSeconds} onPick={setHalftimePick} onConfirm={confirmHalftime}/>
       ) : (
         <>
           <div className="match-stage"><span>{roundLabels[match.round]} · {status}</span><b>{clockDone ? "ENCERRADO" : `${minute}′`}</b><small>{match.home.stadium ?? "Casa do mandante"}</small></div>
@@ -273,6 +309,7 @@ export function MatchScreen({
               moment={moment}
               score={`${userVisible} × ${rivalVisible}`}
               picked={momentPick}
+              seconds={decisionSeconds}
               onPick={setMomentPick}
               onConfirm={confirmMoment}
             />
@@ -289,7 +326,7 @@ export function MatchScreen({
           )}
           {!clockDone && !needsMoment && (
             <div className="match-controls">
-              {playbackMode === "follower" ? <span className="match-sync-status">Partida sincronizada pelo outro jogador</span> : <>
+              {playbackMode === "follower" ? <span className="match-sync-status">Partida sincronizada em ritmo normal</span> : multiplayerRules ? <span className="match-sync-status">Ritmo normal · controles compartilhados</span> : <>
               <button type="button" className="match-control" onClick={() => setPaused((value) => !value)} aria-pressed={paused}>
                 {paused ? "▶ Retomar" : "❚❚ Pausar"}
               </button>
@@ -384,9 +421,10 @@ export function MatchScreen({
  * Intervalo: ocupa o lugar do placar, exige uma escolha e só então devolve o jogo. O botão
  * de seguir mora aqui dentro, para a decisão inteira caber num campo de visão só.
  */
-function HalftimePanel({ round, picked, onPick, onConfirm }: {
+function HalftimePanel({ round, picked, seconds, onPick, onConfirm }: {
   round: string;
   picked?: HalftimeInstruction;
+  seconds?: number;
   onPick: (choice: HalftimeInstruction) => void;
   onConfirm: () => void;
 }) {
@@ -396,6 +434,7 @@ function HalftimePanel({ round, picked, onPick, onConfirm }: {
         <span>{round} · INTERVALO</span>
         <h2>Como o time volta?</h2>
         <p>A partida está parada. Escolha a postura para o segundo tempo.</p>
+        {seconds !== undefined && <b className="decision-quick-timer" role="timer">{seconds}s</b>}
       </header>
       <div className="halftime__options">
         {halftimeOptions.map((option) => (
@@ -413,10 +452,11 @@ function HalftimePanel({ round, picked, onPick, onConfirm }: {
 }
 
 /** Decisão única da reta final: mantém placar e contexto na tela, sem modal ou camada. */
-function MatchMomentPanel({ moment, score, picked, onPick, onConfirm }: {
+function MatchMomentPanel({ moment, score, picked, seconds, onPick, onConfirm }: {
   moment: (typeof matchMoments)[keyof typeof matchMoments];
   score: string;
   picked?: MatchMomentInstruction;
+  seconds?: number;
   onPick: (choice: MatchMomentInstruction) => void;
   onConfirm: () => void;
 }) {
@@ -426,6 +466,7 @@ function MatchMomentPanel({ moment, score, picked, onPick, onConfirm }: {
         <span>65′ · decisão de jogo</span>
         <h2>{moment.question}</h2>
         <p><b>Placar: {score}.</b> {moment.detail}</p>
+        {seconds !== undefined && <b className="decision-quick-timer" role="timer">{seconds}s</b>}
       </header>
       <div className="match-moment__options" role="group" aria-label={moment.question}>
         {moment.choices.map((choice) => (

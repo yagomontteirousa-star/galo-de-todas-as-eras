@@ -1,8 +1,8 @@
 import { opponents } from "@/data/opponents";
-import { BRACKET_SIZE, roundCounts, roundOrder } from "@/lib/bracket";
+import { roundOrder } from "@/lib/bracket";
 import { seededRandom, simulateMatch } from "@/lib/simulation";
 import type { BracketMatch, BracketRound, BracketState, TeamSnapshot, TournamentRound } from "@/types/game";
-import type { MultiplayerMatch, MultiplayerParticipant, MultiplayerRoom } from "@/types/multiplayer";
+import type { MultiplayerBracketSize, MultiplayerMatch, MultiplayerParticipant, MultiplayerRoom } from "@/types/multiplayer";
 
 function shuffled<T>(source: T[], random: () => number): T[] {
   const result = [...source];
@@ -23,24 +23,34 @@ export function multiplayerMatchCanStart(match: MultiplayerMatch): boolean {
     && (match.awayCpu || match.awayReady || !match.awayParticipantId);
 }
 
-export function multiplayerShootoutProgress(status: MultiplayerMatch["status"], kickCount: number) {
-  const finished = status === "finished";
-  return { kickStep: finished ? kickCount : 0, kickRevealed: finished, shootoutComplete: finished };
+export function multiplayerShootoutProgress(match: MultiplayerMatch) {
+  const kickCount = match.result?.penaltyKicks?.length ?? 0;
+  const finished = match.status === "finished";
+  return {
+    kickStep: finished ? kickCount : match.shootoutStep,
+    kickRevealed: finished || match.shootoutRevealed,
+    shootoutComplete: finished,
+  };
 }
 
-export function createMultiplayerBracket(participants: MultiplayerParticipant[], seed: number): BracketState {
+export function firstRoundForSize(size: MultiplayerBracketSize): TournamentRound {
+  return size === 2 ? "final" : size === 4 ? "semifinal" : size === 8 ? "quarterfinal" : "round16";
+}
+
+export function createMultiplayerBracket(participants: MultiplayerParticipant[], seed: number, size: MultiplayerBracketSize = 16): BracketState {
   const random = seededRandom(seed);
   const humans = participants.map(multiplayerTeam);
   const used = new Set(humans.map((team) => team.id));
   const cpus = shuffled(opponents, random)
     .filter((team) => !used.has(team.id))
-    .slice(0, BRACKET_SIZE - humans.length)
+    .slice(0, size - humans.length)
     .map((team) => ({ ...team, isUser: false, controller: "cpu" as const }));
   const teams = shuffled([...humans, ...cpus], random);
-  const matches: BracketMatch[] = Array.from({ length: 8 }, (_, index) => ({
-    id: crypto.randomUUID(), round: "round16", index, home: teams[index * 2], away: teams[index * 2 + 1],
+  const firstRound = firstRoundForSize(size);
+  const matches: BracketMatch[] = Array.from({ length: size / 2 }, (_, index) => ({
+    id: crypto.randomUUID(), round: firstRound, index, home: teams[index * 2], away: teams[index * 2 + 1],
   }));
-  return { rounds: [{ id: "round16", matches }], currentRound: "round16" };
+  return { rounds: [{ id: firstRound, matches }], currentRound: firstRound };
 }
 
 function ownerFor(team: TeamSnapshot, participants: MultiplayerParticipant[]) {
@@ -61,7 +71,7 @@ export function multiplayerMatchesForRound(room: MultiplayerRoom, round: Bracket
     const progress = controllingParticipant?.campaign ? {
       matchId: match.id, minute: 0,
       lineup: controllingParticipant.campaign.lineup,
-      bench: controllingParticipant.campaign.bench,
+      bench: [],
       substitutions: [], kickStep: 0, kickRevealed: false, shootoutComplete: false,
     } : undefined;
     return {
@@ -73,13 +83,15 @@ export function multiplayerMatchesForRound(room: MultiplayerRoom, round: Bracket
       homeReady: false, awayReady: false,
       homeCpu: !home, awayCpu: !away,
       officialMinute: 0, phaseBaseMinute: 0,
+      shootoutStep: 0, shootoutRevealed: false,
       updatedAt: new Date().toISOString(),
     };
   });
 }
 
 export function viewedBracket(room: MultiplayerRoom, matches: MultiplayerMatch[], participantId: string): BracketState {
-  const rounds: BracketRound[] = roundOrder.flatMap((round) => {
+  const start = roundOrder.indexOf(firstRoundForSize(room.bracketSize));
+  const rounds: BracketRound[] = roundOrder.slice(start).flatMap((round) => {
     const rows = matches.filter((match) => match.round === round).sort((left, right) => left.index - right.index);
     if (!rows.length) return [];
     return [{ id: round, matches: rows.map((match) => ({
@@ -98,7 +110,8 @@ export function nextMultiplayerRound(room: MultiplayerRoom, matches: Multiplayer
   const currentIndex = roundOrder.indexOf(room.currentRound);
   if (currentIndex < 0 || currentIndex >= roundOrder.length - 1) return undefined;
   const current = matches.filter((item) => item.round === room.currentRound).sort((left, right) => left.index - right.index);
-  if (current.length !== roundCounts[room.currentRound] || current.some((item) => item.status !== "finished" || !item.result)) return undefined;
+  const expected = room.currentRound === firstRoundForSize(room.bracketSize) ? room.bracketSize / 2 : Math.max(1, current.length);
+  if (current.length !== expected || current.some((item) => item.status !== "finished" || !item.result)) return undefined;
   const winners = current.map((match) => match.result!.winnerId === match.homeTeam.id ? match.homeTeam : match.awayTeam);
   const nextId: TournamentRound = roundOrder[currentIndex + 1];
   return { id: nextId, matches: Array.from({ length: winners.length / 2 }, (_, index) => ({ id: crypto.randomUUID(), round: nextId, index, home: winners[index * 2], away: winners[index * 2 + 1] })) };

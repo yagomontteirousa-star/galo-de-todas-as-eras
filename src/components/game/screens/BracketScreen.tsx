@@ -26,6 +26,9 @@ export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult, pl
 }) {
   const currentMatch = getCurrentUserMatch(bracket);
   const current = currentMatch?.result ? undefined : currentMatch;
+  const firstRound = bracket.rounds[0]?.id ?? "round16";
+  const visibleRoundIds = roundOrder.slice(Math.max(0, roundOrder.indexOf(firstRound)));
+  const teamCount = Math.max(2, (bracket.rounds[0]?.matches.length ?? 8) * 2);
   /** No celular a chave vira uma fase por vez: quatro colunas não cabem sem virar letra miúda. */
   const [phase, setPhase] = useState(bracket.currentRound);
   const opponent = current && (current.home.isUser ? current.away : current.home);
@@ -35,7 +38,7 @@ export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult, pl
     <main className="screen bracket-screen" id="main">
       <div className="bracket-heading">
         <div>
-          <span className="bracket-heading__phase">{roundLabels[bracket.currentRound]} · 16 equipes na chave</span>
+          <span className="bracket-heading__phase">{roundLabels[bracket.currentRound]} · {teamCount} equipes na chave</span>
           <h1>{bracket.champion ? "Campanha encerrada." : current ? "Próxima fase." : "O caminho percorrido."}</h1>
           <p>{opponent
             ? `Você enfrenta ${opponent.name} ${teamEra(opponent)} · ${ratingsMode === "visible" ? `overall ${opponent.overall.final}` : "força desconhecida"}`
@@ -51,7 +54,7 @@ export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult, pl
         </div>
       </div>
       <nav className="bracket-phases" aria-label="Fases do mata-mata">
-        {roundOrder.map((roundId) => (
+        {visibleRoundIds.map((roundId) => (
           <button type="button" key={roundId} aria-current={phase === roundId ? "page" : undefined}
             className={phase === roundId ? "is-active" : ""} onClick={() => setPhase(roundId)}>
             {roundLabels[roundId]}
@@ -60,7 +63,7 @@ export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult, pl
       </nav>
       <div className="bracket-scroll" tabIndex={0} aria-label="Chave do mata-mata">
         <div className="bracket-grid">
-          {roundOrder.map((roundId) => {
+          {visibleRoundIds.map((roundId) => {
             const round = bracket.rounds.find((item) => item.id === roundId);
             const isCurrentRound = roundId === bracket.currentRound;
             return <section className={`bracket-round ${isCurrentRound ? "is-current-round" : ""} ${phase === roundId ? "is-phase-active" : ""}`} key={roundId}>

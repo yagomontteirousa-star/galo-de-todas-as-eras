@@ -4,11 +4,15 @@ import { createMultiplayerBracket, multiplayerMatchCanStart, multiplayerMatchesF
 import type { MultiplayerParticipant, MultiplayerRoom } from "@/types/multiplayer";
 
 const createdAt = "2026-08-20T12:00:00.000Z";
-const room: MultiplayerRoom = { id: "room", code: "AB3XK9MQ", hostUserId: "user-1", status: "waiting", ratingsMode: "visible", currentRound: "round16", createdAt, updatedAt: createdAt };
+const room: MultiplayerRoom = {
+  id: "room", code: "AB3XK9MQ", hostUserId: "user-1", status: "waiting",
+  mode: "knockout", bracketSize: 16, isPublic: false, passwordRequired: false,
+  ratingsMode: "visible", currentRound: "round16", createdAt, updatedAt: createdAt,
+};
 const participant = (index: number): MultiplayerParticipant => ({
   id: `player-${index}`, roomId: room.id, userId: `user-${index}`, nickname: `Jogador ${index}`,
   slotIndex: index - 1, status: "ready", team: { ...opponents[index], id: `draft-${index}`, isUser: true },
-  draftSchedule: [], draftRound: 0, draftPick: 0, connected: true, lobbyReady: true,
+  draftSchedule: [], draftRound: 0, draftPick: 0, draftedPersonIds: [], connected: true, lobbyReady: true,
   createdAt, updatedAt: createdAt,
 });
 
@@ -56,7 +60,15 @@ describe("multiplayer tournament", () => {
   });
 
   it("não revela a disputa de pênaltis antes do fim da prorrogação", () => {
-    expect(multiplayerShootoutProgress("playing", 9)).toEqual({ kickStep: 0, kickRevealed: false, shootoutComplete: false });
-    expect(multiplayerShootoutProgress("finished", 9)).toEqual({ kickStep: 9, kickRevealed: true, shootoutComplete: true });
+    expect(multiplayerShootoutProgress({ status: "playing", shootoutStep: 0, shootoutRevealed: false } as never)).toEqual({ kickStep: 0, kickRevealed: false, shootoutComplete: false });
+    const penaltyKicks = Array.from({ length: 9 }, () => ({}));
+    expect(multiplayerShootoutProgress({ status: "finished", shootoutStep: 9, shootoutRevealed: true, result: { penaltyKicks } } as never)).toEqual({ kickStep: 9, kickRevealed: true, shootoutComplete: true });
+  });
+
+  it.each([2, 4, 8, 16] as const)("cria uma chave de %s participantes", (size) => {
+    const players = [participant(1), participant(2)];
+    const bracket = createMultiplayerBracket(players, 91 + size, size);
+    expect(bracket.rounds[0].matches).toHaveLength(size / 2);
+    expect(bracket.rounds[0].matches.flatMap((match) => [match.home, match.away])).toHaveLength(size);
   });
 });

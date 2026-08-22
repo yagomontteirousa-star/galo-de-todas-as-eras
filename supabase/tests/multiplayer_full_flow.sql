@@ -25,25 +25,35 @@ begin
   end if;
 
   perform set_config('request.jwt.claim.sub', host_user::text, true);
-  room_code := public.create_multiplayer_room('Anfitrião teste', 'memory');
+  room_code := public.create_multiplayer_room('Anfitrião teste', 'knockout', true, 'teste123');
   select id, ratings_mode into test_room_id, current_mode from public.multiplayer_rooms where code=room_code;
   select id into host_player from public.multiplayer_players where room_id=test_room_id and user_id=host_user;
-  if room_code !~ '^[A-Z2-9]{8}$' or current_mode <> 'memory' or host_player is null then
+  if room_code !~ '^[A-Z2-9]{8}$' or current_mode <> 'visible' or host_player is null then
     raise exception 'A criação da sala não preservou código, anfitrião ou overall.';
+  end if;
+  if not exists(select 1 from public.list_open_multiplayer_rooms('knockout') where code=room_code and password_required) then
+    raise exception 'A sala pública não apareceu na lista com a indicação de senha.';
   end if;
 
   begin
     perform set_config('request.jwt.claim.sub', guest_user::text, true);
-    guest_player := public.join_multiplayer_room(room_code, 'Convidado teste');
+    blocked := false;
+    begin
+      perform public.join_multiplayer_room(room_code, 'Convidado teste', 'senha-errada');
+    exception when others then
+      blocked := position('incorreta' in sqlerrm)>0;
+    end;
+    if not blocked then raise exception 'A sala protegida aceitou uma senha incorreta.'; end if;
+    guest_player := public.join_multiplayer_room(room_code, 'Convidado teste', 'teste123');
     perform public.set_multiplayer_presence(test_room_id, true);
     perform set_config('request.jwt.claim.sub', removed_user::text, true);
-    removed_player := public.join_multiplayer_room(room_code, 'Saída teste');
+    removed_player := public.join_multiplayer_room(room_code, 'Saída teste', 'teste123');
 
     perform public.leave_multiplayer_room(test_room_id);
     if exists(select 1 from public.multiplayer_players where id=removed_player) then
       raise exception 'Sair antes do torneio não liberou a vaga.';
     end if;
-    removed_player := public.join_multiplayer_room(room_code, 'Removido teste');
+    removed_player := public.join_multiplayer_room(room_code, 'Removido teste', 'teste123');
 
     perform set_config('request.jwt.claim.sub', host_user::text, true);
     perform public.set_multiplayer_presence(test_room_id, true);
@@ -51,6 +61,7 @@ begin
     if exists(select 1 from public.multiplayer_players where id=removed_player) then
       raise exception 'A expulsão pelo anfitrião não liberou a vaga.';
     end if;
+    perform public.configure_multiplayer_room(test_room_id, 'memory', 4::smallint);
 
     blocked := false;
     begin
@@ -91,6 +102,58 @@ begin
       where (select draft_schedule[round_number] from public.multiplayer_players where id=host_player)
           = (select draft_schedule[round_number] from public.multiplayer_players where id=guest_player)
     ) then raise exception 'O mesmo ano foi entregue a dois humanos na mesma rodada.'; end if;
+
+    perform public.start_multiplayer_player_draft(
+      host_player,
+      '{"formation":"4-3-3","tactic":"balanced","lineup":[],"bench":[]}'::jsonb,
+      now()+interval '15 seconds',
+      false
+    );
+    perform public.save_multiplayer_draft_pick(
+      host_player,
+      '{"formation":"4-3-3","tactic":"balanced","lineup":[{"playerId":"atleta-a"}],"bench":[]}'::jsonb,
+      null,
+      'drafting',
+      0::smallint,0::smallint,0::smallint,1::smallint,
+      now()+interval '15 seconds',
+      array['atleta-a'],
+      false
+    );
+    if not exists(select 1 from public.multiplayer_players where id=host_player and draft_round=0 and draft_pick=1) then
+      raise exception 'A primeira escolha não manteve o mesmo ano para o segundo atleta.';
+    end if;
+    perform public.save_multiplayer_draft_pick(
+      host_player,
+      '{"formation":"4-3-3","tactic":"balanced","lineup":[{"playerId":"atleta-a"},{"playerId":"atleta-b"}],"bench":[]}'::jsonb,
+      null,
+      'drafting',
+      0::smallint,1::smallint,1::smallint,0::smallint,
+      now()+interval '15 seconds',
+      array['atleta-a','atleta-b'],
+      false
+    );
+    if not exists(select 1 from public.multiplayer_players where id=host_player and draft_round=1 and draft_pick=0) then
+      raise exception 'A segunda escolha não avançou para o próximo ano.';
+    end if;
+    perform set_config('request.jwt.claim.sub', guest_user::text, true);
+    blocked := false;
+    begin
+      perform public.save_multiplayer_draft_pick(
+        host_player,
+        '{"formation":"4-3-3","tactic":"balanced","lineup":[{"playerId":"atleta-a"},{"playerId":"atleta-b"},{"playerId":"atleta-c"}],"bench":[]}'::jsonb,
+        null,'drafting',1::smallint,0::smallint,1::smallint,1::smallint,now()+interval '15 seconds',array['atleta-a','atleta-b','atleta-c'],false
+      );
+    exception when others then
+      blocked := position('próprio elenco' in sqlerrm)>0;
+    end;
+    if not blocked then raise exception 'Um participante alterou a escolha de outro.'; end if;
+    update public.multiplayer_players set draft_deadline=now()-interval '1 second' where id=host_player;
+    perform public.save_multiplayer_draft_pick(
+      host_player,
+      '{"formation":"4-3-3","tactic":"balanced","lineup":[{"playerId":"atleta-a"},{"playerId":"atleta-b"},{"playerId":"atleta-c"}],"bench":[]}'::jsonb,
+      null,'drafting',1::smallint,0::smallint,1::smallint,1::smallint,now()+interval '15 seconds',array['atleta-a','atleta-b','atleta-c'],true
+    );
+    perform set_config('request.jwt.claim.sub', host_user::text, true);
 
     update public.multiplayer_players set campaign='{}'::jsonb, team=jsonb_build_object('id','team-'||id::text), status='ready'
     where room_id=test_room_id;
@@ -145,12 +208,12 @@ begin
     if (select status from public.multiplayer_matches where id=human_match) <> 'halftime' then
       raise exception 'A partida não parou no intervalo.';
     end if;
-    perform public.submit_multiplayer_decision(human_match, '{"halftime":"keep"}'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb);
+    perform public.submit_multiplayer_decision(human_match, '{"halftime":"keep"}'::jsonb);
     if (select status from public.multiplayer_matches where id=human_match) <> 'halftime' then
       raise exception 'A decisão de um jogador liberou o intervalo antes do rival.';
     end if;
     perform set_config('request.jwt.claim.sub', host_user::text, true);
-    perform public.submit_multiplayer_decision(human_match, '{"halftime":"press"}'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb);
+    perform public.submit_multiplayer_decision(human_match, '{"halftime":"press"}'::jsonb);
     if (select status from public.multiplayer_matches where id=human_match) <> 'playing' then
       raise exception 'As duas decisões não retomaram o segundo tempo.';
     end if;
@@ -168,7 +231,7 @@ begin
     if not (select away_cpu from public.multiplayer_matches where id=human_match) then
       raise exception 'A desconexão durante a partida não entregou o time à CPU.';
     end if;
-    perform public.submit_multiplayer_decision(human_match, '{"halftime":"press","moment":"calm"}'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb);
+    perform public.submit_multiplayer_decision(human_match, '{"halftime":"press","moment":"calm"}'::jsonb);
     if (select status from public.multiplayer_matches where id=human_match) <> 'playing' then
       raise exception 'A saída do rival deixou a pausa de 65 minutos travada.';
     end if;

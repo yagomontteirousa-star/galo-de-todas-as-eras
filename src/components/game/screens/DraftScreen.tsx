@@ -30,13 +30,14 @@ const prefersReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isHandheld = () => typeof window !== "undefined" && window.matchMedia("(max-width: 920px)").matches;
 
-export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLineupEntry, pickLimit = 2, deadline, pickNumber, disableReroll = false }: {
+export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLineupEntry, pickLimit = 2, reserveLimit = 7, deadline, pickNumber, disableReroll = false }: {
   campaign: Campaign;
   squad: HistoricalSquad;
   onConfirm: (picks: LineupEntry[], benchPicks: SquadPlayerEntry[]) => void;
   onReroll: () => void;
   onRelocateLineupEntry: (fromSlotId: string, toSlotId: string) => void;
   pickLimit?: 1 | 2;
+  reserveLimit?: 0 | 7;
   deadline?: string;
   pickNumber?: 1 | 2;
   disableReroll?: boolean;
@@ -92,14 +93,14 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   const showRatings = campaign.ratingsMode !== "memory";
   const selectedPlayer = squad.players.find((player) => player.id === selectedId);
   const activePlayer = squad.players.find((player) => player.id === (hoverId ?? selectedId));
-  const choosingBench = campaign.lineup.length === 11;
+  const choosingBench = reserveLimit > 0 && campaign.lineup.length === 11;
   const combined = [...campaign.lineup, ...campaign.bench, ...picks, ...benchPicks];
   const occupied = new Set(campaign.lineup.concat(picks).map((entry) => entry.slotId));
   // Bloqueio pela identidade histórica: o Hulk de 2021 tranca o Hulk de 2024.
   const usedPeople = usedPersonIds(combined);
   const alreadyChosen = (player: Player) => usedPeople.has(player.personId);
   const openSlots = formation.slots.filter((slot) => !occupied.has(slot.id));
-  const maxPicks = choosingBench ? Math.min(pickLimit, 7 - campaign.bench.length) : Math.min(pickLimit, 11 - campaign.lineup.length);
+  const maxPicks = choosingBench ? Math.min(pickLimit, reserveLimit - campaign.bench.length) : Math.min(pickLimit, 11 - campaign.lineup.length);
   const activePicks = choosingBench ? benchPicks : picks;
   const totalFilled = campaign.lineup.length + picks.length;
   const totalBench = campaign.bench.length + benchPicks.length;
@@ -266,9 +267,9 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
   const editingSlot = editingSlotId ? formation.slots.find((slot) => slot.id === editingSlotId) : undefined;
   const editingTargets = editingPlayer && editingSlot ? compatibleSlots(editingPlayer, formation.slots, editingSlot.id) : [];
   const advanceLabel = choosingBench
-    ? totalBench >= 7 ? "Banco completo · abrindo a análise tática" : "Reserva confirmada · sorteando o próximo ano"
+    ? totalBench >= reserveLimit ? "Banco completo · abrindo a análise tática" : "Reserva confirmada · sorteando o próximo ano"
     : closesLineup
-    ? "Titulares completos · agora escolha o banco"
+    ? reserveLimit ? "Titulares completos · agora escolha o banco" : "Onze completo · abrindo a análise tática"
     : maxPicks === 1 ? "Escolha confirmada · sorteando o próximo ano" : "Dupla confirmada · sorteando o próximo ano";
 
   return (
@@ -355,7 +356,7 @@ export function DraftScreen({ campaign, squad, onConfirm, onReroll, onRelocateLi
               const player = playersById.get(entry.playerId);
               return player ? <span key={player.id}><b>{player.name}</b>{showRatings && <small>{player.overall}</small>}</span> : null;
             })}
-            {Array.from({ length: Math.max(0, 7 - totalBench) }, (_, index) => <i key={`empty-${index}`}>Reserva</i>)}
+            {Array.from({ length: Math.max(0, reserveLimit - totalBench) }, (_, index) => <i key={`empty-${index}`}>Reserva</i>)}
           </div>}
           <p className="field-hint">{choosingBench ? "Escolha nomes diferentes para ter respostas táticas durante a campanha." : activePlayer ? "As vagas acesas aceitam este atleta." : "Toque no atleta e depois na vaga. Tocar numa peça escalada muda a posição."}</p>
         </section>

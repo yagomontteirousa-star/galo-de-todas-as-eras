@@ -2,12 +2,19 @@ import type { BracketState, Campaign, MatchInstructions, MatchProgress, MatchRes
 
 export type MultiplayerRoomStatus = "waiting" | "drafting" | "playing" | "finished";
 export type MultiplayerPlayerStatus = "waiting" | "drafting" | "ready" | "playing" | "eliminated" | "qualified";
+export type MultiplayerRoomMode = "final" | "knockout";
+export type MultiplayerBracketSize = 2 | 4 | 8 | 16;
+export type MultiplayerTacticalInstructions = Pick<MatchInstructions, "halftime" | "moment">;
 
 export interface MultiplayerRoom {
   id: string;
   code: string;
   hostUserId: string;
   status: MultiplayerRoomStatus;
+  mode: MultiplayerRoomMode;
+  bracketSize: MultiplayerBracketSize;
+  isPublic: boolean;
+  passwordRequired: boolean;
   ratingsMode: RatingsMode;
   currentRound: TournamentRound;
   bracket?: BracketState;
@@ -29,6 +36,7 @@ export interface MultiplayerParticipant {
   draftRound: number;
   draftPick: number;
   draftDeadline?: string;
+  draftedPersonIds: string[];
   connected: boolean;
   lobbyReady: boolean;
   leftAt?: string;
@@ -39,10 +47,7 @@ export interface MultiplayerParticipant {
 export interface MultiplayerDecision {
   matchId: string;
   userId: string;
-  instructions: MatchInstructions;
-  lineup?: MatchProgress["lineup"];
-  bench?: MatchProgress["bench"];
-  substitutions?: MatchProgress["substitutions"];
+  instructions: MultiplayerTacticalInstructions;
   updatedAt: string;
 }
 
@@ -57,7 +62,7 @@ export interface MultiplayerMatch {
   awayParticipantId?: string;
   controllerUserId: string;
   seed: number;
-  status: "waiting" | "ready" | "playing" | "halftime" | "moment" | "finished";
+  status: "waiting" | "ready" | "playing" | "halftime" | "moment" | "shootout" | "finished";
   homeReady: boolean;
   awayReady: boolean;
   homeCpu: boolean;
@@ -66,6 +71,8 @@ export interface MultiplayerMatch {
   phaseStartedAt?: string;
   phaseBaseMinute: number;
   decisionDeadline?: string;
+  shootoutStep: number;
+  shootoutRevealed: boolean;
   result?: MatchResult;
   progress?: MatchProgress;
   updatedAt: string;
@@ -84,4 +91,24 @@ export interface MultiplayerSnapshot {
 export interface MultiplayerPresence {
   userId: string;
   onlineAt: string;
+}
+
+export interface MultiplayerOpenRoom {
+  code: string;
+  mode: MultiplayerRoomMode;
+  bracketSize: MultiplayerBracketSize;
+  passwordRequired: boolean;
+  playerCount: number;
+  slotsLeft: number;
+  createdAt: string;
+}
+
+export interface MultiplayerRoomPreview {
+  code: string;
+  mode: MultiplayerRoomMode;
+  bracketSize: MultiplayerBracketSize;
+  isPublic: boolean;
+  passwordRequired: boolean;
+  playerCount: number;
+  status: MultiplayerRoomStatus;
 }
