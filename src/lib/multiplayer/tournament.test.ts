@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { opponents } from "@/data/opponents";
-import { createMultiplayerBracket, multiplayerMatchCanStart, multiplayerMatchesForRound, nextMultiplayerRound, viewedBracket } from "@/lib/multiplayer/tournament";
+import { createMultiplayerBracket, multiplayerMatchCanStart, multiplayerMatchesForRound, multiplayerShootoutProgress, nextMultiplayerRound, viewedBracket } from "@/lib/multiplayer/tournament";
 import type { MultiplayerParticipant, MultiplayerRoom } from "@/types/multiplayer";
 
 const createdAt = "2026-08-20T12:00:00.000Z";
@@ -53,5 +53,10 @@ describe("multiplayer tournament", () => {
     };
     expect(match.homeCpu || match.awayCpu).toBe(true);
     expect(multiplayerMatchCanStart(confirmed)).toBe(true);
+  });
+
+  it("não revela a disputa de pênaltis antes do fim da prorrogação", () => {
+    expect(multiplayerShootoutProgress("playing", 9)).toEqual({ kickStep: 0, kickRevealed: false, shootoutComplete: false });
+    expect(multiplayerShootoutProgress("finished", 9)).toEqual({ kickStep: 9, kickRevealed: true, shootoutComplete: true });
   });
 });

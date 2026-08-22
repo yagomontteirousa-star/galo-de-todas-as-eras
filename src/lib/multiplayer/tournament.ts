@@ -23,6 +23,11 @@ export function multiplayerMatchCanStart(match: MultiplayerMatch): boolean {
     && (match.awayCpu || match.awayReady || !match.awayParticipantId);
 }
 
+export function multiplayerShootoutProgress(status: MultiplayerMatch["status"], kickCount: number) {
+  const finished = status === "finished";
+  return { kickStep: finished ? kickCount : 0, kickRevealed: finished, shootoutComplete: finished };
+}
+
 export function createMultiplayerBracket(participants: MultiplayerParticipant[], seed: number): BracketState {
   const random = seededRandom(seed);
   const humans = participants.map(multiplayerTeam);

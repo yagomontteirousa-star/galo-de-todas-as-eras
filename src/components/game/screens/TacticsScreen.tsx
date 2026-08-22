@@ -13,7 +13,7 @@ type DragSource = { kind: "slot"; slotId: string } | { kind: "bench"; index: num
 const dragDistance = 10;
 
 /** Campo e banco compartilham o gesto de arrastar, mas o toque simples continua acessível. */
-export function TacticalEditor({ formationId, tactic, lineup, bench, suspendedPlayerIds = [], unavailablePlayerIds = [], unavailableLabel = "Indisponível", onChange, compact = false }: {
+export function TacticalEditor({ formationId, tactic, lineup, bench, suspendedPlayerIds = [], unavailablePlayerIds = [], unavailableLabel = "Indisponível", onChange, compact = false, showRatings = true }: {
   formationId: FormationId;
   tactic: TacticId;
   lineup: LineupEntry[];
@@ -23,6 +23,7 @@ export function TacticalEditor({ formationId, tactic, lineup, bench, suspendedPl
   unavailableLabel?: string;
   onChange: (lineup: LineupEntry[], bench: SquadPlayerEntry[]) => void;
   compact?: boolean;
+  showRatings?: boolean;
 }) {
   const [selectedSlotId, setSelectedSlotId] = useState<string>();
   const [selectedBenchIndex, setSelectedBenchIndex] = useState<number>();
@@ -113,7 +114,7 @@ export function TacticalEditor({ formationId, tactic, lineup, bench, suspendedPl
   return (
     <div className={`tactical-editor ${compact ? "tactical-editor--compact" : ""} ${dragging ? "is-dragging" : ""}`}>
       <div className="tactics-pitch">
-        <Pitch formationId={formationId} tactic={tactic} lineup={lineup} selectedSlotId={selectedSlotId} draggedSlotId={dragging?.kind === "slot" ? dragging.slotId : undefined}
+        <Pitch formationId={formationId} tactic={tactic} lineup={lineup} selectedSlotId={selectedSlotId} draggedSlotId={dragging?.kind === "slot" ? dragging.slotId : undefined} showRatings={showRatings}
           onSlotClick={onPitchSlot} disabledPlayerIds={suspendedPlayerIds}
           onSlotPointerDown={(slotId, event) => startDrag({ kind: "slot", slotId }, event)}
           onSlotPointerMove={moveDrag} onSlotPointerUp={finishDrag}/>
@@ -133,7 +134,7 @@ export function TacticalEditor({ formationId, tactic, lineup, bench, suspendedPl
               className={`${selectedBenchIndex === index ? "is-selected" : ""} ${fit && !disabledPlayer ? `is-fit-${fit}` : ""} ${disabledPlayer ? "is-suspended" : ""} ${dragging?.kind === "bench" && dragging.index === index ? "is-drag-source" : ""}`}
               aria-pressed={selectedBenchIndex === index} onClick={() => onBenchPlayer(index)}
               onPointerDown={(event) => startDrag({ kind: "bench", index }, event)} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag}>
-              <span>{positionLabel(player.primaryPosition)}</span><b>{player.name}</b><em>{player.overall}</em>
+              <span>{positionLabel(player.primaryPosition)}</span><b>{player.name}</b>{showRatings && <em>{player.overall}</em>}
               {disabledPlayer ? <small>{suspendedPlayer ? "Suspenso" : unavailableLabel}</small> : fit && <small className={`fit--${fit}`}>{fit === "natural" ? "Natural" : fit === "secondary" ? "Alternativa" : "Improviso"}</small>}
             </button>;
           })}

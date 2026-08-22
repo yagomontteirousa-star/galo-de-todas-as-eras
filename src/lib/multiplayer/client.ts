@@ -122,19 +122,19 @@ export function subscribeMultiplayerRoom(code: string, refresh: () => void): () 
   }
   let active = true;
   let channel: RealtimeChannel | undefined;
+  let handlePageHide: (() => void) | undefined;
   void loadMultiplayerRoom(code).then((snapshot) => {
     if (!snapshot || !active) return;
+    const markDisconnected = (userId: string) => void client.rpc("mark_multiplayer_disconnected", { p_room_id: snapshot.room.id, p_user_id: userId });
     channel = client.channel(`room:${snapshot.room.id}`, { config: { presence: { key: snapshot.userId } } })
       .on("postgres_changes", { event: "*", schema: "public", table: "multiplayer_rooms", filter: `id=eq.${snapshot.room.id}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "multiplayer_players", filter: `room_id=eq.${snapshot.room.id}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "multiplayer_matches", filter: `room_id=eq.${snapshot.room.id}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "multiplayer_decisions" }, refresh)
       .on("presence", { event: "sync" }, refresh)
-      .on("presence", { event: "leave" }, ({ leftPresences }) => {
-        for (const presence of leftPresences) {
-          const userId = typeof presence.userId === "string" ? presence.userId : undefined;
-          if (userId) void client.rpc("mark_multiplayer_disconnected", { p_room_id: snapshot.room.id, p_user_id: userId });
-        }
+      .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
+        const userId = key || leftPresences.find((presence) => typeof presence.userId === "string")?.userId;
+        if (typeof userId === "string") markDisconnected(userId);
         refresh();
       })
       .subscribe(async (status) => {
@@ -142,9 +142,23 @@ export function subscribeMultiplayerRoom(code: string, refresh: () => void): () 
         await channel?.track({ userId: snapshot.userId, onlineAt: now() });
         await client.rpc("set_multiplayer_presence", { p_room_id: snapshot.room.id, p_connected: true });
       });
+    void client.auth.getSession().then(({ data }) => {
+      const token = data.session?.access_token;
+      if (!token || !active) return;
+      handlePageHide = () => {
+        void fetch(`${url}/rest/v1/rpc/set_multiplayer_presence`, {
+          method: "POST",
+          headers: { apikey: publishableKey!, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ p_room_id: snapshot.room.id, p_connected: false }),
+          keepalive: true,
+        });
+      };
+      window.addEventListener("pagehide", handlePageHide);
+    });
   }).catch(() => undefined);
   return () => {
     active = false;
+    if (handlePageHide) window.removeEventListener("pagehide", handlePageHide);
     if (channel) void client.removeChannel(channel);
   };
 }
