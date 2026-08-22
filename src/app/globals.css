@@ -868,6 +868,7 @@ button.pitch-slot__badge { cursor: pointer; }
 .multiplayer-entry--rooms .site-footer { width: min(1240px,100%); margin: 12px auto 0; }
 
 @media (min-width: 921px) {
+  .multiplayer-entry--rooms { display: grid; grid-template-columns: minmax(0,1fr); grid-template-rows: none; grid-auto-rows: max-content; place-items: stretch; align-content: center; }
   html:has(.multiplayer-entry--rooms),body:has(.multiplayer-entry--rooms) { height: auto; min-height: 100%; overflow-x: hidden; overflow-y: auto; }
   .game-app:has(.multiplayer-entry--rooms) { height: auto; min-height: 100dvh; overflow: visible; }
 }
