@@ -10,7 +10,7 @@ function TeamLine({ team, score, isWinner, decided }: { team: TeamSnapshot; scor
     <div className={`bracket-team ${isWinner ? "is-winner" : decided ? "is-out" : ""} ${team.isUser ? "is-user" : ""}`}>
       <small>{teamEra(team)}</small>
       <span>{team.name}{team.isUser && <em>você</em>}{team.controller === "cpu" && <em>CPU</em>}</span>
-      <b>{score ?? "—"}</b>
+      <b>{score ?? "·"}</b>
     </div>
   );
 }
@@ -83,7 +83,7 @@ export function BracketScreen({ bracket, ratingsMode, onPlay, onBackToResult, pl
                   return <article className={`bracket-match ${isCurrent ? "is-current" : ""} ${hasUser ? "has-user" : ""}`} key={match.id}>
                     <TeamLine team={match.home} score={homeTotal} isWinner={match.result?.winnerId === match.home.id} decided={decided}/>
                     <TeamLine team={match.away} score={awayTotal} isWinner={match.result?.winnerId === match.away.id} decided={decided}/>
-                    {match.result?.wentToPenalties && <em className="bracket-match__note">Pênaltis {match.result.homePenalties}–{match.result.awayPenalties}</em>}
+                    {match.result?.wentToPenalties && <em className="bracket-match__note">Pênaltis {match.result.homePenalties} × {match.result.awayPenalties}</em>}
                     {hasUser && decided && (
                       goalsOf(match).length
                         ? <ul className="bracket-match__goals">

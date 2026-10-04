@@ -6,7 +6,6 @@ import { ArrowIcon, CloseIcon } from "@/components/ui/Icons";
 import { SiteFooter } from "@/components/ui/Brand";
 import { LivePlayers, type LivePlayersCount } from "@/components/game/LivePlayers";
 import Image from "next/image";
-import Link from "next/link";
 import { atleticoSquads } from "@/data/atletico-squads";
 import { formations } from "@/data/formations";
 import { evaluatePosition } from "@/lib/overall";
@@ -31,7 +30,7 @@ const showcase: LineupEntry[] = (() => {
   });
 })();
 
-const RELEASE_KEY = "preto-no-branco:release-squad-v1";
+const RELEASE_KEY = "preto-no-branco:release-campaign-v2";
 
 export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOutcome, history, livePlayers, onReplayTutorial }: {
   onStart: () => void;
@@ -92,7 +91,6 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
           </div>
 
           <div className="home-links">
-            <Link href="/multiplayer" className="new-run-link">Multiplayer privado</Link>
             {canResume && lastOutcome && <button type="button" className="new-run-link" onClick={onReviewLast}>Ver a última campanha</button>}
             {onReplayTutorial && <button type="button" className="new-run-link" onClick={onReplayTutorial}>Ver o tutorial</button>}
           </div>
@@ -118,14 +116,14 @@ export function HomeScreen({ onStart, onResume, canResume, onReviewLast, lastOut
 
       {showRelease && <div className="release-toast" role="dialog" aria-modal="true" aria-labelledby="release-note-title" aria-describedby="release-note-description">
         <div className="release-toast__head">
-          <div><span>Chegou em campo</span><h2 id="release-note-title">Novidades da campanha</h2></div>
+          <div><h2 id="release-note-title">Uma campanha mais completa</h2></div>
           <button ref={closeReleaseRef} type="button" onClick={dismissRelease} aria-label="Fechar novidades"><CloseIcon/></button>
         </div>
-        <p id="release-note-description">Agora você prepara o time antes do apito e interfere no jogo quando precisar.</p>
+        <p id="release-note-description">O arquivo cresceu e cada partida ganhou mais decisões.</p>
         <ul>
-          <li>11 titulares e 7 reservas por partida.</li>
-          <li>Até cinco substituições com o jogo pausado.</li>
-          <li>Assistências nos gols e suspensão por expulsão.</li>
+          <li>Novos elencos do Galo, incluindo 2026.</li>
+          <li>Escalação pré-jogo com titulares e reservas.</li>
+          <li>Decisões táticas, substituições e assistências registradas.</li>
         </ul>
       </div>}
 

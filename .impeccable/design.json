@@ -1,37 +1,35 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-17T17:54:41.8937248-04:00",
+  "generatedAt": "2026-10-03T14:41:03.5352605-04:00",
   "title": "Design System: Preto no Branco",
   "extensions": {
     "colorMeta": {
-      "ink": { "role": "primary", "displayName": "Tinta de Arquivo", "tonalRamp": ["oklch(15% 0.006 165)", "oklch(25% 0.006 165)", "oklch(35% 0.006 165)", "oklch(45% 0.006 165)", "oklch(58% 0.006 165)", "oklch(70% 0.006 165)", "oklch(84% 0.006 165)", "oklch(95% 0.006 165)"] },
-      "graphite": { "role": "neutral", "displayName": "Grafite Fosco", "tonalRamp": ["oklch(15% 0.008 165)", "oklch(25% 0.008 165)", "oklch(35% 0.008 165)", "oklch(45% 0.008 165)", "oklch(58% 0.008 165)", "oklch(70% 0.008 165)", "oklch(84% 0.008 165)", "oklch(95% 0.008 165)"] },
-      "panel": { "role": "neutral", "displayName": "Painel de Cabine", "tonalRamp": ["oklch(15% 0.009 150)", "oklch(25% 0.009 150)", "oklch(35% 0.009 150)", "oklch(45% 0.009 150)", "oklch(58% 0.009 150)", "oklch(70% 0.009 150)", "oklch(84% 0.009 150)", "oklch(95% 0.009 150)"] },
-      "line": { "role": "neutral", "displayName": "Linha de Prancheta", "tonalRamp": ["oklch(15% 0.012 150)", "oklch(25% 0.012 150)", "oklch(35% 0.012 150)", "oklch(45% 0.012 150)", "oklch(58% 0.012 150)", "oklch(70% 0.012 150)", "oklch(84% 0.012 150)", "oklch(95% 0.012 150)"] },
-      "paper": { "role": "primary", "displayName": "Papel de Súmula", "tonalRamp": ["oklch(15% 0.012 90)", "oklch(25% 0.012 90)", "oklch(35% 0.012 90)", "oklch(45% 0.012 90)", "oklch(58% 0.012 90)", "oklch(70% 0.012 90)", "oklch(84% 0.012 90)", "oklch(95% 0.012 90)"] },
-      "paper-dim": { "role": "neutral", "displayName": "Papel Atenuado", "tonalRamp": ["oklch(15% 0.010 90)", "oklch(25% 0.010 90)", "oklch(35% 0.010 90)", "oklch(45% 0.010 90)", "oklch(58% 0.010 90)", "oklch(70% 0.010 90)", "oklch(84% 0.010 90)", "oklch(95% 0.010 90)"] },
-      "muted": { "role": "neutral", "displayName": "Cinza de Arquivo", "tonalRamp": ["oklch(15% 0.010 150)", "oklch(25% 0.010 150)", "oklch(35% 0.010 150)", "oklch(45% 0.010 150)", "oklch(58% 0.010 150)", "oklch(70% 0.010 150)", "oklch(84% 0.010 150)", "oklch(95% 0.010 150)"] },
-      "gold": { "role": "secondary", "displayName": "Ouro de Era", "tonalRamp": ["oklch(15% 0.065 85)", "oklch(25% 0.065 85)", "oklch(35% 0.065 85)", "oklch(45% 0.065 85)", "oklch(58% 0.065 85)", "oklch(70% 0.065 85)", "oklch(84% 0.055 85)", "oklch(95% 0.025 85)"] },
-      "gold-pale": { "role": "secondary", "displayName": "Ouro Pálido", "tonalRamp": ["oklch(15% 0.050 85)", "oklch(25% 0.050 85)", "oklch(35% 0.050 85)", "oklch(45% 0.050 85)", "oklch(58% 0.050 85)", "oklch(70% 0.050 85)", "oklch(84% 0.040 85)", "oklch(95% 0.020 85)"] },
-      "pitch-green": { "role": "tertiary", "displayName": "Campo Profundo", "tonalRamp": ["oklch(15% 0.060 155)", "oklch(25% 0.060 155)", "oklch(35% 0.060 155)", "oklch(45% 0.060 155)", "oklch(58% 0.060 155)", "oklch(70% 0.055 155)", "oklch(84% 0.040 155)", "oklch(95% 0.020 155)"] },
-      "danger": { "role": "tertiary", "displayName": "Alerta de Improviso", "tonalRamp": ["oklch(15% 0.085 40)", "oklch(25% 0.085 40)", "oklch(35% 0.085 40)", "oklch(45% 0.085 40)", "oklch(58% 0.085 40)", "oklch(70% 0.080 40)", "oklch(84% 0.055 40)", "oklch(95% 0.025 40)"] },
-      "success": { "role": "tertiary", "displayName": "Êxito de Encaixe", "tonalRamp": ["oklch(15% 0.060 150)", "oklch(25% 0.060 150)", "oklch(35% 0.060 150)", "oklch(45% 0.060 150)", "oklch(58% 0.060 150)", "oklch(70% 0.055 150)", "oklch(84% 0.040 150)", "oklch(95% 0.020 150)"] }
+      "ink": { "role": "primary", "displayName": "Tinta de Arquivo", "value": "#0a0b0b" },
+      "graphite": { "role": "neutral", "displayName": "Grafite Fosco", "value": "#111313" },
+      "panel": { "role": "neutral", "displayName": "Painel de Cabine", "value": "#171918" },
+      "line": { "role": "neutral", "displayName": "Linha de Prancheta", "value": "#303431" },
+      "paper": { "role": "primary", "displayName": "Papel de Súmula", "value": "#f1efe7" },
+      "paper-dim": { "role": "neutral", "displayName": "Papel Atenuado", "value": "#c8c7c0" },
+      "muted": { "role": "neutral", "displayName": "Cinza de Arquivo", "value": "#999d98" },
+      "gold": { "role": "secondary", "displayName": "Ouro de Era", "value": "#b99a59" },
+      "gold-pale": { "role": "secondary", "displayName": "Ouro Pálido", "value": "#d7c38e" },
+      "star": { "role": "secondary", "displayName": "Amarelo de Ação", "value": "#f5c542" },
+      "pitch-green": { "role": "tertiary", "displayName": "Campo Profundo", "value": "#163c2b" },
+      "danger": { "role": "tertiary", "displayName": "Alerta", "value": "#e49a80" },
+      "success": { "role": "tertiary", "displayName": "Êxito", "value": "#99caaa" }
     },
     "typographyMeta": {
-      "display": { "displayName": "Archive Display", "purpose": "Títulos heroicos, anos, placares e ratings monumentais." },
-      "headline": { "displayName": "Archive Headline", "purpose": "Títulos de tela e chamadas de fase." },
-      "title": { "displayName": "Título Operacional", "purpose": "Nomes de era e cabeçalhos compactos." },
+      "display": { "displayName": "Archive Display", "purpose": "Títulos, anos, placares e ratings." },
       "body": { "displayName": "Corpo Operacional", "purpose": "Explicações, decisões e leitura contínua." },
-      "label": { "displayName": "Rótulo Tabular", "purpose": "Metadados, filtros, fases e legendas densas." }
+      "label": { "displayName": "Rótulo Condensado", "purpose": "Metadados, fases, posições e chamadas curtas." }
     },
     "shadows": [
-      { "name": "campo-elevado", "value": "0 16px 40px rgba(0,0,0,.22)", "purpose": "Eleva exclusivamente o campo sobre o fundo grafite." }
+      { "name": "campo-elevado", "value": "0 16px 40px rgba(0,0,0,.22)", "purpose": "Eleva exclusivamente o campo." }
     ],
     "motion": [
-      { "name": "state-fast", "value": "160ms ease", "purpose": "Hover e seleção em linhas de jogador." },
-      { "name": "state-standard", "value": "180ms ease", "purpose": "Botões e fichas do campo." },
-      { "name": "match-progress", "value": "100ms linear", "purpose": "Avanço contínuo do relógio da partida." },
-      { "name": "loading", "value": "900ms ease-in-out", "purpose": "Pulso alternado da preparação local." }
+      { "name": "state-fast", "value": "160ms ease", "purpose": "Hover e seleção." },
+      { "name": "state-standard", "value": "180ms ease", "purpose": "Botões e peças do campo." },
+      { "name": "dialog-entry", "value": "220ms cubic-bezier(.16,1,.3,1)", "purpose": "Entrada de avisos importantes." }
     ],
     "breakpoints": [
       { "name": "compact", "value": "540px" },
@@ -45,88 +43,72 @@
       "name": "Primary Button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Ação decisiva em papel off-white sobre a interface escura.",
-      "html": "<button class=\"ds-btn-primary\" type=\"button\">INICIAR MATA-MATA <span aria-hidden=\"true\">→</span></button>",
-      "css": ".ds-btn-primary { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 1px solid var(--paper); border-radius: 8px; background: var(--paper); color: var(--black); font: 700 14px/1.2 \"Segoe UI\", Arial, sans-serif; cursor: pointer; transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease; } .ds-btn-primary:hover { background: #fffdf6; transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; } .ds-btn-primary:active { transform: translateY(0); }"
-    },
-    {
-      "name": "Quiet Button",
-      "kind": "button",
-      "refersTo": "button-quiet",
-      "description": "Ação secundária grafite com borda fina e pouca presença visual.",
-      "html": "<button class=\"ds-btn-quiet\" type=\"button\">COMO FUNCIONA</button>",
-      "css": ".ds-btn-quiet { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; padding: 0 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--graphite); color: var(--paper); font: 700 14px/1.2 \"Segoe UI\", Arial, sans-serif; cursor: pointer; transition: border-color 180ms ease, transform 180ms ease; } .ds-btn-quiet:hover { border-color: var(--paper-dim); transform: translateY(-1px); } .ds-btn-quiet:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; } .ds-btn-quiet:active { transform: translateY(0); }"
-    },
-    {
-      "name": "Selected Filter Chip",
-      "kind": "chip",
-      "refersTo": "filter-chip-selected",
-      "description": "Filtro compacto cujo estado ativo inverte de tinta para papel.",
-      "html": "<button class=\"ds-filter-chip\" type=\"button\" aria-pressed=\"true\">POSIÇÕES LIVRES</button>",
-      "css": ".ds-filter-chip { height: 36px; padding: 0 11px; border: 1px solid var(--paper); border-radius: 5px; background: var(--paper); color: var(--black); font: 700 13px/1 \"Segoe UI\", Arial, sans-serif; letter-spacing: .04em; cursor: pointer; transition: background-color 160ms ease, color 160ms ease; } .ds-filter-chip:hover { background: #fffdf6; } .ds-filter-chip:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; } .ds-filter-chip:active { background: var(--paper-dim); }"
+      "description": "Ação decisiva em papel claro sobre a interface escura.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">COMEÇAR CAMPANHA</button>",
+      "css": ".ds-btn-primary { min-height: 46px; padding: 0 18px; border: 1px solid #f1efe7; border-radius: 8px; background: #f1efe7; color: #0a0b0b; font-size: 14px; font-weight: 700; }"
     },
     {
       "name": "Player Row",
       "kind": "custom",
       "refersTo": "player-row",
-      "description": "Linha densa de elenco com posição, identidade, encaixe e rating.",
-      "html": "<button class=\"ds-player-row\" type=\"button\"><span class=\"ds-player-row__position\">ATA</span><span class=\"ds-player-row__identity\"><b>Reinaldo</b><small>PE · Ídolo</small></span><span class=\"ds-player-row__fit\">encaixa</span><strong>94</strong></button>",
-      "css": ".ds-player-row { width: 100%; min-height: 54px; display: grid; grid-template-columns: 42px minmax(0,1fr) 62px 34px; align-items: center; gap: 8px; padding: 6px 14px; border: 0; border-bottom: 1px solid #292c2a; background: transparent; color: var(--paper); text-align: left; cursor: pointer; transition: background-color 160ms ease, color 160ms ease; } .ds-player-row__position { color: var(--gold-pale); font: 800 12px/1 \"Segoe UI\", Arial, sans-serif; } .ds-player-row__identity { min-width: 0; } .ds-player-row__identity b, .ds-player-row__identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-player-row__identity b { font: 700 16px/1.2 \"Segoe UI\", Arial, sans-serif; } .ds-player-row__identity small { color: var(--muted); font: 400 12px/1.2 \"Segoe UI\", Arial, sans-serif; } .ds-player-row__fit { color: var(--success); font: 700 12px/1 \"Segoe UI\", Arial, sans-serif; text-align: right; } .ds-player-row strong { font: 400 27px/1 \"Archive\", Georgia, serif; text-align: right; } .ds-player-row:hover, .ds-player-row:focus-visible { background: var(--paper); color: var(--black); outline: none; } .ds-player-row:hover .ds-player-row__position, .ds-player-row:focus-visible .ds-player-row__position { color: #725f30; } .ds-player-row:active { background: var(--paper-dim); }"
+      "description": "Linha de elenco com posição, nome, encaixe e rating.",
+      "html": "<button class=\"ds-player-row\" type=\"button\"><span>ATA</span><b>Reinaldo</b><strong>94</strong></button>",
+      "css": ".ds-player-row { min-height: 54px; display: grid; grid-template-columns: 42px minmax(0,1fr) 34px; align-items: center; gap: 8px; border: 0; border-bottom: 1px solid #292c2a; background: transparent; color: #f1efe7; }"
     },
     {
       "name": "Pitch Player",
       "kind": "custom",
       "refersTo": "pitch-player",
-      "description": "Ficha tática com rating editorial e borda de encaixe sobre o campo.",
-      "html": "<button class=\"ds-pitch-player\" type=\"button\"><span class=\"ds-pitch-player__rating\">91</span><span class=\"ds-pitch-player__name\">TONINHO</span><span class=\"ds-pitch-player__role\">ZAG</span></button>",
-      "css": ".ds-pitch-player { width: 72px; min-height: 52px; display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; align-items: center; gap: 0 5px; padding: 5px 7px; border: 1px solid var(--success); border-radius: 10px; background: #0d241a; color: var(--paper); text-align: left; cursor: pointer; transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease; } .ds-pitch-player__rating { grid-row: 1/-1; color: var(--gold-pale); font: 400 26px/.9 \"Archive\", Georgia, serif; } .ds-pitch-player__name { overflow: hidden; font: 750 12px/1 \"Segoe UI\", Arial, sans-serif; text-overflow: ellipsis; white-space: nowrap; } .ds-pitch-player__role { color: #a9bdb1; font: 400 9px/1 \"Segoe UI\", Arial, sans-serif; letter-spacing: .08em; } .ds-pitch-player:hover { border-color: var(--paper); transform: scale(1.05); } .ds-pitch-player:focus-visible { outline: 2px solid var(--gold-pale); outline-offset: 2px; } .ds-pitch-player:active { background: #2f2b1d; }"
+      "description": "Ficha tática que mantém nome, posição e rating dentro de uma peça própria.",
+      "html": "<button class=\"ds-pitch-player\" type=\"button\"><span>ZAG</span><b>Réver</b><strong>91</strong></button>",
+      "css": ".ds-pitch-player { min-width: 66px; min-height: 38px; border: 1px solid #99caaa; border-radius: 7px; background: #0d241a; color: #f1efe7; }"
     },
     {
       "name": "Campaign Strip",
       "kind": "nav",
       "refersTo": "campaign-strip",
-      "description": "Faixa segmentada que preserva o estado da campanha em uma única linha.",
-      "html": "<nav class=\"ds-campaign-strip\" aria-label=\"Estado da campanha\"><span class=\"ds-campaign-strip__item\"><small>ERA</small><b>2013</b></span><span class=\"ds-campaign-strip__item\"><small>ESCALAÇÃO</small><b>7/11</b></span><span class=\"ds-campaign-strip__item\"><small>FORMAÇÃO</small><b>4-3-3</b></span></nav>",
-      "css": ".ds-campaign-strip { display: inline-flex; min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 7px; background: var(--black); color: var(--paper); font-family: \"Segoe UI\", Arial, sans-serif; } .ds-campaign-strip__item { min-width: 74px; display: grid; gap: 2px; padding: 6px 11px; border-right: 1px solid var(--line); line-height: 1; } .ds-campaign-strip__item:last-child { border-right: 0; } .ds-campaign-strip__item small { color: var(--muted); font-size: 9px; letter-spacing: .1em; } .ds-campaign-strip__item b { font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; } .ds-campaign-strip:focus-within { outline: 2px solid var(--gold-pale); outline-offset: 2px; }"
+      "description": "Faixa segmentada que resume fase, escalação, overall, formação e sorteios.",
+      "html": "<nav class=\"ds-campaign-strip\" aria-label=\"Estado da campanha\"><span><small>FASE</small><b>Quartas</b></span></nav>",
+      "css": ".ds-campaign-strip { display: inline-flex; min-width: 0; overflow: hidden; border: 1px solid #303431; border-radius: 7px; background: #0a0b0b; color: #f1efe7; } .ds-campaign-strip small { font-size: 11px; }"
     },
     {
-      "name": "Paper Box Score",
+      "name": "Match Summary",
       "kind": "card",
-      "refersTo": "paper-box-score",
-      "description": "Folha clara de resumo que concentra overall, setores e ação do draft.",
-      "html": "<section class=\"ds-box-score\"><header class=\"ds-box-score__header\"><span>BOX SCORE · 7/11</span><strong>88</strong><small>overall geral</small></header><div class=\"ds-box-score__facts\"><span>Força média dos rivais <b>86</b></span><span>Dificuldade <b>Equilibrado</b></span></div></section>",
-      "css": ".ds-box-score { width: 280px; padding: 14px 15px 8px; background: var(--paper); color: var(--black); font-family: \"Segoe UI\", Arial, sans-serif; } .ds-box-score__header { display: grid; grid-template-columns: 1fr auto; align-items: end; padding-bottom: 8px; border-bottom: 2px solid var(--black); } .ds-box-score__header span { align-self: start; font-size: 12px; font-weight: 800; letter-spacing: .08em; } .ds-box-score__header strong { grid-row: 1/3; grid-column: 2; font: 400 58px/.8 \"Archive\", Georgia, serif; font-variant-numeric: tabular-nums; } .ds-box-score__header small { color: #636861; font-size: 11px; } .ds-box-score__facts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 0; border-bottom: 1px solid #c8c9c2; } .ds-box-score__facts span { display: grid; gap: 2px; color: #636861; font-size: 11px; } .ds-box-score__facts b { color: var(--black); font-size: 15px; }"
+      "refersTo": "match-summary",
+      "description": "Resumo escuro e horizontal com placar em destaque e estatísticas secundárias.",
+      "html": "<section class=\"ds-match-summary\"><strong>2 × 1</strong><span>Posse 54% × 46%</span><span>Finalizações 8 × 6</span></section>",
+      "css": ".ds-match-summary { display: grid; grid-template-columns: auto 1fr 1fr; align-items: center; gap: 16px; padding: 14px; border: 1px solid #303431; border-radius: 8px; background: #171918; color: #f1efe7; }"
     }
   ],
   "narrative": {
     "northStar": "A Súmula Viva",
-    "overview": "Preto no Branco transforma arquivo histórico em decisão instantânea. O mundo combina a materialidade de uma súmula impressa com a precisão de uma prancheta de transmissão: superfícies grafite, linhas finas, números monumentais e um campo que funciona como interface central.\n\nA composição é editorial, densa e deliberadamente assimétrica, mas a operação permanece direta. O papel off-white cria momentos de contraste decisivo; o verde fica reservado ao campo; o dourado pontua eras, progresso e conquista sem virar decoração. A identidade recusa o dashboard corporativo genérico, o excesso de cartões flutuantes e a landing longa como estrutura de produto.",
+    "overview": "Preto no Branco transforma arquivo histórico em decisão instantânea. A interface combina grafite, linhas finas, números fortes e um campo funcional. O dourado marca tempo e conquista, enquanto o verde permanece concentrado no campo.",
     "keyCharacteristics": [
-      "Súmula editorial de alta densidade.",
+      "Súmula editorial compacta.",
       "Campo funcional como centro da decisão.",
-      "Contraste entre grafite fosco e papel off-white.",
-      "Dourado raro para tempo histórico e conquista.",
-      "Informação tabular compacta, legível e responsiva."
+      "Contraste entre grafite e papel claro.",
+      "Dourado raro para progresso e conquista.",
+      "Leitura responsiva sem sobreposição."
     ],
     "rules": [
-      { "name": "Ouro é Pontuação", "body": "O dourado marca tempo, progresso ou conquista; nunca preenche grandes superfícies nem compete com o campo.", "section": "colors" },
-      { "name": "Archive Faz História", "body": "Use Archive somente em títulos, anos, placares, selos e ratings; toda operação e leitura contínua permanece em Segoe UI/Arial/system.", "section": "typography" },
-      { "name": "Campo no Centro", "body": "No draft desktop, preserve sempre a leitura elenco → campo → súmula/ação; no mobile, preserve a mesma sequência por abas e mantenha o campo como aba inicial.", "section": "layout" },
-      { "name": "Flat-by-Default", "body": "Painéis e controles ficam planos; use linha, tom e estado antes de adicionar qualquer sombra.", "section": "elevation" }
+      { "name": "Piso de leitura", "body": "Nenhum texto funcional fica abaixo de 11px.", "section": "typography" },
+      { "name": "Ouro é pontuação", "body": "O dourado marca tempo, progresso ou conquista e não cobre grandes superfícies.", "section": "colors" },
+      { "name": "Campo no centro", "body": "O campo permanece uma interface de decisão, nunca apenas decoração.", "section": "layout" },
+      { "name": "Responsividade real", "body": "Compacte espaços antes de reduzir fonte e permita scroll vertical quando necessário.", "section": "layout" }
     ],
     "dos": [
-      "Do preserve o campo como interface funcional e centro visual da tomada de decisão.",
-      "Do use Archive para títulos, anos, placares e ratings, mantendo Segoe UI/Arial/system no corpo operacional.",
-      "Do mantenha o draft em três colunas a partir de 921px e em abas até 920px.",
-      "Do comunique estados com texto, forma e contraste além da cor.",
-      "Do respeite foco visível e `prefers-reduced-motion` em toda interação."
+      "Preserve o campo como interface funcional.",
+      "Use Archive em títulos, placares, anos e ratings.",
+      "Comunique estados com texto, forma e contraste além da cor.",
+      "Mantenha alvos de toque com pelo menos 44px.",
+      "Respeite foco visível e redução de movimento."
     ],
     "donts": [
-      "Don't transforme o produto em dashboard corporativo com cartões uniformes e métricas decorativas.",
-      "Don't use verde fora do campo como preenchimento genérico de superfície.",
-      "Don't espalhe dourado por grandes áreas; sua raridade comunica importância.",
-      "Don't adicione sombras a painéis, tabelas ou controles planos.",
-      "Don't substitua a densidade editorial por uma sequência longa de blocos de landing page."
+      "Não transforme o produto em dashboard corporativo.",
+      "Não use verde como preenchimento genérico.",
+      "Não use transform scale como solução de layout.",
+      "Não esconda conteúdo importante com overflow.",
+      "Não crie scroll horizontal."
     ]
   }
 }

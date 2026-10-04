@@ -46,7 +46,7 @@ export function CampaignDetailsDialog({ data }: { data: SharedCampaign }) {
                   <strong>{player.overall}</strong>
                 </li>
               ))}
-              {!data.squad.length && <li><b>Escalação não registrada.</b></li>}
+              {!data.squad.length && <li className="is-empty"><b>Escalação não registrada.</b></li>}
             </ul>
           </section>
 
@@ -84,7 +84,7 @@ export function CampaignDetailsDialog({ data }: { data: SharedCampaign }) {
                   </li>
                 );
               })}
-              {!data.matches.length && <li><span>Nenhum jogo disputado.</span></li>}
+              {!data.matches.length && <li className="is-empty"><span>Nenhum jogo disputado.</span></li>}
             </ul>
           </section>
         </div>

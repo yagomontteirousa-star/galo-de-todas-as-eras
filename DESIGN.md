@@ -11,37 +11,26 @@ colors:
   muted: "#999d98"
   gold: "#b99a59"
   gold-pale: "#d7c38e"
+  star: "#f5c542"
   pitch-green: "#163c2b"
   danger: "#e49a80"
   success: "#99caaa"
 typography:
   display:
     fontFamily: "Archive, Georgia, serif"
-    fontSize: "clamp(68px, 7.5vw, 118px)"
     fontWeight: 400
-    lineHeight: 0.77
-    letterSpacing: "-0.025em"
-  headline:
-    fontFamily: "Archive, Georgia, serif"
-    fontSize: "clamp(38px, 4vw, 62px)"
-    fontWeight: 400
-    lineHeight: 0.95
-  title:
-    fontFamily: "Segoe UI, Arial, sans-serif"
-    fontSize: "16px"
-    fontWeight: 700
-    lineHeight: 1.1
+    lineHeight: 0.9
   body:
     fontFamily: "Segoe UI, Arial, sans-serif"
     fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.45
   label:
-    fontFamily: "Segoe UI, Arial, sans-serif"
+    fontFamily: "Barlow Condensed, Arial Narrow, sans-serif"
     fontSize: "11px"
     fontWeight: 700
     lineHeight: 1
-    letterSpacing: "0.1em"
+    letterSpacing: "0.08em"
 rounded:
   compact: "5px"
   control: "8px"
@@ -56,179 +45,108 @@ components:
   button-primary:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
-    typography: "{typography.label}"
-    rounded: "{rounded.control}"
-    padding: "0 18px"
     height: "46px"
-  button-quiet:
-    backgroundColor: "{colors.graphite}"
-    textColor: "{colors.paper}"
-    typography: "{typography.label}"
     rounded: "{rounded.control}"
-    padding: "0 18px"
-    height: "46px"
-  filter-chip-selected:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
-    typography: "{typography.label}"
-    rounded: "{rounded.compact}"
-    padding: "0 11px"
-    height: "36px"
   player-row:
     backgroundColor: "transparent"
     textColor: "{colors.paper}"
-    rounded: "0"
-    padding: "4px 14px"
-    height: "46px"
+    minHeight: "54px"
   pitch-player:
     backgroundColor: "#0d241a"
     textColor: "{colors.paper}"
     rounded: "{rounded.field}"
-    padding: "5px 7px"
-    width: "72px"
+  match-summary:
+    backgroundColor: "{colors.panel}"
+    textColor: "{colors.paper}"
+    rounded: "{rounded.control}"
   campaign-strip:
     backgroundColor: "{colors.ink}"
     textColor: "{colors.paper}"
     rounded: "7px"
-    padding: "5px 10px"
-  paper-box-score:
-    backgroundColor: "{colors.paper}"
-    textColor: "{colors.ink}"
-    rounded: "0"
-    padding: "14px 15px 8px"
 ---
 
 # Design System: Preto no Branco
 
-## Overview
+## Visão
 
-**Creative North Star: "A Súmula Viva"**
+**Norte criativo: A Súmula Viva**
 
-Preto no Branco transforma arquivo histórico em decisão instantânea. O mundo combina a materialidade de uma súmula impressa com a precisão de uma prancheta de transmissão: superfícies grafite, linhas finas, números monumentais e um campo que funciona como interface central.
+Preto no Branco combina a materialidade de uma súmula impressa com a precisão de uma prancheta de transmissão. O resultado é uma interface editorial, compacta e escura, com números fortes, linhas finas e um campo que funciona como área de decisão.
 
-A composição é editorial, densa e deliberadamente assimétrica, mas a operação permanece direta. O papel off-white cria momentos de contraste decisivo; o verde fica reservado ao campo; o dourado pontua eras, progresso e conquista sem virar decoração. A identidade recusa o dashboard corporativo genérico, o excesso de cartões flutuantes e a landing longa como estrutura de produto.
+O preto e o grafite estruturam a experiência. O branco cria contraste decisivo. O dourado marca tempo, progresso e conquista. O amarelo mais vivo é reservado a ações e momentos que exigem atenção. O verde pertence ao campo e a estados positivos pontuais.
 
-**Key Characteristics:**
+## Tipografia
 
-- Súmula editorial de alta densidade.
-- Campo funcional como centro da decisão.
-- Contraste entre grafite fosco e papel off-white.
-- Dourado raro para tempo histórico e conquista.
-- Informação tabular compacta, legível e responsiva.
-
-## Colors
-
-A paleta parte do grafite quase preto, abre áreas de leitura em papel off-white, reserva o verde profundo ao campo e usa dourado envelhecido como pontuação discreta.
-
-### Primary
-
-- **Papel de Súmula:** superfície de alto contraste para CTAs selecionados, box scores e folhas de resultado.
-- **Tinta de Arquivo:** fundo estrutural, texto sobre papel e contraste máximo.
-
-### Secondary
-
-- **Ouro de Era:** marca anos, progresso, conquistas e pequenas ênfases históricas.
-- **Ouro Pálido:** reforça estados atuais, ratings e foco sem dominar a tela.
-
-### Tertiary
-
-- **Campo Profundo:** único grande bloco cromático; identifica o espaço tático e nunca vira cor genérica de painel.
-
-### Neutral
-
-- **Grafite Fosco:** superfície operacional dominante.
-- **Painel de Cabine:** separa regiões densas por mudança tonal sutil.
-- **Linha de Prancheta:** estrutura grades, tabelas e divisórias.
-- **Papel Atenuado:** texto secundário de alta legibilidade.
-- **Cinza de Arquivo:** metadados, rótulos e estados futuros.
-- **Êxito e Alerta:** verde-claro e salmão comunicam encaixe e improvisação com apoio textual.
-
-**The Ouro é Pontuação Rule.** O dourado marca tempo, progresso ou conquista; nunca preenche grandes superfícies nem compete com o campo.
-
-## Typography
-
-**Display Font:** Archive (with Georgia, serif fallback)
-**Body Font:** Segoe UI (with Arial, sans-serif fallback)
-
-**Character:** Archive dá peso histórico a títulos, anos, placares e ratings; Segoe UI mantém controles, tabelas e explicações rápidos de ler. A relação é de contraste entre memória editorial e operação contemporânea.
-
-### Hierarchy
-
-- **Display** (400, responsive clamp, 0.77 line-height): heróis, desfechos e números monumentais.
-- **Headline** (400, responsive clamp, 0.95 line-height): títulos de tela e chamadas de fase.
-- **Title** (700, 16px, 1.1 line-height): nomes de era e títulos operacionais compactos.
-- **Body** (400, 16px, 1.45 line-height): explicações e narrativa corrente.
-- **Label** (700, 11px, 0.1em letter-spacing, uppercase where structural): metadados, filtros, fases e legendas.
-
-**The Piso de 11px Rule.** Nenhum texto funcional desce abaixo de 11px; nomes, posições, ratings e placares usam 12–16px para que a decisão seja lida sem esforço.
-
-**The Archive Faz História Rule.** Use Archive somente em títulos, anos, placares, selos e ratings; toda operação e leitura contínua permanece em Segoe UI/Arial/system.
+- **Archive:** títulos, anos, placares, ratings e desfechos.
+- **Segoe UI e sistema:** textos, decisões, explicações e leitura contínua.
+- **Barlow Condensed:** rótulos, fases, posições, filtros e chamadas curtas.
+- **Piso de leitura:** nenhum texto funcional abaixo de 11px.
+- Nomes e descrições devem quebrar naturalmente quando necessário, sem sobreposição ou scroll horizontal.
 
 ## Layout
 
-O desktop é uma experiência contida em um viewport, com cabeçalho baixo de 64px e superfícies densas sem rolagem da página. O draft usa duas colunas reais — elenco à esquerda (`minmax(340px, .9fr)`) e campo dominante à direita (`minmax(460px, 1.1fr)`) — separadas por uma linha fina, não por cartões soltos. A leitura da força do time (box score em papel) pertence à tela de jogo, não à montagem.
+- Desktop começa em 921px. Mobile termina em 920px.
+- Telas operacionais podem rolar verticalmente quando a altura disponível não comportar o conteúdo.
+- A home busca caber na primeira dobra em desktops comuns, mas nunca corta conteúdo para forçar esse resultado.
+- Em notebook baixo, reduzir margens, vazios e elementos decorativos antes de reduzir fonte.
+- No mobile, empilhar o fluxo e preservar a ordem da ação principal.
+- Grades usam `minmax(0, 1fr)` e filhos usam `min-width: 0` para impedir vazamento.
+- Nenhuma tela usa `transform: scale()` como solução de responsividade.
 
-O breakpoint estrutural é explícito: desktop começa em 921px; mobile termina em 920px. Em 920px ou menos, o documento volta a rolar, o draft vira duas abas empilhadas com o elenco como entrada padrão (Elenco, Campo), o header reduz para 58px e a chave do mata-mata empilha as quatro fases em coluna única, sem rolagem horizontal. Entre 921px e 1180px, as duas colunas permanecem, mas comprimem suas mínimas e removem detalhes secundários. O ritmo usa intervalos compactos de 6–12px dentro de controles e 20–46px nas margens de tela.
+## Hierarquia por área
 
-**The Campo no Centro Rule.** No draft desktop, preserve sempre a leitura elenco → campo; no mobile, mantenha a mesma sequência por abas com o elenco como aba inicial. Tocar numa peça escalada abre a troca de posição — nunca remove o atleta.
+### Home
 
-## Elevation & Depth
+Marca, título, ação principal e campo dominam. Etapas e rodapé vêm depois e nunca se sobrepõem. A ação de começar campanha tem prioridade sobre a revisão da última campanha.
 
-O sistema é plano e estrutural: profundidade vem de contraste tonal, linhas de 1px e alternância entre grafite e papel. A única sombra material recorrente pertence ao campo, que recebe `0 16px 40px rgba(0,0,0,.22)` para parecer uma prancheta física acima do fundo. Hover em botões usa deslocamento de 1px e mudança de borda, não sombra.
+### Setup e draft
 
-### Shadow Vocabulary
+O campo é a área central de decisão. Lista, campo e controles mantêm densidade editorial. No mobile, abas organizam o conteúdo sem comprimir três colunas.
 
-- **Campo elevado** (`0 16px 40px rgba(0,0,0,.22)`): aplicado exclusivamente ao retângulo do campo.
+### Partida
 
-**The Flat-by-Default Rule.** Painéis e controles ficam planos; use linha, tom e estado antes de adicionar qualquer sombra.
+Placar e ação principal ficam altos. Controles ocupam uma linha própria. Timeline e contexto dividem a primeira linha de conteúdo no desktop. O resumo da partida ocupa um card horizontal abaixo, com placar, gols, posse, finalizações, finalizações no alvo e leitura simples de pressão.
 
-## Shapes
+### Intervalo e decisões
 
-As formas são compactas e utilitárias. Controles usam cantos de 5–8px, fichas e o campo chegam a 10px, e agrupamentos maiores podem usar 12px. Folhas de súmula e resultados permanecem retangulares, reforçando o contraste entre papel impresso e interface digital. Bordas finas de 1px são o principal instrumento de agrupamento.
+A decisão fica acima de informações secundárias. O jogo comunica prazo, escolha e consequência sem esconder a ação de continuar.
 
-## Components
+### Chave e resultado
 
-### Buttons
+A chave usa visão por fase no mobile. O resultado final prioriza placar, destaques, compartilhamento e nova campanha. Jogos e elenco podem expandir no fluxo sem cobrir o resultado.
 
-- **Shape:** retângulo compacto com cantos controlados, altura mínima de 46px e padding horizontal de 18px.
-- **Primary:** papel off-white sobre tinta preta; no box score claro, a relação se inverte para tinta sobre papel.
-- **Hover / Focus:** elevação de 1px, borda mais clara e foco global de 2px em ouro pálido; estados desabilitados usam opacidade de 0.38.
-- **Quiet:** grafite com texto off-white e borda fina; serve ações secundárias sem competir com o fluxo.
+## Componentes
 
-### Chips
+### Botões
 
-- **Style:** filtros de 36px, fundo tinta e borda de linha.
-- **State:** o selecionado vira papel com texto preto; o rótulo nunca depende apenas da cor.
+Altura mínima de 44px, normalmente 46px. O primário usa papel claro sobre fundo escuro. Ações secundárias usam grafite e borda fina. Foco tem contorno dourado claro de 2px.
 
-### Cards / Containers
+### Campo e atletas
 
-- **Player Row:** linha de tabela clicável de 46px com posição, nome e rating lado a lado, encaixe e confirmação; seleção troca a linha inteira para papel.
-- **Paper Box Score:** folha clara na tela de jogo, cabeçalho com regra preta de 2px e métricas em grade.
-- **Champion Scene:** foto de arquivo em tela cheia com gradiente escuro à esquerda; o texto ocupa até 560px e a composição fotográfica permanece livre à direita.
-- **Tutorial Coach:** cartão flutuante de 5 passos com destaque discreto no alvo, pulável a qualquer momento.
-- **Pitch Player:** ficha verde-escura de 72px sobre o campo; rating em Archive e bordas semânticas para encaixe natural, secundário ou improvisado.
-- **Campaign Strip:** faixa compacta segmentada, com rótulos de 9–13px e numerais tabulares.
-- **Bracket Match:** cartão de confronto com ano, nome em 15px, placar em Archive e marcação explícita da equipe do jogador.
-- **Match Controls:** faixa de pausa, velocidade (lento/normal/rápido) e avanço, com alvos de 44px em qualquer tela.
+O campo usa verde profundo e uma única sombra material. Cada atleta ocupa uma ficha compacta própria. Nome, posição e rating nunca invadem a posição vizinha. Seleção natural usa verde; improvisação usa amarelo com texto de apoio.
 
-### Navigation
+### Timeline
 
-O cabeçalho é baixo e contínuo. Marca, estado da campanha, progresso de fases e ação textual ocupam uma única faixa no desktop; no mobile, o nome extenso e dados menos importantes desaparecem, mantendo monograma, estado essencial e reinício.
+Exibe até quatro lances, do mais novo para o mais antigo. Ícones vetoriais identificam a ação. Gol do Galo recebe destaque dourado; gol rival permanece neutro. Texto pode quebrar, mas nunca usa corte com reticências na descrição.
 
-## Do's and Don'ts
+### Resumo da partida
 
-### Do:
+Card escuro e horizontal no desktop, compacto no mobile. O placar é o foco. Estatísticas são secundárias. Não repete nome, elenco ou escudo já visíveis no cabeçalho do confronto.
 
-- **Do** preserve o campo como interface funcional e centro visual da tomada de decisão.
-- **Do** use Archive para títulos, anos, placares e ratings, mantendo Segoe UI/Arial/system no corpo operacional.
-- **Do** mantenha o draft em duas colunas a partir de 921px e em abas até 920px.
-- **Do** comunique estados com texto, forma e contraste além da cor.
-- **Do** respeite foco visível e `prefers-reduced-motion` em toda interação.
+### Rodapé
 
-### Don't:
+Permanece no fluxo após o conteúdo. Texto e logo da Master Digital formam um único link com área de toque confortável.
 
-- **Don't** transforme o produto em dashboard corporativo com cartões uniformes e métricas decorativas.
-- **Don't** use verde fora do campo como preenchimento genérico de superfície.
-- **Don't** espalhe dourado por grandes áreas; sua raridade comunica importância.
-- **Don't** adicione sombras a painéis, tabelas ou controles planos.
-- **Don't** substitua a densidade editorial por uma sequência longa de blocos de landing page.
+## Movimento
+
+Transições de estado usam 160 a 220ms. Movimento contínuo só aparece quando comunica atividade real. Nenhuma atualização do relógio pode reiniciar animações de timeline ou placar. `prefers-reduced-motion` reduz ou remove efeitos não essenciais.
+
+## Regras
+
+- O dourado pontua, não preenche grandes superfícies.
+- O campo é funcional e central.
+- Painéis são planos por padrão. Profundidade vem de linhas e contraste tonal.
+- Alvos de toque têm pelo menos 44px.
+- O layout deve funcionar a 100% de zoom sem exigir ajuste manual.
+- Scroll vertical é aceitável quando necessário. Scroll horizontal e conteúdo cortado não são.
+- O multiplayer permanece visualmente preservado no código, mas a rota pública mostra apenas o estado de pausa.

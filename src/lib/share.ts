@@ -160,7 +160,7 @@ function fromCompactText(text: string): SharedCampaign | null {
     const overallValue = toInt(playerOverall);
     if (!name || seasonValue === null || overallValue === null) return null;
     squad.push({
-      slot: slots[index]?.label ?? "—", name, season: seasonValue + YEAR_BASE,
+      slot: slots[index]?.label ?? "Sem posição", name, season: seasonValue + YEAR_BASE,
       overall: overallValue, special: special === "1",
     });
   }

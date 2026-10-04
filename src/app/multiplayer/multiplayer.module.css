@@ -1,0 +1,64 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  justify-items: center;
+  padding: clamp(16px, 3vw, 42px);
+  overflow-x: clip;
+  background: radial-gradient(circle at 72% 24%, rgba(245, 197, 66, .07), transparent 32%), var(--black);
+}
+
+.content {
+  width: min(760px, 100%);
+  align-self: center;
+  display: grid;
+  justify-items: start;
+  gap: clamp(24px, 4vh, 42px);
+  padding: clamp(24px, 5vw, 54px);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--graphite);
+}
+
+.content > div {
+  display: grid;
+  gap: 12px;
+}
+
+.content h1 {
+  max-width: 12ch;
+  margin: 0;
+  font: 400 clamp(46px, 8vw, 78px)/.86 var(--font-display);
+  letter-spacing: -.02em;
+}
+
+.content p {
+  max-width: 54ch;
+  margin: 0;
+  color: var(--paper-dim);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.page :global(.site-footer) {
+  width: min(760px, 100%);
+}
+
+@media (max-width: 540px) {
+  .page {
+    padding: 12px;
+  }
+
+  .content {
+    gap: 24px;
+    padding: 24px 18px;
+  }
+
+  .content h1 {
+    font-size: clamp(40px, 14vw, 64px);
+  }
+
+  .content :global(.button) {
+    width: 100%;
+  }
+}

@@ -30,8 +30,8 @@ function makeOpponent([name, year, formationId, tactic, playerSeeds]: OpponentSe
 
 /**
  * Notas individuais na mesma escala do arquivo do Atlético: 93+ é uma temporada de
- * referência histórica; 89–92 identifica protagonistas de elite; 84–88, titulares
- * fortes; 79–83, peças funcionais; abaixo disso, somente contextos realmente modestos.
+ * referência histórica; 89 a 92 identifica protagonistas de elite; 84 a 88, titulares
+ * fortes; 79 a 83, peças funcionais; abaixo disso, somente contextos realmente modestos.
  * A ordem acompanha as onze vagas da formação para preservar posição e peso setorial.
  */
 const opponentSeeds: OpponentSeed[] = [

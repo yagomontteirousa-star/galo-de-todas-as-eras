@@ -41,7 +41,7 @@ export function BrandMark({ size = 32, tone = "light", className }: { size?: num
 }
 
 export function SiteFooter() {
-  const logo = <Image src="/assets/master-digital.svg" alt="Master Digital" width={126} height={36} unoptimized/>;
+  const logo = <Image src="/assets/master-digital.svg" alt="Master Digital" width={126} height={36} loading="eager" unoptimized/>;
   return (
     <footer className="site-footer">
       {/* A faixa inteira é o link: texto e marca, com área de toque confortável. */}

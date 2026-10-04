@@ -21,7 +21,7 @@ const REVEAL_MS = 820;
 type MobileTab = "roster" | "pitch";
 interface PickToast { id: number; tone: "ok" | "block"; title: string; detail: string }
 
-/** Uma vaga só aceita quem a cobre de forma natural ou secundária — improviso não escala. */
+/** Uma vaga só aceita quem a cobre de forma natural ou secundária. Improviso não escala. */
 const canPlay = (player: Player, slot: FormationSlot) => evaluatePosition(player, slot).fit !== "improvised";
 const compatibleSlots = (player: Player, slots: FormationSlot[], exceptSlotId?: string) =>
   slots.filter((slot) => slot.id !== exceptSlotId && canPlay(player, slot));

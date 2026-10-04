@@ -568,7 +568,7 @@ function Shootout({ kicks, current, revealed, total, match, decided }: {
                   className={`${kick.scored ? "is-scored" : "is-missed"} ${kick.order === scoreKick?.order ? "is-latest" : ""} ${kick.suddenDeath ? "is-sudden" : ""}`}>
                   <i aria-hidden="true"/>
                   <b>{kick.taker}</b>
-                  <em>{kick.homeScore}–{kick.awayScore}</em>
+                  <em>{kick.homeScore} × {kick.awayScore}</em>
                 </li>
               ))}
               {current && !revealed && current.side === side && (
@@ -700,7 +700,7 @@ function BoxScore({ goals, userTeamId, stats }: {
 function Stat({ label, values, suffix = "", hint }: { label: string; values: [number | null, number | null]; suffix?: string; hint?: string }) {
   return <div title={hint}>
     <dt>{label}</dt>
-    <dd><b>{values[0] ?? "—"}{values[0] === null ? "" : suffix}</b><i>×</i><b>{values[1] ?? "—"}{values[1] === null ? "" : suffix}</b></dd>
+    <dd><b>{values[0] ?? "·"}{values[0] === null ? "" : suffix}</b><i>×</i><b>{values[1] ?? "·"}{values[1] === null ? "" : suffix}</b></dd>
   </div>;
 }
 
